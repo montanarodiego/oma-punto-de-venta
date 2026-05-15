@@ -2,21 +2,23 @@
   "name": "oma-punto-de-venta",
   "version": "1.0.0",
   "description": "Sistema POS híbrido offline/online para Oma",
+  "author": "OmaTech",
   "main": "src/main/main.js",
   "scripts": {
     "start": "electron .",
     "dev": "electron . --dev",
     "rebuild": "electron-rebuild -f -w better-sqlite3",
     "build:tailwind": "tailwindcss -i ./src/renderer/css/style.css -o ./src/renderer/css/output.css --watch",
-    "dist": "electron-builder --win"
+    "dist": "electron-builder --win",
+    "dist:dir": "electron-builder --win --dir"
   },
   "dependencies": {
     "better-sqlite3": "^9.4.3",
-    "electron": "^29.1.0",
     "firebase": "^10.9.0"
   },
   "devDependencies": {
     "@electron/rebuild": "^4.0.4",
+    "electron": "^29.1.0",
     "electron-builder": "^26.8.1",
     "tailwindcss": "^3.4.1"
   },

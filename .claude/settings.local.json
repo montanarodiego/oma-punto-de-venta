@@ -15,7 +15,9 @@
       "Bash(node -e ' *)",
       "Bash(node -e \"require\\('./src/main/sync.js'\\); console.log\\('sync OK'\\)\")",
       "Bash(node -e \"require\\('./src/main/auth.js'\\); console.log\\('auth OK'\\)\")",
-      "Bash(node -e \"const p = require\\('./package.json'\\); console.log\\('main:', p.main\\); console.log\\('dist script:', p.scripts.dist\\); console.log\\('appId:', p.build.appId\\); console.log\\('icon:', p.build.win.icon\\);\")"
+      "Bash(node -e \"const p = require\\('./package.json'\\); console.log\\('main:', p.main\\); console.log\\('dist script:', p.scripts.dist\\); console.log\\('appId:', p.build.appId\\); console.log\\('icon:', p.build.win.icon\\);\")",
+      "Bash(npm run *)",
+      "Bash(dir C:\\\\Users\\\\diego\\\\Desktop\\\\oma-punto-de-venta\\\\dist\\\\win-unpacked *)"
     ]
   }
 }
