@@ -27,7 +27,7 @@
       <input
         id="busqueda"
         type="text"
-        placeholder="Buscar artículo..."
+        placeholder="Buscar por código o nombre..."
         class="flex-1 border border-gray-300 rounded px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-400 bg-white"
       />
       <button
@@ -41,74 +41,108 @@
     <!-- Tabla de artículos -->
     <div class="flex-1 overflow-y-auto bg-white rounded shadow">
       <table class="w-full text-sm">
-        <thead class="bg-gray-50 border-b border-gray-200 text-gray-600 sticky top-0">
+        <thead class="bg-gray-50 border-b border-gray-200 text-gray-600 sticky top-0 z-10">
           <tr>
-            <th class="px-4 py-3 text-left">Código</th>
+            <th class="px-4 py-3 text-left whitespace-nowrap">Código</th>
             <th class="px-4 py-3 text-left">Nombre</th>
-            <th class="px-4 py-3 text-right">Costo</th>
-            <th class="px-4 py-3 text-right">Precio</th>
-            <th class="px-4 py-3 text-right">Stock</th>
-            <th class="px-4 py-3 text-center">Estado</th>
+            <th class="px-4 py-3 text-right whitespace-nowrap">Precio costo</th>
+            <th class="px-4 py-3 text-right whitespace-nowrap">Precio venta</th>
+            <th class="px-4 py-3 text-right whitespace-nowrap">Stock actual</th>
+            <th class="px-4 py-3 text-right whitespace-nowrap">Stock mín.</th>
+            <th class="px-4 py-3 text-left">Proveedor</th>
             <th class="px-4 py-3 text-center">Acciones</th>
           </tr>
         </thead>
         <tbody id="tabla-articulos" class="divide-y divide-gray-100">
           <tr>
-            <td colspan="7" class="px-4 py-8 text-center text-gray-400">Cargando...</td>
+            <td colspan="8" class="px-4 py-8 text-center text-gray-400">Cargando...</td>
           </tr>
         </tbody>
       </table>
     </div>
   </main>
 
-  <!-- Modal artículo (oculto) -->
+  <!-- ── Modal: ABM artículo ─────────────────────────────────── -->
   <div id="modal" class="fixed inset-0 bg-black/40 flex items-center justify-center hidden z-50">
     <div class="bg-white rounded-lg shadow-xl w-full max-w-lg p-6">
       <h3 id="modal-titulo" class="text-lg font-semibold mb-4">Nuevo artículo</h3>
-      <form id="form-articulo" class="grid grid-cols-2 gap-3 text-sm">
+
+      <div id="error-msg" class="hidden mb-3 px-3 py-2 bg-red-50 border border-red-200 text-red-700 rounded text-sm"></div>
+
+      <form id="form-articulo" class="grid grid-cols-2 gap-3 text-sm" novalidate>
         <label class="flex flex-col gap-1">
-          <span class="text-gray-600">Código *</span>
-          <input name="codigo" required class="border rounded px-2 py-1.5 focus:outline-none focus:ring-2 focus:ring-blue-400" />
+          <span class="text-gray-600">Código <span class="text-red-500">*</span></span>
+          <input name="codigo" autocomplete="off"
+            class="border rounded px-2 py-1.5 focus:outline-none focus:ring-2 focus:ring-blue-400" />
         </label>
         <label class="flex flex-col gap-1">
-          <span class="text-gray-600">Nombre *</span>
-          <input name="nombre" required class="border rounded px-2 py-1.5 focus:outline-none focus:ring-2 focus:ring-blue-400" />
+          <span class="text-gray-600">Nombre <span class="text-red-500">*</span></span>
+          <input name="nombre" autocomplete="off"
+            class="border rounded px-2 py-1.5 focus:outline-none focus:ring-2 focus:ring-blue-400" />
         </label>
         <label class="col-span-2 flex flex-col gap-1">
           <span class="text-gray-600">Descripción</span>
-          <input name="descripcion" class="border rounded px-2 py-1.5 focus:outline-none focus:ring-2 focus:ring-blue-400" />
+          <input name="descripcion" autocomplete="off"
+            class="border rounded px-2 py-1.5 focus:outline-none focus:ring-2 focus:ring-blue-400" />
         </label>
         <label class="flex flex-col gap-1">
-          <span class="text-gray-600">Costo unitario</span>
-          <input name="costo_unitario" type="number" step="0.01" min="0" class="border rounded px-2 py-1.5 focus:outline-none focus:ring-2 focus:ring-blue-400" />
+          <span class="text-gray-600">Precio costo</span>
+          <input name="costo_unitario" type="number" step="0.01" min="0" value="0"
+            class="border rounded px-2 py-1.5 focus:outline-none focus:ring-2 focus:ring-blue-400" />
         </label>
         <label class="flex flex-col gap-1">
-          <span class="text-gray-600">Precio unitario *</span>
-          <input name="precio_unitario" type="number" step="0.01" min="0" required class="border rounded px-2 py-1.5 focus:outline-none focus:ring-2 focus:ring-blue-400" />
+          <span class="text-gray-600">Precio venta <span class="text-red-500">*</span></span>
+          <input name="precio_unitario" type="number" step="0.01" min="0.01" value=""
+            class="border rounded px-2 py-1.5 focus:outline-none focus:ring-2 focus:ring-blue-400" />
         </label>
         <label class="flex flex-col gap-1">
           <span class="text-gray-600">Stock actual</span>
-          <input name="stock_actual" type="number" step="0.001" min="0" class="border rounded px-2 py-1.5 focus:outline-none focus:ring-2 focus:ring-blue-400" />
+          <input name="stock_actual" type="number" step="0.001" min="0" value="0"
+            class="border rounded px-2 py-1.5 focus:outline-none focus:ring-2 focus:ring-blue-400" />
         </label>
         <label class="flex flex-col gap-1">
           <span class="text-gray-600">Stock mínimo</span>
-          <input name="stock_minimo" type="number" step="0.001" min="0" class="border rounded px-2 py-1.5 focus:outline-none focus:ring-2 focus:ring-blue-400" />
+          <input name="stock_minimo" type="number" step="0.001" min="0" value="0"
+            class="border rounded px-2 py-1.5 focus:outline-none focus:ring-2 focus:ring-blue-400" />
         </label>
         <label class="col-span-2 flex flex-col gap-1">
           <span class="text-gray-600">Proveedor</span>
-          <input name="proveedor" class="border rounded px-2 py-1.5 focus:outline-none focus:ring-2 focus:ring-blue-400" />
+          <input name="proveedor" autocomplete="off"
+            class="border rounded px-2 py-1.5 focus:outline-none focus:ring-2 focus:ring-blue-400" />
         </label>
         <div class="col-span-2 flex justify-end gap-2 mt-2">
           <button type="button" id="btn-cancelar-modal"
             class="px-4 py-2 border border-gray-300 rounded text-gray-600 hover:bg-gray-50 transition">
             Cancelar
           </button>
-          <button type="submit"
+          <button type="submit" id="btn-guardar"
             class="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700 transition">
             Guardar
           </button>
         </div>
       </form>
+    </div>
+  </div>
+
+  <!-- ── Modal: confirmar eliminación ───────────────────────── -->
+  <div id="modal-confirm" class="fixed inset-0 bg-black/40 flex items-center justify-center hidden z-50">
+    <div class="bg-white rounded-lg shadow-xl w-full max-w-sm p-6">
+      <h3 class="text-base font-semibold mb-2 text-gray-800">Eliminar artículo</h3>
+      <p class="text-sm text-gray-600 mb-5">
+        ¿Estás seguro que querés eliminar
+        <span id="confirm-nombre" class="font-semibold text-gray-800"></span>?
+        Esta acción no se puede deshacer.
+      </p>
+      <div class="flex justify-end gap-2">
+        <button id="btn-cancelar-confirm"
+          class="px-4 py-2 border border-gray-300 rounded text-gray-600 hover:bg-gray-50 transition text-sm">
+          Cancelar
+        </button>
+        <button id="btn-confirmar-eliminar"
+          class="px-4 py-2 bg-red-600 text-white rounded hover:bg-red-700 transition text-sm">
+          Eliminar
+        </button>
+      </div>
     </div>
   </div>
 

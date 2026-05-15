@@ -1,5 +1,10 @@
 const { getDb } = require('../database');
 
+const CAMPOS_EDITABLES = [
+  'codigo', 'nombre', 'descripcion', 'costo_unitario', 'precio_unitario',
+  'stock_actual', 'stock_minimo', 'proveedor',
+];
+
 function getAll() {
   return getDb().prepare('SELECT * FROM articulos ORDER BY nombre').all();
 }
@@ -33,11 +38,11 @@ function create(data) {
 }
 
 function update(id, data) {
-  const fields = Object.keys(data)
-    .map(k => `${k} = @${k}`)
-    .join(', ');
+  const campos = Object.keys(data).filter(k => CAMPOS_EDITABLES.includes(k));
+  if (campos.length === 0) throw new Error('Sin campos válidos para actualizar');
+  const set = campos.map(k => `${k} = @${k}`).join(', ');
   getDb()
-    .prepare(`UPDATE articulos SET ${fields}, sync_status = 'pending', updated_at = datetime('now') WHERE id = @id`)
+    .prepare(`UPDATE articulos SET ${set}, sync_status = 'pending', updated_at = datetime('now') WHERE id = @id`)
     .run({ ...data, id });
   return getById(id);
 }
