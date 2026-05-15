@@ -3,8 +3,9 @@ const path = require('path');
 const { initDatabase, getDb } = require('./database');
 const { registerHandlers }    = require('./ipc');
 const { auth, firestore }     = require('./firebase');
-const { loginConEmail }       = require('./auth');
+const { loginConEmail, reautenticarDesdeToken } = require('./auth');
 const {
+  encriptar,
   syncPendientes,
   verificarLicencia,
   guardarTokenLocal,
@@ -157,6 +158,10 @@ function registerAuthHandlers() {
           ? lic.vencimiento.getTime()
           : Date.now() + 30 * 24 * 60 * 60 * 1000,
         timestamp: Date.now(),
+        credenciales: {
+          email:    encriptar(email,    user.uid),
+          password: encriptar(password, user.uid),
+        },
       });
 
       negocioIdActivo = user.uid;
@@ -216,6 +221,7 @@ app.whenReady().then(async () => {
   const token = verificarTokenLocal();
   if (token.activa) {
     negocioIdActivo = token.negocioId;
+    await reautenticarDesdeToken(auth, token);  // restaura auth.currentUser antes del sync
     createWindow();
     iniciarSyncInterval();
   } else {

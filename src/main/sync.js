@@ -1,7 +1,30 @@
 const { doc, setDoc, getDoc } = require('firebase/firestore');
-const { app } = require('electron');
-const path    = require('path');
-const fs      = require('fs');
+const { app }  = require('electron');
+const path     = require('path');
+const fs       = require('fs');
+const crypto   = require('crypto');
+
+// ── Criptografía de credenciales ───────────────────────────────
+// Clave AES-256 derivada del negocioId (SHA-256, 32 bytes).
+function _clave(negocioId) {
+  return crypto.createHash('sha256').update(negocioId).digest();
+}
+
+// Retorna "iv:authTag:cifrado" en hex.
+function encriptar(texto, negocioId) {
+  const iv     = crypto.randomBytes(16);
+  const cipher = crypto.createCipheriv('aes-256-gcm', _clave(negocioId), iv);
+  const enc    = Buffer.concat([cipher.update(texto, 'utf8'), cipher.final()]);
+  return `${iv.toString('hex')}:${cipher.getAuthTag().toString('hex')}:${enc.toString('hex')}`;
+}
+
+// Inversa de encriptar(). Lanza si los datos están corruptos o la clave es incorrecta.
+function desencriptar(dato, negocioId) {
+  const [ivHex, tagHex, encHex] = dato.split(':');
+  const dec = crypto.createDecipheriv('aes-256-gcm', _clave(negocioId), Buffer.from(ivHex, 'hex'));
+  dec.setAuthTag(Buffer.from(tagHex, 'hex'));
+  return Buffer.concat([dec.update(Buffer.from(encHex, 'hex')), dec.final()]).toString('utf8');
+}
 
 // Sube todos los registros pendientes de SQLite a Firestore y los marca 'synced'.
 // authInst es la instancia de Firebase Auth; si currentUser es null la sync se cancela
@@ -102,6 +125,8 @@ function verificarTokenLocal() {
 }
 
 module.exports = {
+  encriptar,
+  desencriptar,
   syncPendientes,
   contarPendientes,
   verificarLicencia,
