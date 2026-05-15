@@ -124,8 +124,18 @@ function iniciarSyncInterval() {
   }, 30 * 60 * 1000);
 }
 
-// ── Handlers de autenticación ──────────────────────────────────
+// ── Handlers de autenticación y sync ──────────────────────────
 function registerAuthHandlers() {
+  ipcMain.handle('sync:manual', async () => {
+    if (!negocioIdActivo) return { ok: false, error: 'Sin sesión activa.' };
+    try {
+      const resultado = await syncPendientes(getDb(), firestore, negocioIdActivo);
+      return { ok: true, ...resultado };
+    } catch (err) {
+      return { ok: false, error: err.message };
+    }
+  });
+
   ipcMain.handle('auth:login', async (_e, email, password) => {
     try {
       const user = await loginConEmail(auth, email, password);

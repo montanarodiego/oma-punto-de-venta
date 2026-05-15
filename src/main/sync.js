@@ -4,7 +4,11 @@ const path    = require('path');
 const fs      = require('fs');
 
 // Sube todos los registros pendientes de SQLite a Firestore y los marca 'synced'.
+// Retorna { sincronizados: N, fallidos: M }
 async function syncPendientes(db, firestoreInst, negocioId) {
+  let sincronizados = 0;
+  let fallidos      = 0;
+
   for (const tabla of ['articulos', 'clientes', 'transacciones']) {
     const rows = db
       .prepare(`SELECT * FROM ${tabla} WHERE sync_status = 'pending'`)
@@ -19,11 +23,27 @@ async function syncPendientes(db, firestoreInst, negocioId) {
         );
         db.prepare(`UPDATE ${tabla} SET sync_status = 'synced' WHERE id = ?`)
           .run(row.id);
+        sincronizados++;
       } catch {
         // sin internet o error puntual — el registro queda 'pending' para el próximo ciclo
+        fallidos++;
       }
     }
   }
+
+  return { sincronizados, fallidos };
+}
+
+// Cuenta el total de registros con sync_status = 'pending' en las tres tablas.
+function contarPendientes(db) {
+  let total = 0;
+  for (const tabla of ['articulos', 'clientes', 'transacciones']) {
+    const row = db
+      .prepare(`SELECT COUNT(*) as count FROM ${tabla} WHERE sync_status = 'pending'`)
+      .get();
+    total += row.count;
+  }
+  return total;
 }
 
 // Lee el campo 'licencia' del documento negocios/{negocioId} en Firestore.
@@ -74,4 +94,10 @@ function verificarTokenLocal() {
   }
 }
 
-module.exports = { syncPendientes, verificarLicencia, guardarTokenLocal, verificarTokenLocal };
+module.exports = {
+  syncPendientes,
+  contarPendientes,
+  verificarLicencia,
+  guardarTokenLocal,
+  verificarTokenLocal,
+};

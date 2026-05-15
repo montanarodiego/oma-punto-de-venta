@@ -52,6 +52,12 @@ contextBridge.exposeInMainWorld('api', {
     set:    (clave, valor)  => ipcRenderer.invoke('config:set', clave, valor),
   },
 
+  // Sincronización
+  sync: {
+    manual:           ()  => ipcRenderer.invoke('sync:manual'),
+    contarPendientes: ()  => ipcRenderer.invoke('sync:contarPendientes'),
+  },
+
   // Autenticación / licencia
   auth: {
     login: (email, password) => ipcRenderer.invoke('auth:login', email, password),

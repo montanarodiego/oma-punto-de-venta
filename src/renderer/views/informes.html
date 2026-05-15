@@ -11,12 +11,15 @@
 
   <header class="bg-blue-700 text-white px-6 py-3 flex items-center justify-between shadow">
     <h1 class="text-xl font-bold tracking-wide">Oma — Punto de Venta</h1>
-    <nav class="flex gap-4 text-sm font-medium">
+    <nav class="flex gap-4 text-sm font-medium items-center">
       <a href="caja.html"          class="px-3 py-1 rounded hover:bg-blue-600">Caja</a>
       <a href="catalogo.html"      class="px-3 py-1 rounded hover:bg-blue-600">Catálogo</a>
       <a href="clientes.html"      class="px-3 py-1 rounded hover:bg-blue-600">Clientes</a>
       <a href="informes.html"      class="px-3 py-1 rounded bg-blue-900">Informes</a>
       <a href="configuracion.html" class="px-3 py-1 rounded hover:bg-blue-600">Configuración</a>
+      <span id="badge-sync"
+        class="hidden text-xs bg-yellow-400 text-yellow-900 font-semibold px-2 py-0.5 rounded-full">
+      </span>
     </nav>
   </header>
 
@@ -144,5 +147,6 @@
   </main>
 
   <script src="../js/informes.js"></script>
+  <script src="../js/nav-badge.js"></script>
 </body>
 </html>

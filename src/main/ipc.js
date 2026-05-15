@@ -39,6 +39,19 @@ function registerHandlers() {
   ipcMain.handle('informes:utilidadBruta',        (_e, d, h) => Informes.utilidadBruta(d, h));
   ipcMain.handle('informes:saldosClientes',       ()         => Informes.saldosClientes());
 
+  // ── Sync ───────────────────────────────────────────────────
+  ipcMain.handle('sync:contarPendientes', () => {
+    const db = getDb();
+    let total = 0;
+    for (const tabla of ['articulos', 'clientes', 'transacciones']) {
+      const row = db
+        .prepare(`SELECT COUNT(*) as count FROM ${tabla} WHERE sync_status = 'pending'`)
+        .get();
+      total += row.count;
+    }
+    return total;
+  });
+
   // ── Configuración ──────────────────────────────────────────
   ipcMain.handle('config:get', (_e, clave) => {
     const row = getDb().prepare('SELECT valor FROM configuracion WHERE clave = ?').get(clave);
