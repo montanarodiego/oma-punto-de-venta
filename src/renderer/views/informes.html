@@ -1,0 +1,81 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Oma POS — Informes</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <link rel="stylesheet" href="../css/style.css" />
+</head>
+<body class="bg-gray-100 text-gray-800 h-screen flex flex-col">
+
+  <header class="bg-blue-700 text-white px-6 py-3 flex items-center justify-between shadow">
+    <h1 class="text-xl font-bold tracking-wide">Oma — Punto de Venta</h1>
+    <nav class="flex gap-4 text-sm font-medium">
+      <a href="caja.html"          class="px-3 py-1 rounded hover:bg-blue-600">Caja</a>
+      <a href="catalogo.html"      class="px-3 py-1 rounded hover:bg-blue-600">Catálogo</a>
+      <a href="clientes.html"      class="px-3 py-1 rounded hover:bg-blue-600">Clientes</a>
+      <a href="informes.html"      class="px-3 py-1 rounded bg-blue-900">Informes</a>
+      <a href="configuracion.html" class="px-3 py-1 rounded hover:bg-blue-600">Configuración</a>
+    </nav>
+  </header>
+
+  <main class="flex flex-col flex-1 overflow-hidden p-6 gap-4">
+
+    <!-- Filtros de fecha -->
+    <div class="flex items-center gap-3 bg-white rounded shadow px-4 py-3">
+      <label class="text-sm text-gray-600">Desde</label>
+      <input id="fecha-desde" type="date"
+        class="border border-gray-300 rounded px-2 py-1 text-sm focus:outline-none focus:ring-2 focus:ring-blue-400" />
+      <label class="text-sm text-gray-600">Hasta</label>
+      <input id="fecha-hasta" type="date"
+        class="border border-gray-300 rounded px-2 py-1 text-sm focus:outline-none focus:ring-2 focus:ring-blue-400" />
+      <button id="btn-filtrar"
+        class="bg-blue-600 hover:bg-blue-700 text-white text-sm font-medium px-4 py-1.5 rounded transition">
+        Filtrar
+      </button>
+    </div>
+
+    <!-- Tarjetas resumen -->
+    <div class="grid grid-cols-3 gap-4">
+      <div class="bg-white rounded shadow p-4">
+        <p class="text-xs text-gray-500 uppercase tracking-wide">Ventas del período</p>
+        <p id="total-ventas" class="text-2xl font-bold text-gray-800 mt-1">$0,00</p>
+      </div>
+      <div class="bg-white rounded shadow p-4">
+        <p class="text-xs text-gray-500 uppercase tracking-wide">Cantidad de tickets</p>
+        <p id="cant-tickets" class="text-2xl font-bold text-gray-800 mt-1">0</p>
+      </div>
+      <div class="bg-white rounded shadow p-4">
+        <p class="text-xs text-gray-500 uppercase tracking-wide">Ticket promedio</p>
+        <p id="ticket-promedio" class="text-2xl font-bold text-gray-800 mt-1">$0,00</p>
+      </div>
+    </div>
+
+    <!-- Tabla de transacciones -->
+    <div class="flex-1 overflow-y-auto bg-white rounded shadow">
+      <table class="w-full text-sm">
+        <thead class="bg-gray-50 border-b border-gray-200 text-gray-600 sticky top-0">
+          <tr>
+            <th class="px-4 py-3 text-left">#</th>
+            <th class="px-4 py-3 text-left">Fecha</th>
+            <th class="px-4 py-3 text-left">Forma de pago</th>
+            <th class="px-4 py-3 text-right">Subtotal</th>
+            <th class="px-4 py-3 text-right">IVA</th>
+            <th class="px-4 py-3 text-right">Total</th>
+          </tr>
+        </thead>
+        <tbody id="tabla-transacciones" class="divide-y divide-gray-100">
+          <tr>
+            <td colspan="6" class="px-4 py-8 text-center text-gray-400">
+              Seleccioná un rango de fechas y presioná Filtrar
+            </td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+  </main>
+
+  <script src="../js/informes.js"></script>
+</body>
+</html>

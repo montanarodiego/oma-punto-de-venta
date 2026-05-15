@@ -1,0 +1,14 @@
+{
+  "permissions": {
+    "allow": [
+      "PowerShell(Get-ChildItem \"C:\\\\Users\\\\diego\\\\Desktop\\\\oma-punto-de-venta\" -ErrorAction SilentlyContinue; if \\(-not \\(Test-Path \"C:\\\\Users\\\\diego\\\\Desktop\\\\oma-punto-de-venta\"\\)\\) { \"Directory does not exist yet\" } else { \"Directory exists\" })",
+      "PowerShell(Get-ChildItem \"C:\\\\Users\\\\diego\\\\Desktop\\\\oma-punto-de-venta\" -Recurse -Exclude node_modules | Where-Object { -not $_.FullName.Contains\\(\"node_modules\"\\) -and -not $_.FullName.Contains\\(\".claude\"\\) } | Select-Object FullName | Sort-Object FullName)",
+      "Bash(npm install *)",
+      "Bash(grep -E \"^\\(electron|better-sqlite3|tailwindcss|firebase\\)$\")",
+      "Bash(npm start *)",
+      "Bash(npx electron-rebuild *)",
+      "Bash(tasklist)",
+      "Bash(git add *)"
+    ]
+  }
+}

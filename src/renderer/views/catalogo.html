@@ -1,0 +1,117 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Oma POS — Catálogo</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <link rel="stylesheet" href="../css/style.css" />
+</head>
+<body class="bg-gray-100 text-gray-800 h-screen flex flex-col">
+
+  <header class="bg-blue-700 text-white px-6 py-3 flex items-center justify-between shadow">
+    <h1 class="text-xl font-bold tracking-wide">Oma — Punto de Venta</h1>
+    <nav class="flex gap-4 text-sm font-medium">
+      <a href="caja.html"          class="px-3 py-1 rounded hover:bg-blue-600">Caja</a>
+      <a href="catalogo.html"      class="px-3 py-1 rounded bg-blue-900">Catálogo</a>
+      <a href="clientes.html"      class="px-3 py-1 rounded hover:bg-blue-600">Clientes</a>
+      <a href="informes.html"      class="px-3 py-1 rounded hover:bg-blue-600">Informes</a>
+      <a href="configuracion.html" class="px-3 py-1 rounded hover:bg-blue-600">Configuración</a>
+    </nav>
+  </header>
+
+  <main class="flex flex-col flex-1 overflow-hidden p-6 gap-4">
+
+    <!-- Barra de acciones -->
+    <div class="flex items-center gap-3">
+      <input
+        id="busqueda"
+        type="text"
+        placeholder="Buscar artículo..."
+        class="flex-1 border border-gray-300 rounded px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-400 bg-white"
+      />
+      <button
+        id="btn-nuevo"
+        class="bg-blue-600 hover:bg-blue-700 text-white text-sm font-medium px-4 py-2 rounded transition"
+      >
+        + Nuevo artículo
+      </button>
+    </div>
+
+    <!-- Tabla de artículos -->
+    <div class="flex-1 overflow-y-auto bg-white rounded shadow">
+      <table class="w-full text-sm">
+        <thead class="bg-gray-50 border-b border-gray-200 text-gray-600 sticky top-0">
+          <tr>
+            <th class="px-4 py-3 text-left">Código</th>
+            <th class="px-4 py-3 text-left">Nombre</th>
+            <th class="px-4 py-3 text-right">Costo</th>
+            <th class="px-4 py-3 text-right">Precio</th>
+            <th class="px-4 py-3 text-right">Stock</th>
+            <th class="px-4 py-3 text-center">Estado</th>
+            <th class="px-4 py-3 text-center">Acciones</th>
+          </tr>
+        </thead>
+        <tbody id="tabla-articulos" class="divide-y divide-gray-100">
+          <tr>
+            <td colspan="7" class="px-4 py-8 text-center text-gray-400">Cargando...</td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+  </main>
+
+  <!-- Modal artículo (oculto) -->
+  <div id="modal" class="fixed inset-0 bg-black/40 flex items-center justify-center hidden z-50">
+    <div class="bg-white rounded-lg shadow-xl w-full max-w-lg p-6">
+      <h3 id="modal-titulo" class="text-lg font-semibold mb-4">Nuevo artículo</h3>
+      <form id="form-articulo" class="grid grid-cols-2 gap-3 text-sm">
+        <label class="flex flex-col gap-1">
+          <span class="text-gray-600">Código *</span>
+          <input name="codigo" required class="border rounded px-2 py-1.5 focus:outline-none focus:ring-2 focus:ring-blue-400" />
+        </label>
+        <label class="flex flex-col gap-1">
+          <span class="text-gray-600">Nombre *</span>
+          <input name="nombre" required class="border rounded px-2 py-1.5 focus:outline-none focus:ring-2 focus:ring-blue-400" />
+        </label>
+        <label class="col-span-2 flex flex-col gap-1">
+          <span class="text-gray-600">Descripción</span>
+          <input name="descripcion" class="border rounded px-2 py-1.5 focus:outline-none focus:ring-2 focus:ring-blue-400" />
+        </label>
+        <label class="flex flex-col gap-1">
+          <span class="text-gray-600">Costo unitario</span>
+          <input name="costo_unitario" type="number" step="0.01" min="0" class="border rounded px-2 py-1.5 focus:outline-none focus:ring-2 focus:ring-blue-400" />
+        </label>
+        <label class="flex flex-col gap-1">
+          <span class="text-gray-600">Precio unitario *</span>
+          <input name="precio_unitario" type="number" step="0.01" min="0" required class="border rounded px-2 py-1.5 focus:outline-none focus:ring-2 focus:ring-blue-400" />
+        </label>
+        <label class="flex flex-col gap-1">
+          <span class="text-gray-600">Stock actual</span>
+          <input name="stock_actual" type="number" step="0.001" min="0" class="border rounded px-2 py-1.5 focus:outline-none focus:ring-2 focus:ring-blue-400" />
+        </label>
+        <label class="flex flex-col gap-1">
+          <span class="text-gray-600">Stock mínimo</span>
+          <input name="stock_minimo" type="number" step="0.001" min="0" class="border rounded px-2 py-1.5 focus:outline-none focus:ring-2 focus:ring-blue-400" />
+        </label>
+        <label class="col-span-2 flex flex-col gap-1">
+          <span class="text-gray-600">Proveedor</span>
+          <input name="proveedor" class="border rounded px-2 py-1.5 focus:outline-none focus:ring-2 focus:ring-blue-400" />
+        </label>
+        <div class="col-span-2 flex justify-end gap-2 mt-2">
+          <button type="button" id="btn-cancelar-modal"
+            class="px-4 py-2 border border-gray-300 rounded text-gray-600 hover:bg-gray-50 transition">
+            Cancelar
+          </button>
+          <button type="submit"
+            class="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700 transition">
+            Guardar
+          </button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <script src="../js/catalogo.js"></script>
+</body>
+</html>

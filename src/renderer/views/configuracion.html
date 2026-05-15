@@ -1,0 +1,75 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Oma POS — Configuración</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <link rel="stylesheet" href="../css/style.css" />
+</head>
+<body class="bg-gray-100 text-gray-800 h-screen flex flex-col">
+
+  <header class="bg-blue-700 text-white px-6 py-3 flex items-center justify-between shadow">
+    <h1 class="text-xl font-bold tracking-wide">Oma — Punto de Venta</h1>
+    <nav class="flex gap-4 text-sm font-medium">
+      <a href="caja.html"          class="px-3 py-1 rounded hover:bg-blue-600">Caja</a>
+      <a href="catalogo.html"      class="px-3 py-1 rounded hover:bg-blue-600">Catálogo</a>
+      <a href="clientes.html"      class="px-3 py-1 rounded hover:bg-blue-600">Clientes</a>
+      <a href="informes.html"      class="px-3 py-1 rounded hover:bg-blue-600">Informes</a>
+      <a href="configuracion.html" class="px-3 py-1 rounded bg-blue-900">Configuración</a>
+    </nav>
+  </header>
+
+  <main class="flex-1 overflow-y-auto p-6">
+    <div class="max-w-lg mx-auto">
+      <h2 class="text-xl font-semibold text-gray-700 mb-6">Configuración del sistema</h2>
+
+      <form id="form-config" class="bg-white rounded shadow p-6 flex flex-col gap-4 text-sm">
+
+        <label class="flex flex-col gap-1">
+          <span class="text-gray-600 font-medium">Nombre del negocio</span>
+          <input name="nombre_negocio"
+            class="border border-gray-300 rounded px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-400" />
+        </label>
+
+        <label class="flex flex-col gap-1">
+          <span class="text-gray-600 font-medium">Moneda</span>
+          <select name="moneda"
+            class="border border-gray-300 rounded px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-400">
+            <option value="ARS">ARS — Peso argentino</option>
+            <option value="USD">USD — Dólar</option>
+            <option value="UYU">UYU — Peso uruguayo</option>
+          </select>
+        </label>
+
+        <label class="flex flex-col gap-1">
+          <span class="text-gray-600 font-medium">IVA / Impuesto (%)</span>
+          <input name="impuesto_porcentaje" type="number" min="0" max="100" step="0.1"
+            class="border border-gray-300 rounded px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-400" />
+        </label>
+
+        <div class="flex items-center justify-between">
+          <span class="text-gray-600 font-medium">Sincronización con Firebase</span>
+          <label class="relative inline-flex items-center cursor-pointer">
+            <input name="sync_enabled" type="checkbox" class="sr-only peer" />
+            <div class="w-11 h-6 bg-gray-200 peer-focus:ring-2 peer-focus:ring-blue-400 rounded-full
+              peer peer-checked:after:translate-x-full peer-checked:after:border-white
+              after:content-[''] after:absolute after:top-[2px] after:left-[2px]
+              after:bg-white after:border after:rounded-full after:h-5 after:w-5
+              after:transition-all peer-checked:bg-blue-600"></div>
+          </label>
+        </div>
+
+        <div id="mensaje" class="hidden text-center py-2 rounded text-sm"></div>
+
+        <button type="submit"
+          class="bg-blue-600 hover:bg-blue-700 text-white font-medium px-4 py-2 rounded transition">
+          Guardar cambios
+        </button>
+      </form>
+    </div>
+  </main>
+
+  <script src="../js/configuracion.js"></script>
+</body>
+</html>
