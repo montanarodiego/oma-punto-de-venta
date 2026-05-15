@@ -51,4 +51,9 @@ contextBridge.exposeInMainWorld('api', {
     getAll: ()              => ipcRenderer.invoke('config:getAll'),
     set:    (clave, valor)  => ipcRenderer.invoke('config:set', clave, valor),
   },
+
+  // Autenticación / licencia
+  auth: {
+    login: (email, password) => ipcRenderer.invoke('auth:login', email, password),
+  },
 });
