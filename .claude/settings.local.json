@@ -9,7 +9,12 @@
       "Bash(npx electron-rebuild *)",
       "Bash(tasklist)",
       "Bash(git add *)",
-      "Bash(git commit *)"
+      "Bash(git commit *)",
+      "Bash(node -e \"require\\('./src/main/firebase.js'\\); console.log\\('firebase.js OK'\\)\")",
+      "Bash(node -e \"require\\('./src/main/auth.js'\\); console.log\\('auth.js OK'\\)\")",
+      "Bash(node -e ' *)",
+      "Bash(node -e \"require\\('./src/main/sync.js'\\); console.log\\('sync OK'\\)\")",
+      "Bash(node -e \"require\\('./src/main/auth.js'\\); console.log\\('auth OK'\\)\")"
     ]
   }
 }
