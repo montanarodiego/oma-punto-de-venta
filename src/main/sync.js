@@ -4,8 +4,15 @@ const path    = require('path');
 const fs      = require('fs');
 
 // Sube todos los registros pendientes de SQLite a Firestore y los marca 'synced'.
-// Retorna { sincronizados: N, fallidos: M }
-async function syncPendientes(db, firestoreInst, negocioId) {
+// authInst es la instancia de Firebase Auth; si currentUser es null la sync se cancela
+// porque Firestore rechazaría las escrituras por falta de sesión (inMemoryPersistence).
+// Retorna { sincronizados: N, fallidos: M, error?: string }
+async function syncPendientes(db, firestoreInst, negocioId, authInst) {
+  if (!authInst.currentUser) {
+    console.warn('[sync] auth.currentUser es null — sin sesión activa, sync omitida');
+    return { sincronizados: 0, fallidos: 0, error: 'sin_sesion' };
+  }
+
   let sincronizados = 0;
   let fallidos      = 0;
 
@@ -24,8 +31,8 @@ async function syncPendientes(db, firestoreInst, negocioId) {
         db.prepare(`UPDATE ${tabla} SET sync_status = 'synced' WHERE id = ?`)
           .run(row.id);
         sincronizados++;
-      } catch {
-        // sin internet o error puntual — el registro queda 'pending' para el próximo ciclo
+      } catch (err) {
+        console.error(`[sync] fallo en ${tabla}/${row.id} — ${err.code ?? ''} | ${err.message}`);
         fallidos++;
       }
     }

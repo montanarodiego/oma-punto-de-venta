@@ -99,7 +99,7 @@ function iniciarSyncInterval() {
   syncInterval = setInterval(async () => {
     if (!negocioIdActivo) return;
     try {
-      await syncPendientes(getDb(), firestore, negocioIdActivo);
+      await syncPendientes(getDb(), firestore, negocioIdActivo, auth);
 
       const lic = await verificarLicencia(firestore, negocioIdActivo);
       if (lic.activa) {
@@ -129,7 +129,7 @@ function registerAuthHandlers() {
   ipcMain.handle('sync:manual', async () => {
     if (!negocioIdActivo) return { ok: false, error: 'Sin sesión activa.' };
     try {
-      const resultado = await syncPendientes(getDb(), firestore, negocioIdActivo);
+      const resultado = await syncPendientes(getDb(), firestore, negocioIdActivo, auth);
       return { ok: true, ...resultado };
     } catch (err) {
       return { ok: false, error: err.message };
