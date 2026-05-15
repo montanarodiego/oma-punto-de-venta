@@ -7,145 +7,130 @@
   <script src="https://cdn.tailwindcss.com"></script>
   <link rel="stylesheet" href="../css/style.css" />
 </head>
-<body class="bg-gray-100 text-gray-800 h-screen flex flex-col">
+<body class="app-layout">
 
-  <header class="bg-blue-700 text-white px-6 py-3 flex items-center justify-between shadow">
-    <h1 class="text-xl font-bold tracking-wide">Oma — Punto de Venta</h1>
-    <nav class="flex gap-4 text-sm font-medium items-center">
-      <a href="caja.html"          class="px-3 py-1 rounded hover:bg-blue-600">Caja</a>
-      <a href="catalogo.html"      class="px-3 py-1 rounded hover:bg-blue-600">Catálogo</a>
-      <a href="clientes.html"      class="px-3 py-1 rounded hover:bg-blue-600">Clientes</a>
-      <a href="informes.html"      class="px-3 py-1 rounded bg-blue-900">Informes</a>
-      <a href="configuracion.html" class="px-3 py-1 rounded hover:bg-blue-600">Configuración</a>
-      <span id="badge-sync"
-        class="hidden text-xs bg-yellow-400 text-yellow-900 font-semibold px-2 py-0.5 rounded-full">
-      </span>
+  <!-- ── Sidebar ─────────────────────────────────────────────── -->
+  <aside class="sidebar">
+    <div class="sidebar-logo">
+      <div class="sidebar-logo-icon">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><rect x="1" y="4" width="22" height="16" rx="2"/><line x1="1" y1="10" x2="23" y2="10"/></svg>
+      </div>
+      <div>
+        <div class="sidebar-logo-name">OmaTech POS</div>
+        <div class="sidebar-logo-sub">Punto de Venta</div>
+      </div>
+    </div>
+    <nav class="sidebar-nav">
+      <a href="caja.html" class="nav-item">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="7" width="20" height="13" rx="2"/><path d="M16 7V5a2 2 0 0 0-4 0v2"/><line x1="12" y1="12" x2="12" y2="16"/><line x1="10" y1="14" x2="14" y2="14"/></svg>
+        Caja
+      </a>
+      <a href="catalogo.html" class="nav-item">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"/></svg>
+        Catálogo
+      </a>
+      <a href="clientes.html" class="nav-item">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
+        Clientes
+      </a>
+      <a href="informes.html" class="nav-item active">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="20" x2="18" y2="10"/><line x1="12" y1="20" x2="12" y2="4"/><line x1="6" y1="20" x2="6" y2="14"/><line x1="2" y1="20" x2="22" y2="20"/></svg>
+        Informes
+      </a>
+      <a href="configuracion.html" class="nav-item">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>
+        Configuración
+        <span id="badge-sync" class="nav-badge hidden"></span>
+      </a>
     </nav>
-  </header>
-
-  <main class="flex flex-col flex-1 overflow-hidden px-6 pt-4 pb-6 gap-3">
-
-    <!-- ── Tabs ──────────────────────────────────────────────── -->
-    <div class="flex bg-white rounded-lg shadow text-sm shrink-0 overflow-hidden">
-      <button data-tab="ventas"
-        class="tab-btn flex-1 px-3 py-2.5 font-medium transition bg-blue-600 text-white">
-        Ventas por período
-      </button>
-      <button data-tab="articulos"
-        class="tab-btn flex-1 px-3 py-2.5 font-medium transition text-gray-600 hover:bg-gray-50 border-l border-gray-200">
-        Artículos más vendidos
-      </button>
-      <button data-tab="utilidad"
-        class="tab-btn flex-1 px-3 py-2.5 font-medium transition text-gray-600 hover:bg-gray-50 border-l border-gray-200">
-        Utilidad bruta
-      </button>
-      <button data-tab="saldos"
-        class="tab-btn flex-1 px-3 py-2.5 font-medium transition text-gray-600 hover:bg-gray-50 border-l border-gray-200">
-        Saldos de clientes
-      </button>
-    </div>
-
-    <!-- ── Filtro de fechas (oculto en "Saldos") ─────────────── -->
-    <div id="filtro-fechas"
-      class="flex items-center gap-3 bg-white rounded-lg shadow px-4 py-3 shrink-0">
-      <span class="text-sm text-gray-600 font-medium">Período</span>
-      <input id="fecha-desde" type="date"
-        class="border border-gray-300 rounded px-2 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-400" />
-      <span class="text-gray-400">→</span>
-      <input id="fecha-hasta" type="date"
-        class="border border-gray-300 rounded px-2 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-400" />
-    </div>
-
-    <!-- ══════════════════════════════════════════════════════════
-         PANEL 1 — Ventas por período
-    ══════════════════════════════════════════════════════════ -->
-    <div id="panel-ventas" class="flex-col flex-1 min-h-0 gap-3" style="display:flex">
-      <div class="flex items-center gap-2 shrink-0">
-        <button id="btn-generar-ventas"
-          class="bg-blue-600 hover:bg-blue-700 text-white text-sm font-medium px-4 py-2 rounded transition">
-          Generar informe
-        </button>
-        <button id="btn-exportar-ventas" disabled
-          class="border border-gray-300 text-gray-500 text-sm px-4 py-2 rounded transition
-                 hover:bg-gray-50 disabled:opacity-40 disabled:cursor-not-allowed">
-          Exportar CSV
-        </button>
-      </div>
-      <div id="resultado-ventas" class="flex-1 overflow-y-auto flex flex-col gap-3">
-        <div class="py-12 text-center text-gray-400 text-sm">
-          Seleccioná un período y presioná "Generar informe"
+    <div class="sidebar-footer">
+      <div class="sidebar-user">
+        <div class="sidebar-user-avatar" id="nav-avatar">U</div>
+        <div style="overflow:hidden;">
+          <div class="sidebar-user-name" id="nav-username">Usuario</div>
+          <div class="sidebar-user-role">Administrador</div>
         </div>
       </div>
+      <button class="btn-logout" id="btn-logout">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/></svg>
+        Cerrar sesión
+      </button>
+    </div>
+  </aside>
+
+  <!-- ── Contenido principal ────────────────────────────────── -->
+  <div class="page-content">
+
+    <div class="page-header">
+      <h1 class="page-title">Informes</h1>
     </div>
 
-    <!-- ══════════════════════════════════════════════════════════
-         PANEL 2 — Artículos más vendidos
-    ══════════════════════════════════════════════════════════ -->
-    <div id="panel-articulos" class="flex-col flex-1 min-h-0 gap-3" style="display:none">
-      <div class="flex items-center gap-2 shrink-0">
-        <button id="btn-generar-articulos"
-          class="bg-blue-600 hover:bg-blue-700 text-white text-sm font-medium px-4 py-2 rounded transition">
-          Generar informe
-        </button>
-        <button id="btn-exportar-articulos" disabled
-          class="border border-gray-300 text-gray-500 text-sm px-4 py-2 rounded transition
-                 hover:bg-gray-50 disabled:opacity-40 disabled:cursor-not-allowed">
-          Exportar CSV
-        </button>
+    <main style="flex:1;overflow:hidden;display:flex;flex-direction:column;padding:18px;gap:14px;">
+
+      <!-- Tabs -->
+      <div class="tabs" style="flex-shrink:0;">
+        <button data-tab="ventas"     class="tab-btn active">Ventas por período</button>
+        <button data-tab="articulos"  class="tab-btn">Artículos más vendidos</button>
+        <button data-tab="utilidad"   class="tab-btn">Utilidad bruta</button>
+        <button data-tab="saldos"     class="tab-btn">Saldos de clientes</button>
       </div>
-      <div id="resultado-articulos" class="flex-1 overflow-y-auto">
-        <div class="py-12 text-center text-gray-400 text-sm">
-          Seleccioná un período y presioná "Generar informe"
+
+      <!-- Filtro de fechas -->
+      <div id="filtro-fechas" style="display:flex;align-items:center;gap:10px;flex-shrink:0;">
+        <span style="font-size:12px;font-weight:500;color:var(--text-muted);">Período</span>
+        <input id="fecha-desde" type="date" class="inp" style="width:auto;" />
+        <span style="color:var(--text-subtle);">→</span>
+        <input id="fecha-hasta" type="date" class="inp" style="width:auto;" />
+      </div>
+
+      <!-- Panel: Ventas por período -->
+      <div id="panel-ventas" class="flex-col flex-1 min-h-0 gap-3" style="display:flex;flex-direction:column;gap:12px;">
+        <div style="display:flex;align-items:center;gap:8px;flex-shrink:0;">
+          <button id="btn-generar-ventas" class="btn btn-primary">Generar informe</button>
+          <button id="btn-exportar-ventas" disabled class="btn btn-ghost">Exportar CSV</button>
+        </div>
+        <div id="resultado-ventas" style="flex:1;overflow-y:auto;display:flex;flex-direction:column;gap:12px;">
+          <div class="empty-state">Seleccioná un período y presioná "Generar informe"</div>
         </div>
       </div>
-    </div>
 
-    <!-- ══════════════════════════════════════════════════════════
-         PANEL 3 — Utilidad bruta
-    ══════════════════════════════════════════════════════════ -->
-    <div id="panel-utilidad" class="flex-col flex-1 min-h-0 gap-3" style="display:none">
-      <div class="flex items-center gap-2 shrink-0">
-        <button id="btn-generar-utilidad"
-          class="bg-blue-600 hover:bg-blue-700 text-white text-sm font-medium px-4 py-2 rounded transition">
-          Generar informe
-        </button>
-        <button id="btn-exportar-utilidad" disabled
-          class="border border-gray-300 text-gray-500 text-sm px-4 py-2 rounded transition
-                 hover:bg-gray-50 disabled:opacity-40 disabled:cursor-not-allowed">
-          Exportar CSV
-        </button>
-      </div>
-      <div id="resultado-utilidad" class="flex-1 overflow-y-auto flex flex-col gap-3">
-        <div class="py-12 text-center text-gray-400 text-sm">
-          Seleccioná un período y presioná "Generar informe"
+      <!-- Panel: Artículos más vendidos -->
+      <div id="panel-articulos" class="flex-col flex-1 min-h-0 gap-3" style="display:none;flex-direction:column;gap:12px;">
+        <div style="display:flex;align-items:center;gap:8px;flex-shrink:0;">
+          <button id="btn-generar-articulos" class="btn btn-primary">Generar informe</button>
+          <button id="btn-exportar-articulos" disabled class="btn btn-ghost">Exportar CSV</button>
+        </div>
+        <div id="resultado-articulos" style="flex:1;overflow-y:auto;">
+          <div class="empty-state">Seleccioná un período y presioná "Generar informe"</div>
         </div>
       </div>
-    </div>
 
-    <!-- ══════════════════════════════════════════════════════════
-         PANEL 4 — Saldos de clientes
-    ══════════════════════════════════════════════════════════ -->
-    <div id="panel-saldos" class="flex-col flex-1 min-h-0 gap-3" style="display:none">
-      <div class="flex items-center gap-2 shrink-0">
-        <button id="btn-generar-saldos"
-          class="bg-blue-600 hover:bg-blue-700 text-white text-sm font-medium px-4 py-2 rounded transition">
-          Generar informe
-        </button>
-        <button id="btn-exportar-saldos" disabled
-          class="border border-gray-300 text-gray-500 text-sm px-4 py-2 rounded transition
-                 hover:bg-gray-50 disabled:opacity-40 disabled:cursor-not-allowed">
-          Exportar CSV
-        </button>
-      </div>
-      <div id="resultado-saldos" class="flex-1 overflow-y-auto flex flex-col gap-3">
-        <div class="py-12 text-center text-gray-400 text-sm">
-          Presioná "Generar informe" para ver los saldos actuales
+      <!-- Panel: Utilidad bruta -->
+      <div id="panel-utilidad" class="flex-col flex-1 min-h-0 gap-3" style="display:none;flex-direction:column;gap:12px;">
+        <div style="display:flex;align-items:center;gap:8px;flex-shrink:0;">
+          <button id="btn-generar-utilidad" class="btn btn-primary">Generar informe</button>
+          <button id="btn-exportar-utilidad" disabled class="btn btn-ghost">Exportar CSV</button>
+        </div>
+        <div id="resultado-utilidad" style="flex:1;overflow-y:auto;display:flex;flex-direction:column;gap:12px;">
+          <div class="empty-state">Seleccioná un período y presioná "Generar informe"</div>
         </div>
       </div>
-    </div>
 
-  </main>
+      <!-- Panel: Saldos de clientes -->
+      <div id="panel-saldos" class="flex-col flex-1 min-h-0 gap-3" style="display:none;flex-direction:column;gap:12px;">
+        <div style="display:flex;align-items:center;gap:8px;flex-shrink:0;">
+          <button id="btn-generar-saldos" class="btn btn-primary">Generar informe</button>
+          <button id="btn-exportar-saldos" disabled class="btn btn-ghost">Exportar CSV</button>
+        </div>
+        <div id="resultado-saldos" style="flex:1;overflow-y:auto;display:flex;flex-direction:column;gap:12px;">
+          <div class="empty-state">Presioná "Generar informe" para ver los saldos actuales</div>
+        </div>
+      </div>
 
+    </main>
+  </div>
+
+  <div class="toast-wrap" id="toast-wrap"></div>
   <script src="../js/informes.js"></script>
   <script src="../js/nav-badge.js"></script>
 </body>

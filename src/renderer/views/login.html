@@ -4,62 +4,100 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Oma POS — Iniciar sesión</title>
-  <script src="https://cdn.tailwindcss.com"></script>
   <link rel="stylesheet" href="../css/style.css" />
+  <style>
+    body {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      min-height: 100vh;
+      padding: 24px;
+    }
+    .login-card {
+      width: 100%;
+      max-width: 360px;
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--r-card);
+      box-shadow: var(--shadow-lg);
+      padding: 36px 32px;
+      display: flex;
+      flex-direction: column;
+      gap: 24px;
+    }
+    .login-logo {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      flex-direction: column;
+      gap: 10px;
+      text-align: center;
+    }
+    .login-logo-icon {
+      width: 48px; height: 48px;
+      background: var(--accent);
+      border-radius: 12px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      color: #fff;
+      margin: 0 auto 4px;
+    }
+    .login-title {
+      font-size: 18px;
+      font-weight: 700;
+      color: var(--text);
+      letter-spacing: -.01em;
+    }
+    .login-sub {
+      font-size: 13px;
+      color: var(--text-muted);
+    }
+  </style>
 </head>
-<body class="bg-gray-100 text-gray-800 h-screen flex flex-col">
+<body>
 
-  <header class="bg-blue-700 text-white px-6 py-3 shadow">
-    <h1 class="text-xl font-bold tracking-wide">Oma — Punto de Venta</h1>
-  </header>
+  <div class="login-card">
+    <div class="login-logo">
+      <div class="login-logo-icon">
+        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><rect x="1" y="4" width="22" height="16" rx="2"/><line x1="1" y1="10" x2="23" y2="10"/></svg>
+      </div>
+      <div class="login-title">OmaTech POS</div>
+      <div class="login-sub">Ingresá con tu cuenta</div>
+    </div>
 
-  <main class="flex-1 flex items-center justify-center p-6">
-    <div class="w-full max-w-sm bg-white rounded-lg shadow p-8 flex flex-col gap-5">
+    <form id="form-login" style="display:flex;flex-direction:column;gap:16px;" novalidate>
 
-      <div class="text-center flex flex-col gap-1">
-        <h2 class="text-lg font-semibold text-gray-700">Iniciar sesión</h2>
-        <p class="text-xs text-gray-400">Ingresá con tu cuenta OmaTech</p>
+      <div class="field">
+        <label class="field-label">Correo electrónico</label>
+        <input
+          id="email"
+          type="email"
+          autocomplete="username"
+          placeholder="correo@ejemplo.com"
+          class="inp inp-lg"
+        />
       </div>
 
-      <form id="form-login" class="flex flex-col gap-4 text-sm" novalidate>
+      <div class="field">
+        <label class="field-label">Contraseña</label>
+        <input
+          id="password"
+          type="password"
+          autocomplete="current-password"
+          placeholder="••••••••"
+          class="inp inp-lg"
+        />
+      </div>
 
-        <label class="flex flex-col gap-1">
-          <span class="text-gray-700 font-medium">Correo electrónico</span>
-          <input
-            id="email"
-            type="email"
-            autocomplete="username"
-            placeholder="correo@ejemplo.com"
-            class="border border-gray-300 rounded px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-400"
-          />
-        </label>
+      <div id="error-msg" class="hidden" style="padding:10px 12px;border-radius:var(--r-in);font-size:13px;background:rgba(239,68,68,.1);border:1px solid rgba(239,68,68,.25);color:#fca5a5;line-height:1.4;"></div>
 
-        <label class="flex flex-col gap-1">
-          <span class="text-gray-700 font-medium">Contraseña</span>
-          <input
-            id="password"
-            type="password"
-            autocomplete="current-password"
-            placeholder="••••••••"
-            class="border border-gray-300 rounded px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-400"
-          />
-        </label>
+      <button type="submit" id="btn-ingresar" class="btn btn-primary" style="width:100%;padding:11px 0;font-size:14px;font-weight:600;margin-top:4px;">
+        Ingresar
+      </button>
 
-        <div id="error-msg"
-          class="hidden px-3 py-2.5 rounded text-sm text-red-700 bg-red-50 border border-red-200">
-        </div>
-
-        <button
-          type="submit"
-          id="btn-ingresar"
-          class="bg-blue-600 hover:bg-blue-700 text-white font-semibold px-6 py-2.5 rounded-lg transition"
-        >
-          Ingresar
-        </button>
-
-      </form>
-    </div>
-  </main>
+    </form>
+  </div>
 
   <script src="../js/login.js"></script>
 </body>
