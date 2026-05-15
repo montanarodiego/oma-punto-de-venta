@@ -27,21 +27,31 @@ async function syncPendientes(db, firestoreInst, negocioId) {
 }
 
 // Lee el campo 'licencia' del documento negocios/{negocioId} en Firestore.
+// Retorna:
+//   { activa: true,  vencimiento: Date,  razon: 'ok'       }
+//   { activa: false, razon: 'inactiva'                      }
+//   { activa: false, razon: 'no_existe'                     }
+//   { activa: false, razon: 'error', detalle: string        }
 async function verificarLicencia(firestoreInst, negocioId) {
   try {
     const snap = await getDoc(doc(firestoreInst, 'negocios', negocioId));
-    if (!snap.exists()) return { activa: false };
+
+    if (!snap.exists()) return { activa: false, razon: 'no_existe' };
 
     const lic = snap.data()?.licencia;
-    if (!lic) return { activa: false };
+    if (!lic) return { activa: false, razon: 'no_existe' };
 
     const vencimiento = lic.vencimiento?.toDate
       ? lic.vencimiento.toDate()
       : new Date(lic.vencimiento);
 
-    return { activa: lic.activa === true, vencimiento };
-  } catch {
-    return { activa: false };
+    return {
+      activa:      lic.activa === true,
+      vencimiento,
+      razon:       lic.activa === true ? 'ok' : 'inactiva',
+    };
+  } catch (err) {
+    return { activa: false, razon: 'error', detalle: err.message };
   }
 }
 
@@ -49,16 +59,10 @@ function tokenPath() {
   return path.join(app.getPath('userData'), 'license.json');
 }
 
-// Persiste el token de licencia en disco (userData/license.json).
-// token: { negocioId, activa, vencimiento (ms epoch), timestamp }
 function guardarTokenLocal(token) {
   fs.writeFileSync(tokenPath(), JSON.stringify(token), 'utf8');
 }
 
-// Lee y valida el token local.
-// → { activa: true, negocioId }  si válido
-// → { activa: false }            si no existe
-// → { activa: false, vencido: true } si venció
 function verificarTokenLocal() {
   try {
     const data = JSON.parse(fs.readFileSync(tokenPath(), 'utf8'));

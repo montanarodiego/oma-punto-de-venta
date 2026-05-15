@@ -132,7 +132,12 @@ function registerAuthHandlers() {
       const lic  = await verificarLicencia(firestore, user.uid);
 
       if (!lic.activa) {
-        return { ok: false, error: 'Licencia suspendida. Contactate con OmaTech.' };
+        const mensajes = {
+          inactiva:  'Licencia suspendida. Contactate con OmaTech.',
+          no_existe: 'No se encontró una licencia para este usuario. Contactate con OmaTech.',
+          error:     `Error al verificar licencia (${lic.detalle ?? 'sin detalles'}). Revisá tu conexión o contactá a OmaTech.`,
+        };
+        return { ok: false, error: mensajes[lic.razon] ?? 'No se pudo verificar la licencia.' };
       }
 
       guardarTokenLocal({
