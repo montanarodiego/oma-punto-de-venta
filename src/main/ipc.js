@@ -1,8 +1,9 @@
 const { ipcMain } = require('electron');
-const Articulos = require('./models/articulos');
+const Articulos    = require('./models/articulos');
 const Transacciones = require('./models/transacciones');
-const Clientes = require('./models/clientes');
-const { getDb } = require('./database');
+const Clientes     = require('./models/clientes');
+const Informes     = require('./models/informes');
+const { getDb }    = require('./database');
 
 function registerHandlers() {
   // ── Artículos ──────────────────────────────────────────────
@@ -21,6 +22,8 @@ function registerHandlers() {
   ipcMain.handle('clientes:update', (_e, id, data) => Clientes.update(id, data));
   ipcMain.handle('clientes:delete', (_e, id) => Clientes.remove(id));
   ipcMain.handle('clientes:search', (_e, query) => Clientes.search(query));
+  ipcMain.handle('clientes:getTransacciones', (_e, id) => Clientes.getTransacciones(id));
+  ipcMain.handle('clientes:registrarPago', (_e, id, monto) => Clientes.registrarPago(id, monto));
 
   // ── Transacciones ──────────────────────────────────────────
   ipcMain.handle('transacciones:getAll', () => Transacciones.getAll());
@@ -29,6 +32,12 @@ function registerHandlers() {
   ipcMain.handle('transacciones:getByFecha', (_e, desde, hasta) =>
     Transacciones.getByFecha(desde, hasta)
   );
+
+  // ── Informes ───────────────────────────────────────────────
+  ipcMain.handle('informes:ventasPorPeriodo',     (_e, d, h) => Informes.ventasPorPeriodo(d, h));
+  ipcMain.handle('informes:articulosMasVendidos', (_e, d, h) => Informes.articulosMasVendidos(d, h));
+  ipcMain.handle('informes:utilidadBruta',        (_e, d, h) => Informes.utilidadBruta(d, h));
+  ipcMain.handle('informes:saldosClientes',       ()         => Informes.saldosClientes());
 
   // ── Configuración ──────────────────────────────────────────
   ipcMain.handle('config:get', (_e, clave) => {

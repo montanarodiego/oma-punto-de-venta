@@ -26,26 +26,24 @@
       <input
         id="busqueda"
         type="text"
-        placeholder="Buscar cliente por nombre o teléfono..."
+        placeholder="Buscar por nombre o teléfono..."
         class="flex-1 border border-gray-300 rounded px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-400 bg-white"
       />
-      <button
-        id="btn-nuevo"
-        class="bg-blue-600 hover:bg-blue-700 text-white text-sm font-medium px-4 py-2 rounded transition"
-      >
+      <button id="btn-nuevo"
+        class="bg-blue-600 hover:bg-blue-700 text-white text-sm font-medium px-4 py-2 rounded transition">
         + Nuevo cliente
       </button>
     </div>
 
     <div class="flex-1 overflow-y-auto bg-white rounded shadow">
       <table class="w-full text-sm">
-        <thead class="bg-gray-50 border-b border-gray-200 text-gray-600 sticky top-0">
+        <thead class="bg-gray-50 border-b border-gray-200 text-gray-600 sticky top-0 z-10">
           <tr>
             <th class="px-4 py-3 text-left">Nombre</th>
             <th class="px-4 py-3 text-left">Teléfono</th>
             <th class="px-4 py-3 text-left">Dirección</th>
-            <th class="px-4 py-3 text-right">Límite crédito</th>
-            <th class="px-4 py-3 text-right">Saldo vencido</th>
+            <th class="px-4 py-3 text-right whitespace-nowrap">Límite crédito</th>
+            <th class="px-4 py-3 text-right whitespace-nowrap">Saldo vencido</th>
             <th class="px-4 py-3 text-center">Acciones</th>
           </tr>
         </thead>
@@ -58,22 +56,30 @@
     </div>
   </main>
 
-  <!-- Modal cliente -->
+  <!-- ── Modal: ABM cliente ──────────────────────────────────── -->
   <div id="modal" class="fixed inset-0 bg-black/40 flex items-center justify-center hidden z-50">
     <div class="bg-white rounded-lg shadow-xl w-full max-w-md p-6">
       <h3 id="modal-titulo" class="text-lg font-semibold mb-4">Nuevo cliente</h3>
-      <form id="form-cliente" class="flex flex-col gap-3 text-sm">
+
+      <div id="error-msg"
+        class="hidden mb-3 px-3 py-2 bg-red-50 border border-red-200 text-red-700 rounded text-sm">
+      </div>
+
+      <form id="form-cliente" class="flex flex-col gap-3 text-sm" novalidate>
         <label class="flex flex-col gap-1">
-          <span class="text-gray-600">Nombre *</span>
-          <input name="nombre" required class="border rounded px-2 py-1.5 focus:outline-none focus:ring-2 focus:ring-blue-400" />
+          <span class="text-gray-600">Nombre <span class="text-red-500">*</span></span>
+          <input name="nombre" autocomplete="off"
+            class="border rounded px-2 py-1.5 focus:outline-none focus:ring-2 focus:ring-blue-400" />
         </label>
         <label class="flex flex-col gap-1">
           <span class="text-gray-600">Teléfono</span>
-          <input name="telefono" class="border rounded px-2 py-1.5 focus:outline-none focus:ring-2 focus:ring-blue-400" />
+          <input name="telefono" autocomplete="off"
+            class="border rounded px-2 py-1.5 focus:outline-none focus:ring-2 focus:ring-blue-400" />
         </label>
         <label class="flex flex-col gap-1">
           <span class="text-gray-600">Dirección</span>
-          <input name="direccion" class="border rounded px-2 py-1.5 focus:outline-none focus:ring-2 focus:ring-blue-400" />
+          <input name="direccion" autocomplete="off"
+            class="border rounded px-2 py-1.5 focus:outline-none focus:ring-2 focus:ring-blue-400" />
         </label>
         <label class="flex flex-col gap-1">
           <span class="text-gray-600">Límite de crédito</span>
@@ -85,12 +91,120 @@
             class="px-4 py-2 border border-gray-300 rounded text-gray-600 hover:bg-gray-50 transition">
             Cancelar
           </button>
-          <button type="submit"
+          <button type="submit" id="btn-guardar"
             class="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700 transition">
             Guardar
           </button>
         </div>
       </form>
+    </div>
+  </div>
+
+  <!-- ── Modal: confirmar eliminación ───────────────────────── -->
+  <div id="modal-confirm" class="fixed inset-0 bg-black/40 flex items-center justify-center hidden z-50">
+    <div class="bg-white rounded-lg shadow-xl w-full max-w-sm p-6">
+      <h3 class="text-base font-semibold mb-2 text-gray-800">Eliminar cliente</h3>
+      <p class="text-sm text-gray-600 mb-5">
+        ¿Estás seguro que querés eliminar a
+        <span id="confirm-nombre" class="font-semibold text-gray-800"></span>?
+        Esta acción no se puede deshacer.
+      </p>
+      <div class="flex justify-end gap-2">
+        <button id="btn-cancelar-confirm"
+          class="px-4 py-2 border border-gray-300 rounded text-gray-600 hover:bg-gray-50 transition text-sm">
+          Cancelar
+        </button>
+        <button id="btn-confirmar-eliminar"
+          class="px-4 py-2 bg-red-600 text-white rounded hover:bg-red-700 transition text-sm">
+          Eliminar
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ── Modal: detalle de cuenta ───────────────────────────── -->
+  <div id="modal-cuenta"
+    class="fixed inset-0 bg-black/40 flex items-center justify-center hidden z-50 p-4">
+    <div class="bg-white rounded-lg shadow-xl w-full max-w-2xl flex flex-col"
+         style="max-height: 82vh;">
+
+      <!-- Header -->
+      <div class="flex items-center justify-between px-6 py-4 border-b border-gray-200">
+        <h3 class="text-lg font-semibold">
+          Cuenta corriente —
+          <span id="cuenta-nombre" class="text-blue-700"></span>
+        </h3>
+        <button id="btn-cerrar-cuenta"
+          class="text-gray-400 hover:text-gray-600 text-2xl leading-none transition">×</button>
+      </div>
+
+      <!-- Info del cliente -->
+      <div class="px-6 py-3 bg-gray-50 border-b border-gray-200">
+        <div class="grid grid-cols-2 gap-x-8 gap-y-1 text-sm">
+          <div>
+            <span class="text-gray-500">Teléfono:</span>
+            <span id="cuenta-telefono" class="ml-1 text-gray-800"></span>
+          </div>
+          <div>
+            <span class="text-gray-500">Límite de crédito:</span>
+            <span id="cuenta-limite" class="ml-1 font-medium"></span>
+          </div>
+          <div>
+            <span class="text-gray-500">Dirección:</span>
+            <span id="cuenta-direccion" class="ml-1 text-gray-800"></span>
+          </div>
+          <div>
+            <span class="text-gray-500">Saldo vencido:</span>
+            <span id="cuenta-saldo" class="ml-1 font-bold text-lg"></span>
+          </div>
+        </div>
+      </div>
+
+      <!-- Historial de transacciones (scrollable) -->
+      <div class="flex-1 min-h-0 overflow-y-auto px-6 py-3">
+        <p class="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-2">
+          Historial de compras a crédito
+        </p>
+        <table class="w-full text-sm">
+          <thead class="bg-gray-50 sticky top-0">
+            <tr class="text-gray-500 border-b border-gray-200">
+              <th class="text-left px-2 py-1.5 font-medium">#</th>
+              <th class="text-left px-2 py-1.5 font-medium">Fecha</th>
+              <th class="text-right px-2 py-1.5 font-medium">Subtotal</th>
+              <th class="text-right px-2 py-1.5 font-medium">IVA</th>
+              <th class="text-right px-2 py-1.5 font-medium">Total</th>
+              <th class="text-center px-2 py-1.5 font-medium">Sync</th>
+            </tr>
+          </thead>
+          <tbody id="cuenta-transacciones" class="divide-y divide-gray-100"></tbody>
+        </table>
+      </div>
+
+      <!-- Registrar pago -->
+      <div class="px-6 py-4 border-t border-gray-200 bg-gray-50">
+        <p class="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-2">
+          Registrar pago
+        </p>
+        <div class="flex gap-2 items-start">
+          <div class="flex-1">
+            <input
+              id="monto-pago"
+              type="number"
+              step="0.01"
+              min="0.01"
+              placeholder="Monto recibido..."
+              class="w-full border border-gray-300 rounded px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-green-400"
+            />
+            <div id="error-pago"
+              class="hidden mt-1 text-xs text-red-600 leading-snug"></div>
+          </div>
+          <button id="btn-pagar"
+            class="bg-green-600 hover:bg-green-700 text-white text-sm font-semibold px-5 py-2 rounded transition shrink-0">
+            Registrar pago
+          </button>
+        </div>
+      </div>
+
     </div>
   </div>
 

@@ -18,8 +18,10 @@ contextBridge.exposeInMainWorld('api', {
     getById: (id)         => ipcRenderer.invoke('clientes:getById', id),
     create:  (data)       => ipcRenderer.invoke('clientes:create', data),
     update:  (id, data)   => ipcRenderer.invoke('clientes:update', id, data),
-    delete:  (id)         => ipcRenderer.invoke('clientes:delete', id),
-    search:  (query)      => ipcRenderer.invoke('clientes:search', query),
+    delete:           (id)         => ipcRenderer.invoke('clientes:delete', id),
+    search:           (query)      => ipcRenderer.invoke('clientes:search', query),
+    getTransacciones: (id)         => ipcRenderer.invoke('clientes:getTransacciones', id),
+    registrarPago:    (id, monto)  => ipcRenderer.invoke('clientes:registrarPago', id, monto),
   },
 
   // Transacciones
@@ -28,6 +30,14 @@ contextBridge.exposeInMainWorld('api', {
     getById:     (id)               => ipcRenderer.invoke('transacciones:getById', id),
     create:      (data)             => ipcRenderer.invoke('transacciones:create', data),
     getByFecha:  (desde, hasta)     => ipcRenderer.invoke('transacciones:getByFecha', desde, hasta),
+  },
+
+  // Informes
+  informes: {
+    ventasPorPeriodo:     (d, h) => ipcRenderer.invoke('informes:ventasPorPeriodo',     d, h),
+    articulosMasVendidos: (d, h) => ipcRenderer.invoke('informes:articulosMasVendidos', d, h),
+    utilidadBruta:        (d, h) => ipcRenderer.invoke('informes:utilidadBruta',        d, h),
+    saldosClientes:       ()     => ipcRenderer.invoke('informes:saldosClientes'),
   },
 
   // Caja

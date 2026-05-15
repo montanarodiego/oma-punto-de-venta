@@ -20,60 +20,127 @@
     </nav>
   </header>
 
-  <main class="flex flex-col flex-1 overflow-hidden p-6 gap-4">
+  <main class="flex flex-col flex-1 overflow-hidden px-6 pt-4 pb-6 gap-3">
 
-    <!-- Filtros de fecha -->
-    <div class="flex items-center gap-3 bg-white rounded shadow px-4 py-3">
-      <label class="text-sm text-gray-600">Desde</label>
-      <input id="fecha-desde" type="date"
-        class="border border-gray-300 rounded px-2 py-1 text-sm focus:outline-none focus:ring-2 focus:ring-blue-400" />
-      <label class="text-sm text-gray-600">Hasta</label>
-      <input id="fecha-hasta" type="date"
-        class="border border-gray-300 rounded px-2 py-1 text-sm focus:outline-none focus:ring-2 focus:ring-blue-400" />
-      <button id="btn-filtrar"
-        class="bg-blue-600 hover:bg-blue-700 text-white text-sm font-medium px-4 py-1.5 rounded transition">
-        Filtrar
+    <!-- ── Tabs ──────────────────────────────────────────────── -->
+    <div class="flex bg-white rounded-lg shadow text-sm shrink-0 overflow-hidden">
+      <button data-tab="ventas"
+        class="tab-btn flex-1 px-3 py-2.5 font-medium transition bg-blue-600 text-white">
+        Ventas por período
+      </button>
+      <button data-tab="articulos"
+        class="tab-btn flex-1 px-3 py-2.5 font-medium transition text-gray-600 hover:bg-gray-50 border-l border-gray-200">
+        Artículos más vendidos
+      </button>
+      <button data-tab="utilidad"
+        class="tab-btn flex-1 px-3 py-2.5 font-medium transition text-gray-600 hover:bg-gray-50 border-l border-gray-200">
+        Utilidad bruta
+      </button>
+      <button data-tab="saldos"
+        class="tab-btn flex-1 px-3 py-2.5 font-medium transition text-gray-600 hover:bg-gray-50 border-l border-gray-200">
+        Saldos de clientes
       </button>
     </div>
 
-    <!-- Tarjetas resumen -->
-    <div class="grid grid-cols-3 gap-4">
-      <div class="bg-white rounded shadow p-4">
-        <p class="text-xs text-gray-500 uppercase tracking-wide">Ventas del período</p>
-        <p id="total-ventas" class="text-2xl font-bold text-gray-800 mt-1">$0,00</p>
+    <!-- ── Filtro de fechas (oculto en "Saldos") ─────────────── -->
+    <div id="filtro-fechas"
+      class="flex items-center gap-3 bg-white rounded-lg shadow px-4 py-3 shrink-0">
+      <span class="text-sm text-gray-600 font-medium">Período</span>
+      <input id="fecha-desde" type="date"
+        class="border border-gray-300 rounded px-2 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-400" />
+      <span class="text-gray-400">→</span>
+      <input id="fecha-hasta" type="date"
+        class="border border-gray-300 rounded px-2 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-400" />
+    </div>
+
+    <!-- ══════════════════════════════════════════════════════════
+         PANEL 1 — Ventas por período
+    ══════════════════════════════════════════════════════════ -->
+    <div id="panel-ventas" class="flex-col flex-1 min-h-0 gap-3" style="display:flex">
+      <div class="flex items-center gap-2 shrink-0">
+        <button id="btn-generar-ventas"
+          class="bg-blue-600 hover:bg-blue-700 text-white text-sm font-medium px-4 py-2 rounded transition">
+          Generar informe
+        </button>
+        <button id="btn-exportar-ventas" disabled
+          class="border border-gray-300 text-gray-500 text-sm px-4 py-2 rounded transition
+                 hover:bg-gray-50 disabled:opacity-40 disabled:cursor-not-allowed">
+          Exportar CSV
+        </button>
       </div>
-      <div class="bg-white rounded shadow p-4">
-        <p class="text-xs text-gray-500 uppercase tracking-wide">Cantidad de tickets</p>
-        <p id="cant-tickets" class="text-2xl font-bold text-gray-800 mt-1">0</p>
-      </div>
-      <div class="bg-white rounded shadow p-4">
-        <p class="text-xs text-gray-500 uppercase tracking-wide">Ticket promedio</p>
-        <p id="ticket-promedio" class="text-2xl font-bold text-gray-800 mt-1">$0,00</p>
+      <div id="resultado-ventas" class="flex-1 overflow-y-auto flex flex-col gap-3">
+        <div class="py-12 text-center text-gray-400 text-sm">
+          Seleccioná un período y presioná "Generar informe"
+        </div>
       </div>
     </div>
 
-    <!-- Tabla de transacciones -->
-    <div class="flex-1 overflow-y-auto bg-white rounded shadow">
-      <table class="w-full text-sm">
-        <thead class="bg-gray-50 border-b border-gray-200 text-gray-600 sticky top-0">
-          <tr>
-            <th class="px-4 py-3 text-left">#</th>
-            <th class="px-4 py-3 text-left">Fecha</th>
-            <th class="px-4 py-3 text-left">Forma de pago</th>
-            <th class="px-4 py-3 text-right">Subtotal</th>
-            <th class="px-4 py-3 text-right">IVA</th>
-            <th class="px-4 py-3 text-right">Total</th>
-          </tr>
-        </thead>
-        <tbody id="tabla-transacciones" class="divide-y divide-gray-100">
-          <tr>
-            <td colspan="6" class="px-4 py-8 text-center text-gray-400">
-              Seleccioná un rango de fechas y presioná Filtrar
-            </td>
-          </tr>
-        </tbody>
-      </table>
+    <!-- ══════════════════════════════════════════════════════════
+         PANEL 2 — Artículos más vendidos
+    ══════════════════════════════════════════════════════════ -->
+    <div id="panel-articulos" class="flex-col flex-1 min-h-0 gap-3" style="display:none">
+      <div class="flex items-center gap-2 shrink-0">
+        <button id="btn-generar-articulos"
+          class="bg-blue-600 hover:bg-blue-700 text-white text-sm font-medium px-4 py-2 rounded transition">
+          Generar informe
+        </button>
+        <button id="btn-exportar-articulos" disabled
+          class="border border-gray-300 text-gray-500 text-sm px-4 py-2 rounded transition
+                 hover:bg-gray-50 disabled:opacity-40 disabled:cursor-not-allowed">
+          Exportar CSV
+        </button>
+      </div>
+      <div id="resultado-articulos" class="flex-1 overflow-y-auto">
+        <div class="py-12 text-center text-gray-400 text-sm">
+          Seleccioná un período y presioná "Generar informe"
+        </div>
+      </div>
     </div>
+
+    <!-- ══════════════════════════════════════════════════════════
+         PANEL 3 — Utilidad bruta
+    ══════════════════════════════════════════════════════════ -->
+    <div id="panel-utilidad" class="flex-col flex-1 min-h-0 gap-3" style="display:none">
+      <div class="flex items-center gap-2 shrink-0">
+        <button id="btn-generar-utilidad"
+          class="bg-blue-600 hover:bg-blue-700 text-white text-sm font-medium px-4 py-2 rounded transition">
+          Generar informe
+        </button>
+        <button id="btn-exportar-utilidad" disabled
+          class="border border-gray-300 text-gray-500 text-sm px-4 py-2 rounded transition
+                 hover:bg-gray-50 disabled:opacity-40 disabled:cursor-not-allowed">
+          Exportar CSV
+        </button>
+      </div>
+      <div id="resultado-utilidad" class="flex-1 overflow-y-auto flex flex-col gap-3">
+        <div class="py-12 text-center text-gray-400 text-sm">
+          Seleccioná un período y presioná "Generar informe"
+        </div>
+      </div>
+    </div>
+
+    <!-- ══════════════════════════════════════════════════════════
+         PANEL 4 — Saldos de clientes
+    ══════════════════════════════════════════════════════════ -->
+    <div id="panel-saldos" class="flex-col flex-1 min-h-0 gap-3" style="display:none">
+      <div class="flex items-center gap-2 shrink-0">
+        <button id="btn-generar-saldos"
+          class="bg-blue-600 hover:bg-blue-700 text-white text-sm font-medium px-4 py-2 rounded transition">
+          Generar informe
+        </button>
+        <button id="btn-exportar-saldos" disabled
+          class="border border-gray-300 text-gray-500 text-sm px-4 py-2 rounded transition
+                 hover:bg-gray-50 disabled:opacity-40 disabled:cursor-not-allowed">
+          Exportar CSV
+        </button>
+      </div>
+      <div id="resultado-saldos" class="flex-1 overflow-y-auto flex flex-col gap-3">
+        <div class="py-12 text-center text-gray-400 text-sm">
+          Presioná "Generar informe" para ver los saldos actuales
+        </div>
+      </div>
+    </div>
+
   </main>
 
   <script src="../js/informes.js"></script>
