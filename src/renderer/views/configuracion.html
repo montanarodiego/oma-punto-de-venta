@@ -21,51 +21,113 @@
   </header>
 
   <main class="flex-1 overflow-y-auto p-6">
-    <div class="max-w-lg mx-auto">
-      <h2 class="text-xl font-semibold text-gray-700 mb-6">Configuración del sistema</h2>
+    <div class="max-w-xl mx-auto flex flex-col gap-5">
 
-      <form id="form-config" class="bg-white rounded shadow p-6 flex flex-col gap-4 text-sm">
+      <h2 class="text-xl font-semibold text-gray-700">Configuración del sistema</h2>
 
-        <label class="flex flex-col gap-1">
-          <span class="text-gray-600 font-medium">Nombre del negocio</span>
-          <input name="nombre_negocio"
-            class="border border-gray-300 rounded px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-400" />
-        </label>
+      <form id="form-config" class="flex flex-col gap-5 text-sm" novalidate>
 
-        <label class="flex flex-col gap-1">
-          <span class="text-gray-600 font-medium">Moneda</span>
-          <select name="moneda"
-            class="border border-gray-300 rounded px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-400">
-            <option value="ARS">ARS — Peso argentino</option>
-            <option value="USD">USD — Dólar</option>
-            <option value="UYU">UYU — Peso uruguayo</option>
-          </select>
-        </label>
+        <!-- ── Datos del negocio ─────────────────────────────── -->
+        <div class="bg-white rounded-lg shadow p-6 flex flex-col gap-4">
+          <h3 class="text-sm font-semibold text-gray-500 uppercase tracking-wide border-b border-gray-200 pb-2">
+            Datos del negocio
+          </h3>
 
-        <label class="flex flex-col gap-1">
-          <span class="text-gray-600 font-medium">IVA / Impuesto (%)</span>
-          <input name="impuesto_porcentaje" type="number" min="0" max="100" step="0.1"
-            class="border border-gray-300 rounded px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-400" />
-        </label>
-
-        <div class="flex items-center justify-between">
-          <span class="text-gray-600 font-medium">Sincronización con Firebase</span>
-          <label class="relative inline-flex items-center cursor-pointer">
-            <input name="sync_enabled" type="checkbox" class="sr-only peer" />
-            <div class="w-11 h-6 bg-gray-200 peer-focus:ring-2 peer-focus:ring-blue-400 rounded-full
-              peer peer-checked:after:translate-x-full peer-checked:after:border-white
-              after:content-[''] after:absolute after:top-[2px] after:left-[2px]
-              after:bg-white after:border after:rounded-full after:h-5 after:w-5
-              after:transition-all peer-checked:bg-blue-600"></div>
+          <label class="flex flex-col gap-1">
+            <span class="text-gray-700 font-medium">Nombre del negocio</span>
+            <input
+              name="nombre_negocio"
+              type="text"
+              autocomplete="off"
+              placeholder="Ej: Oma Distribuciones"
+              class="border border-gray-300 rounded px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-400"
+            />
           </label>
+
+          <label class="flex flex-col gap-1">
+            <span class="text-gray-700 font-medium">Dirección</span>
+            <input
+              name="direccion"
+              type="text"
+              autocomplete="off"
+              placeholder="Ej: Av. Corrientes 1234, Buenos Aires"
+              class="border border-gray-300 rounded px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-400"
+            />
+          </label>
+
+          <div class="grid grid-cols-2 gap-4">
+            <label class="flex flex-col gap-1">
+              <span class="text-gray-700 font-medium">Teléfono</span>
+              <input
+                name="telefono"
+                type="text"
+                autocomplete="off"
+                placeholder="Ej: 011-4567-8900"
+                class="border border-gray-300 rounded px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-400"
+              />
+            </label>
+
+            <label class="flex flex-col gap-1">
+              <span class="text-gray-700 font-medium">CUIT</span>
+              <input
+                name="cuit"
+                type="text"
+                autocomplete="off"
+                placeholder="Ej: 30-12345678-9"
+                class="border border-gray-300 rounded px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-400"
+              />
+            </label>
+          </div>
         </div>
 
-        <div id="mensaje" class="hidden text-center py-2 rounded text-sm"></div>
+        <!-- ── Parámetros del sistema ────────────────────────── -->
+        <div class="bg-white rounded-lg shadow p-6 flex flex-col gap-4">
+          <h3 class="text-sm font-semibold text-gray-500 uppercase tracking-wide border-b border-gray-200 pb-2">
+            Parámetros del sistema
+          </h3>
 
-        <button type="submit"
-          class="bg-blue-600 hover:bg-blue-700 text-white font-medium px-4 py-2 rounded transition">
+          <div class="grid grid-cols-2 gap-4">
+            <label class="flex flex-col gap-1">
+              <span class="text-gray-700 font-medium">Tasa de IVA (%)</span>
+              <input
+                name="tasa_iva"
+                type="number"
+                step="0.1"
+                min="0"
+                max="100"
+                placeholder="21"
+                class="border border-gray-300 rounded px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-400"
+              />
+              <span class="text-xs text-gray-400">Se aplica en caja e informes</span>
+            </label>
+
+            <label class="flex flex-col gap-1">
+              <span class="text-gray-700 font-medium">Símbolo de moneda</span>
+              <input
+                name="moneda"
+                type="text"
+                maxlength="5"
+                autocomplete="off"
+                placeholder="$"
+                class="border border-gray-300 rounded px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-400"
+              />
+              <span class="text-xs text-gray-400">Ej: $, USD, €</span>
+            </label>
+          </div>
+        </div>
+
+        <!-- ── Mensaje de estado ─────────────────────────────── -->
+        <div id="mensaje" class="hidden px-4 py-3 rounded-lg text-sm text-center font-medium"></div>
+
+        <!-- ── Botón guardar ─────────────────────────────────── -->
+        <button
+          type="submit"
+          id="btn-guardar"
+          class="bg-blue-600 hover:bg-blue-700 text-white font-semibold px-6 py-2.5 rounded-lg transition"
+        >
           Guardar cambios
         </button>
+
       </form>
     </div>
   </main>

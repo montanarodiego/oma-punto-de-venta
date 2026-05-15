@@ -68,10 +68,14 @@ function initDatabase() {
     );
 
     INSERT OR IGNORE INTO configuracion (clave, valor) VALUES
-      ('nombre_negocio', 'Mi Negocio'),
-      ('moneda', 'ARS'),
-      ('impuesto_porcentaje', '21'),
-      ('sync_enabled', 'false');
+      ('nombre_negocio',     'Mi Negocio'),
+      ('direccion',          ''),
+      ('telefono',           ''),
+      ('cuit',               ''),
+      ('moneda',             '$'),
+      ('tasa_iva',           '21'),
+      ('impuesto_porcentaje','21'),
+      ('sync_enabled',       'false');
   `);
 
   return db;
