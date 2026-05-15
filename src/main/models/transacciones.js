@@ -52,11 +52,24 @@ function create({ transaccion, detalle }) {
         (@transaccion_id, @articulo_id, @cantidad, @precio_al_momento, @importe_total)
     `);
 
-    const updateStock = db.prepare(
-      'UPDATE articulos SET stock_actual = stock_actual - ? WHERE id = ?'
-    );
+    const checkStock = db.prepare('SELECT stock_actual, nombre FROM articulos WHERE id = ?');
+    const updateStock = db.prepare(`
+      UPDATE articulos
+      SET stock_actual = stock_actual - ?,
+          sync_status  = 'pending',
+          updated_at   = datetime('now')
+      WHERE id = ?
+    `);
 
     for (const item of detalle) {
+      const art = checkStock.get(item.articulo_id);
+      if (!art) throw new Error(`Artículo ID ${item.articulo_id} no encontrado.`);
+      if (art.stock_actual < item.cantidad) {
+        throw new Error(
+          `Stock insuficiente para "${art.nombre}". ` +
+          `Disponible: ${art.stock_actual}, pedido: ${item.cantidad}.`
+        );
+      }
       insertDetalle.run({ ...item, transaccion_id: lastInsertRowid });
       updateStock.run(item.cantidad, item.articulo_id);
     }

@@ -1,0 +1,110 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Comprobante</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <style>
+    body { font-family: 'Courier New', monospace; }
+    @media print {
+      .no-print { display: none !important; }
+      body { padding: 0; margin: 0; }
+    }
+  </style>
+</head>
+<body class="bg-gray-100 min-h-screen flex items-start justify-center py-6 px-4">
+
+  <div class="w-full max-w-xs">
+    <!-- Ticket -->
+    <div id="ticket" class="bg-white shadow-md rounded px-5 py-4 text-sm">
+
+      <!-- Encabezado -->
+      <div class="text-center mb-3">
+        <p id="nombre-negocio" class="font-bold text-base uppercase tracking-wide"></p>
+        <p id="fecha" class="text-xs text-gray-500 mt-0.5"></p>
+        <p id="ticket-num" class="text-xs text-gray-400 mt-0.5"></p>
+      </div>
+
+      <hr class="border-dashed border-gray-300 my-3" />
+
+      <!-- Items -->
+      <table class="w-full text-xs mb-1">
+        <thead>
+          <tr class="text-gray-500 border-b border-dashed border-gray-200">
+            <th class="text-left pb-1 font-normal">Artículo</th>
+            <th class="text-right pb-1 font-normal">Cant</th>
+            <th class="text-right pb-1 font-normal">P.U.</th>
+            <th class="text-right pb-1 font-normal">Total</th>
+          </tr>
+        </thead>
+        <tbody id="items-table" class="divide-y divide-dashed divide-gray-100"></tbody>
+      </table>
+
+      <hr class="border-dashed border-gray-300 my-3" />
+
+      <!-- Totales -->
+      <div class="space-y-1 text-sm">
+        <div class="flex justify-between text-gray-600">
+          <span>Subtotal</span>
+          <span id="subtotal"></span>
+        </div>
+        <div class="flex justify-between text-gray-600">
+          <span id="label-iva">IVA</span>
+          <span id="impuesto"></span>
+        </div>
+        <div class="flex justify-between font-bold text-base pt-1.5 border-t border-gray-300">
+          <span>TOTAL</span>
+          <span id="total"></span>
+        </div>
+      </div>
+
+      <hr class="border-dashed border-gray-300 my-3" />
+
+      <!-- Pago -->
+      <div class="text-xs space-y-1 text-gray-700">
+        <div class="flex justify-between">
+          <span class="text-gray-500">Forma de pago</span>
+          <span id="forma-pago" class="font-medium"></span>
+        </div>
+
+        <!-- Efectivo: recibido + vuelto -->
+        <div id="seccion-efectivo" class="hidden space-y-1">
+          <div class="flex justify-between">
+            <span class="text-gray-500">Recibido</span>
+            <span id="recibido"></span>
+          </div>
+          <div class="flex justify-between font-semibold">
+            <span>Vuelto</span>
+            <span id="vuelto" class="text-green-700"></span>
+          </div>
+        </div>
+
+        <!-- Cliente -->
+        <div id="seccion-cliente" class="hidden">
+          <div class="flex justify-between">
+            <span class="text-gray-500">Cliente</span>
+            <span id="nombre-cliente" class="font-medium text-blue-700 text-right max-w-[60%] truncate"></span>
+          </div>
+        </div>
+      </div>
+
+      <div class="mt-4 text-center text-xs text-gray-300">— Gracias por su compra —</div>
+    </div>
+
+    <!-- Botones (no se imprimen) -->
+    <div class="no-print flex gap-2 mt-4">
+      <button onclick="window.print()"
+        class="flex-1 bg-blue-600 hover:bg-blue-700 text-white rounded px-4 py-2 text-sm font-medium transition">
+        Imprimir
+      </button>
+      <button onclick="window.close()"
+        class="flex-1 border border-gray-300 bg-white hover:bg-gray-50 rounded px-4 py-2 text-sm text-gray-600 transition">
+        Cerrar
+      </button>
+    </div>
+  </div>
+
+  <script src="../js/comprobante.js"></script>
+</body>
+</html>

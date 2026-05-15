@@ -1,4 +1,4 @@
-const { app, BrowserWindow, Menu } = require('electron');
+const { app, BrowserWindow, Menu, ipcMain } = require('electron');
 const path = require('path');
 const { initDatabase } = require('./database');
 const { registerHandlers } = require('./ipc');
@@ -67,6 +67,29 @@ app.whenReady().then(() => {
   initDatabase();
   registerHandlers();
   createWindow();
+
+  ipcMain.handle('caja:abrirComprobante', (_e, { transaccionId, montoRecibido, vuelto }) => {
+    const popup = new BrowserWindow({
+      width: 560,
+      height: 700,
+      title: `Comprobante #${transaccionId}`,
+      parent: mainWindow,
+      webPreferences: {
+        preload: path.join(__dirname, 'preload.js'),
+        contextIsolation: true,
+        nodeIntegration: false,
+      },
+    });
+    popup.setMenuBarVisibility(false);
+    popup.loadFile(
+      path.join(__dirname, '..', 'renderer', 'views', 'comprobante.html'),
+      { query: {
+        id:       String(transaccionId),
+        recibido: String(montoRecibido ?? 0),
+        vuelto:   String(vuelto ?? 0),
+      }}
+    );
+  });
 
   app.on('activate', () => {
     if (BrowserWindow.getAllWindows().length === 0) createWindow();

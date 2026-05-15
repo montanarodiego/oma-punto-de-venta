@@ -30,6 +30,11 @@ contextBridge.exposeInMainWorld('api', {
     getByFecha:  (desde, hasta)     => ipcRenderer.invoke('transacciones:getByFecha', desde, hasta),
   },
 
+  // Caja
+  caja: {
+    abrirComprobante: (data) => ipcRenderer.invoke('caja:abrirComprobante', data),
+  },
+
   // Configuración
   config: {
     get:    (clave)         => ipcRenderer.invoke('config:get', clave),

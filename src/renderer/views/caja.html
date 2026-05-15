@@ -9,7 +9,6 @@
 </head>
 <body class="bg-gray-100 text-gray-800 h-screen flex flex-col">
 
-  <!-- Barra superior -->
   <header class="bg-blue-700 text-white px-6 py-3 flex items-center justify-between shadow">
     <h1 class="text-xl font-bold tracking-wide">Oma — Punto de Venta</h1>
     <nav class="flex gap-4 text-sm font-medium">
@@ -21,70 +20,119 @@
     </nav>
   </header>
 
-  <!-- Contenido principal -->
   <main class="flex flex-1 overflow-hidden">
 
-    <!-- Panel izquierdo: búsqueda + lista de artículos -->
-    <section class="w-1/2 flex flex-col border-r border-gray-300 bg-white p-4 gap-3">
-      <h2 class="text-lg font-semibold text-gray-700">Agregar artículo</h2>
-      <input
-        id="busqueda"
-        type="text"
-        placeholder="Buscar por código o nombre..."
-        class="border border-gray-300 rounded px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-400"
-      />
-      <div id="resultados-busqueda" class="flex-1 overflow-y-auto divide-y divide-gray-100 text-sm">
-        <p class="text-gray-400 py-4 text-center">Escribí para buscar artículos</p>
+    <!-- ── Panel izquierdo: búsqueda ───────────────────────────── -->
+    <section class="w-1/2 flex flex-col border-r border-gray-300 bg-white overflow-hidden">
+      <div class="px-4 pt-4 pb-2 border-b border-gray-100">
+        <h2 class="text-base font-semibold text-gray-700 mb-2">Agregar artículo</h2>
+        <input
+          id="busqueda"
+          type="text"
+          placeholder="Código de barras o nombre..."
+          autocomplete="off"
+          class="w-full border border-gray-300 rounded px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-400"
+        />
+      </div>
+      <div id="resultados-busqueda" class="flex-1 overflow-y-auto divide-y divide-gray-100">
+        <p class="text-gray-400 py-6 text-center text-sm">Escribí para buscar artículos</p>
       </div>
     </section>
 
-    <!-- Panel derecho: carrito + totales -->
-    <section class="w-1/2 flex flex-col bg-white p-4 gap-3">
-      <h2 class="text-lg font-semibold text-gray-700">Ticket actual</h2>
+    <!-- ── Panel derecho: carrito + cobro ──────────────────────── -->
+    <section class="w-1/2 flex flex-col bg-white overflow-hidden">
 
-      <div id="carrito" class="flex-1 overflow-y-auto divide-y divide-gray-100 text-sm">
-        <p class="text-gray-400 py-4 text-center">El carrito está vacío</p>
+      <!-- Carrito -->
+      <div class="px-4 pt-4 pb-1 border-b border-gray-100">
+        <h2 class="text-base font-semibold text-gray-700">Ticket actual</h2>
+      </div>
+      <div id="carrito" class="flex-1 min-h-0 overflow-y-auto px-4 divide-y divide-gray-100">
+        <p class="text-gray-400 py-6 text-center text-sm">El carrito está vacío</p>
       </div>
 
-      <!-- Totales -->
-      <div class="border-t pt-3 text-sm space-y-1">
-        <div class="flex justify-between text-gray-600">
-          <span>Subtotal</span>
-          <span id="subtotal">$0,00</span>
-        </div>
-        <div class="flex justify-between text-gray-600">
-          <span>IVA (21%)</span>
-          <span id="impuesto">$0,00</span>
-        </div>
-        <div class="flex justify-between font-bold text-base text-gray-900">
-          <span>Total</span>
-          <span id="total">$0,00</span>
-        </div>
-      </div>
+      <!-- Footer: totales + pago -->
+      <div class="border-t border-gray-200 px-4 py-3 flex flex-col gap-2 bg-gray-50">
 
-      <!-- Forma de pago + cobrar -->
-      <div class="flex gap-2">
-        <select id="forma-pago" class="flex-1 border border-gray-300 rounded px-3 py-2 text-sm">
+        <!-- Totales -->
+        <div class="text-sm space-y-0.5">
+          <div class="flex justify-between text-gray-600">
+            <span>Subtotal</span>
+            <span id="subtotal" class="font-mono">$0,00</span>
+          </div>
+          <div class="flex justify-between text-gray-600">
+            <span>IVA (<span id="label-tasa">21</span>%)</span>
+            <span id="impuesto" class="font-mono">$0,00</span>
+          </div>
+          <div class="flex justify-between font-bold text-base text-gray-900 pt-1 border-t border-gray-200">
+            <span>TOTAL</span>
+            <span id="total" class="font-mono">$0,00</span>
+          </div>
+        </div>
+
+        <!-- Forma de pago -->
+        <select id="forma-pago" class="border border-gray-300 rounded px-3 py-2 text-sm bg-white w-full">
           <option value="efectivo">Efectivo</option>
           <option value="tarjeta_debito">Tarjeta débito</option>
           <option value="tarjeta_credito">Tarjeta crédito</option>
           <option value="transferencia">Transferencia</option>
-          <option value="cuenta_corriente">Cuenta corriente</option>
+          <option value="cuenta_corriente">Crédito cliente</option>
         </select>
-        <button
-          id="btn-cobrar"
-          class="flex-1 bg-green-600 hover:bg-green-700 text-white font-semibold rounded px-4 py-2 text-sm transition"
-        >
+
+        <!-- Sección efectivo -->
+        <div id="seccion-efectivo" class="flex gap-3 items-start">
+          <div class="flex-1">
+            <label class="block text-xs text-gray-500 mb-0.5">Monto recibido</label>
+            <input
+              id="monto-recibido"
+              type="number"
+              min="0"
+              step="0.01"
+              placeholder="0,00"
+              class="w-full border border-gray-300 rounded px-2 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-400"
+            />
+          </div>
+          <div class="flex-1 text-right pt-0.5">
+            <div class="text-xs text-gray-500 mb-0.5">Vuelto</div>
+            <div id="vuelto-display" class="text-lg font-bold text-gray-400">—</div>
+          </div>
+        </div>
+
+        <!-- Sección crédito cliente -->
+        <div id="seccion-cliente" class="hidden flex-col gap-1.5">
+          <label class="text-xs text-gray-500">Buscar cliente</label>
+          <input
+            id="buscar-cliente"
+            type="text"
+            placeholder="Nombre o teléfono..."
+            autocomplete="off"
+            class="border border-gray-300 rounded px-2 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-400"
+          />
+          <div id="resultados-cliente"
+            class="hidden bg-white border border-gray-200 rounded shadow-md max-h-28 overflow-y-auto text-sm">
+          </div>
+          <div id="cliente-badge"
+            style="display:none"
+            class="flex items-center justify-between bg-blue-50 border border-blue-200 rounded px-3 py-1.5 text-sm">
+            <span id="cliente-nombre" class="font-medium text-blue-800 truncate"></span>
+            <button id="btn-quitar-cliente" class="text-blue-400 hover:text-blue-700 ml-2 shrink-0 text-base leading-none">✕</button>
+          </div>
+        </div>
+
+        <!-- Error -->
+        <div id="error-cobro"
+          class="hidden px-3 py-2 bg-red-50 border border-red-200 text-red-700 rounded text-xs leading-snug">
+        </div>
+
+        <!-- Botones -->
+        <button id="btn-cobrar"
+          class="w-full bg-green-600 hover:bg-green-700 text-white font-bold rounded px-4 py-2.5 text-sm transition">
           Cobrar
         </button>
+        <button id="btn-cancelar"
+          class="w-full border border-red-300 text-red-500 hover:bg-red-50 rounded px-4 py-1.5 text-sm transition">
+          Cancelar venta
+        </button>
       </div>
-
-      <button
-        id="btn-cancelar"
-        class="w-full border border-red-400 text-red-500 hover:bg-red-50 rounded px-4 py-2 text-sm transition"
-      >
-        Cancelar venta
-      </button>
     </section>
   </main>
 
