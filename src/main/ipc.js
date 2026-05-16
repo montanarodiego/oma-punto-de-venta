@@ -1,8 +1,12 @@
-const { ipcMain } = require('electron');
+const { ipcMain, shell } = require('electron');
 const Articulos    = require('./models/articulos');
 const Transacciones = require('./models/transacciones');
 const Clientes     = require('./models/clientes');
 const Informes     = require('./models/informes');
+const Proveedores  = require('./models/proveedores');
+const Recepciones  = require('./models/recepciones');
+const Turnos       = require('./models/turnos');
+const Backup       = require('./backup');
 const { getDb }    = require('./database');
 
 function registerHandlers() {
@@ -38,6 +42,43 @@ function registerHandlers() {
   ipcMain.handle('informes:articulosMasVendidos', (_e, d, h) => Informes.articulosMasVendidos(d, h));
   ipcMain.handle('informes:utilidadBruta',        (_e, d, h) => Informes.utilidadBruta(d, h));
   ipcMain.handle('informes:saldosClientes',       ()         => Informes.saldosClientes());
+
+  // ── Proveedores ────────────────────────────────────────────
+  ipcMain.handle('proveedores:getAll',    ()           => Proveedores.getAll());
+  ipcMain.handle('proveedores:getById',   (_e, id)     => Proveedores.getById(id));
+  ipcMain.handle('proveedores:search',    (_e, q)      => Proveedores.search(q));
+  ipcMain.handle('proveedores:create',    (_e, data)   => Proveedores.create(data));
+  ipcMain.handle('proveedores:update',    (_e, id, data) => Proveedores.update(id, data));
+  ipcMain.handle('proveedores:delete',    (_e, id)     => Proveedores.remove(id));
+  ipcMain.handle('proveedores:articulosConStockBajo', () => Proveedores.articulosConStockBajo());
+
+  // ── Pedidos ────────────────────────────────────────────────
+  ipcMain.handle('pedidos:getAll',       ()                                => Proveedores.getPedidos());
+  ipcMain.handle('pedidos:getById',      (_e, id)                          => Proveedores.getPedidoById(id));
+  ipcMain.handle('pedidos:crear',        (_e, prvId, prvNombre, items)     => Proveedores.crearPedido(prvId, prvNombre, items));
+  ipcMain.handle('pedidos:marcarRecibido', (_e, pedidoId, itemsRecibidos)  => Proveedores.marcarRecibido(pedidoId, itemsRecibidos));
+
+  // ── Recepciones ────────────────────────────────────────────
+  ipcMain.handle('recepciones:crear',   (_e, data) => Recepciones.crear(data));
+  ipcMain.handle('recepciones:listar',  ()         => Recepciones.listar());
+  ipcMain.handle('recepciones:getById', (_e, id)   => Recepciones.getById(id));
+
+  // ── Turnos ─────────────────────────────────────────────────
+  ipcMain.handle('turnos:obtenerActivo',    ()                           => Turnos.obtenerActivo());
+  ipcMain.handle('turnos:abrir',            (_e, efectivoInicial)        => Turnos.abrir(efectivoInicial));
+  ipcMain.handle('turnos:calcularResumen',  (_e, id)                     => Turnos.calcularResumen(id));
+  ipcMain.handle('turnos:cerrar',           (_e, id, efectivoReal, notas) => Turnos.cerrar(id, efectivoReal, notas));
+  ipcMain.handle('turnos:historial',        (_e, limite)                 => Turnos.historial(limite));
+  ipcMain.handle('turnos:detalle',          (_e, id)                     => Turnos.detalle(id));
+
+  // ── Backup ─────────────────────────────────────────────────
+  ipcMain.handle('backup:hacerAhora', () => {
+    try { return { ok: true, ruta: Backup.hacerBackup() }; }
+    catch (err) { return { ok: false, error: err.message }; }
+  });
+  ipcMain.handle('backup:listar',       () => Backup.listarBackups());
+  ipcMain.handle('backup:getRuta',      () => Backup.getBackupDir());
+  ipcMain.handle('backup:abrirCarpeta', () => { shell.openPath(Backup.getBackupDir()); return true; });
 
   // ── Sync ───────────────────────────────────────────────────
   ipcMain.handle('sync:contarPendientes', () => {

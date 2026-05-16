@@ -2,6 +2,7 @@ const { app, BrowserWindow, Menu, ipcMain, dialog } = require('electron');
 const path = require('path');
 const { initDatabase, getDb } = require('./database');
 const { registerHandlers }    = require('./ipc');
+const { hacerBackup }         = require('./backup');
 const { auth, firestore }     = require('./firebase');
 const { loginConEmail, reautenticarDesdeToken } = require('./auth');
 const {
@@ -24,6 +25,8 @@ function createMenu(win) {
     { label: 'Catálogo',      file: 'catalogo.html' },
     { label: 'Clientes',      file: 'clientes.html' },
     { label: 'Informes',      file: 'informes.html' },
+    { label: 'Proveedores',   file: 'proveedores.html' },
+    { label: 'Turno',         file: 'turno.html' },
     { label: 'Configuración', file: 'configuracion.html' },
   ];
 
@@ -234,6 +237,10 @@ app.whenReady().then(async () => {
       else createLoginWindow();
     }
   });
+});
+
+app.on('before-quit', () => {
+  try { hacerBackup(); } catch { /* no bloquear el cierre si falla */ }
 });
 
 app.on('window-all-closed', () => {

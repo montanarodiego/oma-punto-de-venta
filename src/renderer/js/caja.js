@@ -1,13 +1,19 @@
 // Módulo Caja — punto de venta activo
 
+// ── Constantes ─────────────────────────────────────────────────
+const UNIDADES_CONTINUAS = new Set(['kg', 'g', 'litro', 'ml', 'metro', 'cm']);
+
 // ── Estado ─────────────────────────────────────────────────────
-let carrito           = [];   // [{ id, codigo, nombre, precio_unitario, stock_actual, cantidad }]
-let tasaIva           = 21;
-let clienteSeleccionado = null;
-let ultimosBuscados   = [];
-let ultimosClientes   = [];
-let timerBusqueda     = null;
-let timerCliente      = null;
+let carrito              = [];   // [{ id, codigo, nombre, precio_unitario, stock_actual, cantidad, unidad_medida, esLibre? }]
+let tasaIva              = 21;
+let mostrarIvaDesglosado = true;
+let clienteSeleccionado  = null;
+let ultimosBuscados      = [];
+let ultimosClientes      = [];
+let timerBusqueda        = null;
+let timerCliente         = null;
+let nextIdLibre          = -1;   // IDs negativos para productos comunes
+let turnoActivo          = null;
 
 // ── Refs DOM ───────────────────────────────────────────────────
 const elBusqueda          = document.getElementById('busqueda');
@@ -16,6 +22,8 @@ const elCarrito           = document.getElementById('carrito');
 const elSubtotal          = document.getElementById('subtotal');
 const elImpuesto          = document.getElementById('impuesto');
 const elTotal             = document.getElementById('total');
+const elFilaSubtotal      = document.getElementById('fila-subtotal');
+const elFilaIva           = document.getElementById('fila-iva');
 const elLabelTasa         = document.getElementById('label-tasa');
 const elFormaPago         = document.getElementById('forma-pago');
 const elSeccionEfectivo   = document.getElementById('seccion-efectivo');
@@ -30,12 +38,34 @@ const elErrorCobro        = document.getElementById('error-cobro');
 
 // ── Init ───────────────────────────────────────────────────────
 document.addEventListener('DOMContentLoaded', async () => {
-  const tasa = await window.api.config.get('impuesto_porcentaje');
-  tasaIva = parseFloat(tasa) || 21;
+  const [tasa, ivaDesglosado, hudGrande, turno] = await Promise.all([
+    window.api.config.get('impuesto_porcentaje'),
+    window.api.config.get('mostrar_iva_desglosado'),
+    window.api.config.get('hud_grande'),
+    window.api.turnos.obtenerActivo(),
+  ]);
+  tasaIva              = parseFloat(tasa) || 21;
+  mostrarIvaDesglosado = ivaDesglosado !== '0';
+  turnoActivo          = turno;
   elLabelTasa.textContent = tasaIva;
   actualizarTotales();
+
+  // HUD Grande
+  if (hudGrande === '1') aplicarHud(true);
+
+  document.getElementById('btn-hud-toggle').addEventListener('click', async () => {
+    const activo = document.body.classList.toggle('hud-grande');
+    document.getElementById('btn-hud-toggle').classList.toggle('hud-on', activo);
+    await window.api.config.set('hud_grande', activo ? '1' : '0');
+  });
+
   elBusqueda.focus();
 });
+
+function aplicarHud(activo) {
+  document.body.classList.toggle('hud-grande', activo);
+  document.getElementById('btn-hud-toggle').classList.toggle('hud-on', activo);
+}
 
 // ── Búsqueda de artículos ──────────────────────────────────────
 elBusqueda.addEventListener('input', e => {
@@ -53,13 +83,28 @@ elBusqueda.addEventListener('keydown', e => {
   if (e.key !== 'Enter') return;
   clearTimeout(timerBusqueda);
   const q = e.target.value.trim();
-  if (q) ejecutarBusqueda(q);
+  if (q) buscarYAgregar(q);
 });
 
 async function ejecutarBusqueda(q) {
   const resultados = await window.api.articulos.search(q);
   ultimosBuscados = resultados;
   renderResultados(resultados);
+}
+
+async function buscarYAgregar(q) {
+  const resultados = await window.api.articulos.search(q);
+  ultimosBuscados  = resultados;
+  if (resultados.length === 0) {
+    renderResultados(resultados);
+    return;
+  }
+  const exacto  = resultados.find(a => a.codigo.toLowerCase() === q.toLowerCase());
+  agregarAlCarrito(exacto ?? resultados[0]);
+  elBusqueda.value       = '';
+  ultimosBuscados        = [];
+  elResultados.innerHTML = '<div class="empty-state">Escribí para buscar artículos</div>';
+  elBusqueda.focus();
 }
 
 function renderResultados(lista) {
@@ -94,6 +139,9 @@ elResultados.addEventListener('click', e => {
   if (art) agregarAlCarrito(art);
 });
 
+// FIX 2: evita que click/drag en resultados haga blur en el input de búsqueda
+elResultados.addEventListener('mousedown', e => { e.preventDefault(); });
+
 // ── Carrito ────────────────────────────────────────────────────
 function agregarAlCarrito(articulo) {
   const existente = carrito.find(i => i.id === articulo.id);
@@ -112,16 +160,22 @@ function renderCarrito() {
     elCarrito.innerHTML = '<p class="text-gray-400 py-6 text-center text-sm">El carrito está vacío</p>';
     return;
   }
-  elCarrito.innerHTML = carrito.map(item => `
+  elCarrito.innerHTML = carrito.map(item => {
+    const unidad   = item.unidad_medida || 'unidad';
+    const continua = UNIDADES_CONTINUAS.has(unidad);
+    const paso     = continua ? '0.001' : '1';
+    return `
     <div class="flex items-center gap-2 py-2.5">
       <div class="flex-1 min-w-0">
         <div class="text-sm font-medium truncate">${esc(item.nombre)}</div>
-        <div class="text-xs text-gray-500">${fmt(item.precio_unitario)} c/u</div>
+        <div class="text-xs text-gray-500">${fmt(item.precio_unitario)} / ${esc(unidad)}</div>
       </div>
       <div class="flex items-center border border-gray-200 rounded overflow-hidden shrink-0">
         <button data-action="dec" data-id="${item.id}"
           class="px-2 py-1 text-gray-600 hover:bg-gray-100 text-sm leading-none select-none">−</button>
-        <span class="px-2 py-1 text-sm min-w-[2.5rem] text-center select-none">${item.cantidad}</span>
+        <input type="number" data-action="set-qty" data-id="${item.id}"
+          value="${fmtNum(item.cantidad)}" step="${paso}" min="${paso}"
+          style="width:4rem;padding:4px 2px;text-align:center;background:transparent;border:none;outline:none;font-size:13px;color:inherit;font-family:inherit;" />
         <button data-action="inc" data-id="${item.id}"
           class="px-2 py-1 text-gray-600 hover:bg-gray-100 text-sm leading-none select-none">+</button>
       </div>
@@ -132,7 +186,8 @@ function renderCarrito() {
         class="text-gray-300 hover:text-red-500 transition-colors text-xl leading-none shrink-0 ml-1 select-none">
         ×
       </button>
-    </div>`).join('');
+    </div>`;
+  }).join('');
 }
 
 elCarrito.addEventListener('click', e => {
@@ -146,11 +201,34 @@ elCarrito.addEventListener('click', e => {
   if (action === 'inc') {
     carrito[idx].cantidad++;
   } else if (action === 'dec') {
-    carrito[idx].cantidad > 1 ? carrito[idx].cantidad-- : carrito.splice(idx, 1);
+    const next = carrito[idx].cantidad - 1;
+    if (next <= 0) carrito.splice(idx, 1);
+    else carrito[idx].cantidad = next;
   } else if (action === 'del') {
     carrito.splice(idx, 1);
   }
 
+  renderCarrito();
+  actualizarTotales();
+});
+
+// Edición directa de cantidad en el input del carrito
+elCarrito.addEventListener('change', e => {
+  const input = e.target.closest('input[data-action="set-qty"]');
+  if (!input) return;
+  const id  = parseInt(input.dataset.id, 10);
+  const idx = carrito.findIndex(i => i.id === id);
+  if (idx === -1) return;
+
+  const val      = parseFloat(input.value);
+  const continua = UNIDADES_CONTINUAS.has(carrito[idx].unidad_medida);
+  if (isNaN(val) || val <= 0) {
+    carrito.splice(idx, 1);
+  } else {
+    carrito[idx].cantidad = continua
+      ? Math.round(val * 1000) / 1000
+      : Math.max(1, Math.round(val));
+  }
   renderCarrito();
   actualizarTotales();
 });
@@ -168,6 +246,8 @@ function actualizarTotales() {
   elSubtotal.textContent = fmt(subtotal);
   elImpuesto.textContent = fmt(impuesto);
   elTotal.textContent    = fmt(total);
+  elFilaSubtotal.style.display = mostrarIvaDesglosado ? '' : 'none';
+  elFilaIva.style.display      = mostrarIvaDesglosado ? '' : 'none';
   if (elFormaPago.value === 'efectivo') actualizarVuelto();
   return { subtotal, impuesto, total };
 }
@@ -260,6 +340,30 @@ document.getElementById('btn-quitar-cliente').addEventListener('click', () => {
   elBuscarCliente.focus();
 });
 
+// FIX 2: cierra el dropdown de clientes solo cuando el click externo es intencional
+// (mousedown Y mouseup fuera del área), no durante un drag que empezó dentro
+let _mousedownFueraCliente = false;
+
+document.addEventListener('mousedown', e => {
+  _mousedownFueraCliente =
+    !elBuscarCliente.contains(e.target) &&
+    !elResultadosCliente.contains(e.target);
+});
+
+document.addEventListener('mouseup', e => {
+  if (
+    _mousedownFueraCliente &&
+    !elBuscarCliente.contains(e.target) &&
+    !elResultadosCliente.contains(e.target)
+  ) {
+    elResultadosCliente.classList.add('hidden');
+  }
+  _mousedownFueraCliente = false;
+});
+
+// Evita que clic en dropdown de clientes haga blur en el input de cliente
+elResultadosCliente.addEventListener('mousedown', e => { e.preventDefault(); });
+
 // ── Cobrar ─────────────────────────────────────────────────────
 document.getElementById('btn-cobrar').addEventListener('click', cobrar);
 
@@ -267,12 +371,16 @@ async function cobrar() {
   ocultarError();
   if (carrito.length === 0) return mostrarError('El carrito está vacío.');
 
+  if (!turnoActivo) {
+    return mostrarError('No hay turno activo. Abrí un turno desde el menú Turno antes de registrar ventas.');
+  }
+
   const { subtotal, impuesto, total } = calcularTotales();
   const formaPago = elFormaPago.value;
 
-  // Validar stock (check rápido con datos cacheados)
+  // Validar stock (check rápido con datos cacheados; productos comunes no tienen stock)
   for (const item of carrito) {
-    if (Number(item.stock_actual) < item.cantidad) {
+    if (!item.esLibre && Number(item.stock_actual) < item.cantidad) {
       return mostrarError(
         `Stock insuficiente para "${item.nombre}". ` +
         `Disponible: ${fmtNum(item.stock_actual)}, pedido: ${item.cantidad}.`
@@ -306,7 +414,8 @@ async function cobrar() {
   };
 
   const detalleData = carrito.map(item => ({
-    articulo_id:       item.id,
+    articulo_id:       item.esLibre ? null : item.id,
+    descripcion_libre: item.esLibre ? item.nombre : null,
     cantidad:          item.cantidad,
     precio_al_momento: item.precio_unitario,
     importe_total:     item.precio_unitario * item.cantidad,
@@ -364,6 +473,67 @@ function limpiarCarrito() {
   ocultarError();
   elBusqueda.focus();
 }
+
+// ── Producto Común (venta libre sin stock) ─────────────────────
+const elModalLibre    = document.getElementById('modal-libre');
+const elFormLibre     = document.getElementById('form-libre');
+const elLibreDesc     = document.getElementById('libre-desc');
+const elLibrePrecio   = document.getElementById('libre-precio');
+const elLibreCantidad = document.getElementById('libre-cantidad');
+const elErrorLibre    = document.getElementById('error-libre');
+
+document.getElementById('btn-producto-libre').addEventListener('click', () => {
+  elFormLibre.reset();
+  elLibreCantidad.value = '1';
+  elErrorLibre.classList.add('hidden');
+  elModalLibre.classList.remove('hidden');
+  elLibreDesc.focus();
+});
+
+['btn-cerrar-libre', 'btn-cancelar-libre'].forEach(id => {
+  document.getElementById(id).addEventListener('click', () => {
+    elModalLibre.classList.add('hidden');
+  });
+});
+
+elModalLibre.addEventListener('click', e => {
+  if (e.target === elModalLibre) elModalLibre.classList.add('hidden');
+});
+
+elFormLibre.addEventListener('submit', e => {
+  e.preventDefault();
+  const desc     = elLibreDesc.value.trim();
+  const precio   = parseFloat(elLibrePrecio.value);
+  const cantidad = Math.abs(parseFloat(elLibreCantidad.value) || 1);
+
+  if (!desc) {
+    elErrorLibre.textContent = 'La descripción es obligatoria.';
+    elErrorLibre.classList.remove('hidden');
+    return;
+  }
+  if (isNaN(precio) || precio <= 0) {
+    elErrorLibre.textContent = 'El precio debe ser mayor a 0.';
+    elErrorLibre.classList.remove('hidden');
+    return;
+  }
+
+  carrito.push({
+    id:               nextIdLibre--,
+    codigo:           '',
+    nombre:           desc,
+    precio_unitario:  precio,
+    stock_actual:     Infinity,
+    cantidad,
+    unidad_medida:    'unidad',
+    esLibre:          true,
+  });
+
+  renderCarrito();
+  actualizarTotales();
+  ocultarError();
+  elModalLibre.classList.add('hidden');
+  elBusqueda.focus();
+});
 
 // ── Helpers ────────────────────────────────────────────────────
 function fmt(n) {

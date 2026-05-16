@@ -15,6 +15,22 @@ function ventasPorPeriodo(desde, hasta) {
     WHERE created_at BETWEEN ? AND ?
   `).get(d, h);
 
+  // Ganancia bruta: (precio_al_momento - costo_unitario) * cantidad
+  // Para Productos Comunes (articulo_id NULL) ganancia = 0
+  const gananciaBruta = db.prepare(`
+    SELECT COALESCE(SUM(
+      CASE WHEN dt.articulo_id IS NOT NULL
+        THEN dt.cantidad * (dt.precio_al_momento - a.costo_unitario)
+        ELSE 0 END
+    ), 0) AS ganancia_bruta
+    FROM detalle_transaccion dt
+    LEFT JOIN articulos a ON a.id = dt.articulo_id
+    JOIN transacciones t ON t.id = dt.transaccion_id
+    WHERE t.created_at BETWEEN ? AND ?
+  `).get(d, h);
+
+  resumen.ganancia_bruta = gananciaBruta.ganancia_bruta;
+
   const porFormaPago = db.prepare(`
     SELECT
       forma_pago,
@@ -45,7 +61,9 @@ function articulosMasVendidos(desde, hasta) {
       a.codigo,
       a.nombre,
       CAST(SUM(dt.cantidad) AS REAL)       AS cantidad_total,
-      COALESCE(SUM(dt.importe_total), 0)   AS importe_total
+      COALESCE(SUM(dt.importe_total), 0)   AS importe_total,
+      COALESCE(SUM(dt.cantidad * (dt.precio_al_momento - a.costo_unitario)), 0)
+                                           AS ganancia
     FROM detalle_transaccion dt
     JOIN articulos    a ON a.id = dt.articulo_id
     JOIN transacciones t ON t.id = dt.transaccion_id

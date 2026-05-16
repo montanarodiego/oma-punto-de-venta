@@ -17,6 +17,28 @@
       flex-shrink:0;
     }
     @keyframes spin { to { transform:rotate(360deg); } }
+
+    .toggle-switch { position:relative; display:inline-block; width:42px; height:24px; flex-shrink:0; }
+    .toggle-switch input { opacity:0; width:0; height:0; position:absolute; }
+    .toggle-track {
+      position:absolute; inset:0;
+      background:var(--surface-3);
+      border-radius:24px;
+      cursor:pointer;
+      transition:background var(--ease);
+    }
+    .toggle-track::before {
+      content:'';
+      position:absolute;
+      left:3px; top:3px;
+      width:18px; height:18px;
+      border-radius:50%;
+      background:#fff;
+      transition:transform var(--ease);
+      box-shadow:0 1px 3px rgba(0,0,0,.4);
+    }
+    .toggle-switch input:checked + .toggle-track { background:var(--accent); }
+    .toggle-switch input:checked + .toggle-track::before { transform:translateX(18px); }
   </style>
 </head>
 <body class="app-layout">
@@ -48,6 +70,14 @@
       <a href="informes.html" class="nav-item">
         <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="20" x2="18" y2="10"/><line x1="12" y1="20" x2="12" y2="4"/><line x1="6" y1="20" x2="6" y2="14"/><line x1="2" y1="20" x2="22" y2="20"/></svg>
         Informes
+      </a>
+      <a href="proveedores.html" class="nav-item">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="1" y="3" width="15" height="13"/><polygon points="16 8 20 8 23 11 23 16 16 16 16 8"/><circle cx="5.5" cy="18.5" r="2.5"/><circle cx="18.5" cy="18.5" r="2.5"/></svg>
+        Proveedores
+      </a>
+      <a href="turno.html" class="nav-item">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
+        Turno
       </a>
       <a href="configuracion.html" class="nav-item active">
         <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>
@@ -114,7 +144,7 @@
           <!-- Parámetros del sistema -->
           <div class="card">
             <div class="card-header">Parámetros del sistema</div>
-            <div class="card-body">
+            <div class="card-body" style="display:flex;flex-direction:column;gap:14px;">
               <div style="display:grid;grid-template-columns:1fr 1fr;gap:14px;">
                 <div class="field">
                   <label class="field-label">Tasa de IVA (%)</label>
@@ -129,6 +159,16 @@
                   <span class="field-hint">Ej: $, USD, €</span>
                 </div>
               </div>
+              <div style="display:flex;align-items:center;justify-content:space-between;padding-top:14px;border-top:1px solid var(--border);">
+                <div>
+                  <div class="field-label">Mostrar IVA desglosado</div>
+                  <span class="field-hint">Muestra subtotal + IVA + total por separado en caja y comprobantes</span>
+                </div>
+                <label class="toggle-switch">
+                  <input type="checkbox" id="toggle-iva" checked />
+                  <span class="toggle-track"></span>
+                </label>
+              </div>
             </div>
           </div>
 
@@ -141,6 +181,31 @@
                 Sincronizar ahora
               </button>
               <span id="sync-resultado" style="font-size:13px;color:var(--text-muted);"></span>
+            </div>
+          </div>
+
+          <!-- Backup -->
+          <div class="card">
+            <div class="card-header">Backup de la base de datos</div>
+            <div class="card-body" style="display:flex;flex-direction:column;gap:14px;">
+              <p style="font-size:13px;color:var(--text-muted);">Se genera automáticamente un backup al cerrar la app. Los últimos 30 backups se conservan.</p>
+              <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;">
+                <button type="button" id="btn-backup-ahora" class="btn btn-ghost">
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"/><polyline points="17 21 17 13 7 13 7 21"/><polyline points="7 3 7 8 15 8"/></svg>
+                  Hacer backup ahora
+                </button>
+                <button type="button" id="btn-abrir-carpeta-backup" class="btn btn-ghost">
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"/></svg>
+                  Abrir carpeta
+                </button>
+                <span id="backup-resultado" style="font-size:13px;color:var(--text-muted);"></span>
+              </div>
+              <div>
+                <div style="font-size:11px;font-weight:600;letter-spacing:.05em;text-transform:uppercase;color:var(--text-subtle);margin-bottom:8px;">Backups guardados</div>
+                <div id="lista-backups" style="display:flex;flex-direction:column;gap:4px;max-height:160px;overflow-y:auto;">
+                  <div style="font-size:13px;color:var(--text-subtle);">Cargando...</div>
+                </div>
+              </div>
             </div>
           </div>
 

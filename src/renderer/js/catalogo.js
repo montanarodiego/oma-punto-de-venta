@@ -55,19 +55,25 @@ function filtrar(q) {
 }
 
 // ── Render tabla ──────────────────────────────────────────────
+const LABEL_UNIDAD = {
+  unidad: 'Unidad', kg: 'kg', g: 'g', litro: 'Litro', ml: 'ml',
+  metro: 'Metro', cm: 'cm', docena: 'Docena', caja: 'Caja', pack: 'Pack',
+};
+
 function renderTabla(lista) {
   if (lista.length === 0) {
     const msg = inputBusq.value.trim()
       ? 'Sin resultados para la búsqueda'
       : 'No hay artículos cargados. Creá el primero con "+ Nuevo artículo".';
-    tabla.innerHTML = `<tr><td colspan="8" class="px-4 py-8 text-center text-gray-400">${msg}</td></tr>`;
+    tabla.innerHTML = `<tr><td colspan="9" class="px-4 py-8 text-center text-gray-400">${msg}</td></tr>`;
     return;
   }
 
   tabla.innerHTML = lista.map(a => {
-    const bajstock = Number(a.stock_actual) <= Number(a.stock_minimo);
-    const rowCls   = bajstock ? 'bg-red-50' : 'hover:bg-gray-50';
-    const stockCls = bajstock ? 'text-red-600 font-bold' : 'text-gray-700';
+    const bajstock  = Number(a.stock_actual) <= Number(a.stock_minimo);
+    const rowCls    = bajstock ? 'bg-red-50' : 'hover:bg-gray-50';
+    const stockCls  = bajstock ? 'text-red-600 font-bold' : 'text-gray-700';
+    const unidadLabel = LABEL_UNIDAD[a.unidad_medida] || a.unidad_medida || 'Unidad';
 
     return `
       <tr class="${rowCls} transition-colors">
@@ -80,6 +86,7 @@ function renderTabla(lista) {
         <td class="px-4 py-2.5 text-right font-semibold whitespace-nowrap">${fmt(a.precio_unitario)}</td>
         <td class="px-4 py-2.5 text-right whitespace-nowrap ${stockCls}">${fmtNum(a.stock_actual)}</td>
         <td class="px-4 py-2.5 text-right text-gray-500 whitespace-nowrap">${fmtNum(a.stock_minimo)}</td>
+        <td class="px-4 py-2.5 text-gray-500 text-sm whitespace-nowrap">${esc(unidadLabel)}</td>
         <td class="px-4 py-2.5 text-gray-500 text-sm">${esc(a.proveedor || '—')}</td>
         <td class="px-4 py-2.5 text-center whitespace-nowrap">
           <button data-action="editar"   data-id="${a.id}"
@@ -100,10 +107,10 @@ function abrirModalNuevo() {
   editandoId = null;
   modalTitulo.textContent = 'Nuevo artículo';
   form.reset();
-  // Valores por defecto para campos numéricos
   form.costo_unitario.value = '0';
   form.stock_actual.value   = '0';
   form.stock_minimo.value   = '0';
+  form.unidad_medida.value  = 'unidad';
   ocultarError();
   modal.classList.remove('hidden');
   form.codigo.focus();
@@ -125,6 +132,7 @@ function abrirModalEdicion(id) {
   form.stock_actual.value    = a.stock_actual    ?? 0;
   form.stock_minimo.value    = a.stock_minimo    ?? 0;
   form.proveedor.value       = a.proveedor       ?? '';
+  form.unidad_medida.value   = a.unidad_medida   ?? 'unidad';
 
   modal.classList.remove('hidden');
   form.nombre.focus();
@@ -151,6 +159,7 @@ async function guardar(e) {
     stock_actual:    parsearNumero(form.stock_actual.value, 0),
     stock_minimo:    parsearNumero(form.stock_minimo.value, 0),
     proveedor:       form.proveedor.value.trim() || null,
+    unidad_medida:   form.unidad_medida.value || 'unidad',
   };
 
   // Validaciones de negocio
@@ -208,6 +217,193 @@ function abrirConfirm(id) {
 
 function cerrarConfirm() {
   modalConfirm.classList.add('hidden');
+}
+
+// ── Importar Excel ────────────────────────────────────────────
+let importRows    = [];
+let importHeaders = [];
+
+const inputExcel  = document.getElementById('input-excel');
+const modalImport = document.getElementById('modal-import');
+const importStatus = document.getElementById('import-status');
+
+document.getElementById('btn-importar-excel').addEventListener('click', () => inputExcel.click());
+inputExcel.addEventListener('change', leerExcel);
+document.getElementById('btn-cancelar-import').addEventListener('click', cerrarModalImport);
+document.getElementById('btn-close-import').addEventListener('click', cerrarModalImport);
+document.getElementById('btn-ejecutar-import').addEventListener('click', ejecutarImport);
+modalImport.addEventListener('click', e => { if (e.target === modalImport) cerrarModalImport(); });
+
+['map-codigo', 'map-nombre', 'map-precio', 'map-costo', 'map-stock'].forEach(id => {
+  document.getElementById(id).addEventListener('change', renderPreview);
+});
+
+function cerrarModalImport() {
+  modalImport.classList.add('hidden');
+  inputExcel.value = '';
+  importRows = [];
+  importHeaders = [];
+  document.getElementById('import-step-mapeo').classList.add('hidden');
+  document.getElementById('import-step-vacio').style.display = '';
+  document.getElementById('btn-ejecutar-import').classList.add('hidden');
+  importStatus.classList.add('hidden');
+}
+
+function leerExcel(e) {
+  const file = e.target.files[0];
+  if (!file) return;
+
+  if (typeof XLSX === 'undefined') {
+    alert('La librería XLSX no está disponible. Verificá tu conexión a internet.');
+    return;
+  }
+
+  const reader = new FileReader();
+  reader.onload = evt => {
+    const wb   = XLSX.read(evt.target.result, { type: 'array' });
+    const ws   = wb.Sheets[wb.SheetNames[0]];
+    const data = XLSX.utils.sheet_to_json(ws, { header: 1, defval: '' });
+
+    if (!data || data.length < 2) {
+      alert('El archivo no tiene datos suficientes (se necesita al menos una fila de encabezado y una de datos).');
+      return;
+    }
+
+    importHeaders = data[0].map(h => String(h ?? ''));
+    importRows    = data.slice(1).filter(row => row.some(cell => String(cell).trim() !== ''));
+
+    if (importRows.length === 0) {
+      alert('El archivo no tiene filas con datos.');
+      return;
+    }
+
+    rellenarSelectsMapeo();
+    autoDetectColumns();
+    renderPreview();
+
+    document.getElementById('import-step-vacio').style.display = 'none';
+    document.getElementById('import-step-mapeo').classList.remove('hidden');
+    document.getElementById('btn-ejecutar-import').classList.remove('hidden');
+    importStatus.classList.add('hidden');
+    modalImport.classList.remove('hidden');
+  };
+  reader.readAsArrayBuffer(file);
+}
+
+function rellenarSelectsMapeo() {
+  const ningunaOpt = '<option value="-1">— No usar —</option>';
+  const colOpts = importHeaders.map((h, i) =>
+    `<option value="${i}">${esc(h || `Columna ${i + 1}`)}</option>`
+  ).join('');
+
+  ['map-codigo', 'map-nombre', 'map-precio', 'map-costo', 'map-stock'].forEach(id => {
+    document.getElementById(id).innerHTML = ningunaOpt + colOpts;
+    document.getElementById(id).value = '-1';
+  });
+}
+
+function autoDetectColumns() {
+  const KEYWORDS = {
+    'map-codigo': ['codigo', 'code', 'cod', 'sku', 'id'],
+    'map-nombre': ['nombre', 'name', 'descripcion', 'producto', 'articulo', 'item'],
+    'map-precio': ['precio', 'price', 'venta', 'pvp', 'precio_venta', 'p_venta'],
+    'map-costo':  ['costo', 'cost', 'compra', 'precio_costo', 'p_costo'],
+    'map-stock':  ['stock', 'cantidad', 'existencia', 'qty', 'inventario'],
+  };
+  for (const [selId, kws] of Object.entries(KEYWORDS)) {
+    const idx = importHeaders.findIndex(h =>
+      kws.some(kw => h.toLowerCase().includes(kw))
+    );
+    if (idx >= 0) document.getElementById(selId).value = String(idx);
+  }
+}
+
+function renderPreview() {
+  const preview = importRows.slice(0, 5);
+  const thead = `<thead><tr>${importHeaders.map(h =>
+    `<th style="white-space:nowrap;">${esc(h)}</th>`
+  ).join('')}</tr></thead>`;
+  const tbody = `<tbody>${preview.map(row =>
+    `<tr>${importHeaders.map((_, i) =>
+      `<td style="white-space:nowrap;max-width:120px;overflow:hidden;text-overflow:ellipsis;">${esc(String(row[i] ?? ''))}</td>`
+    ).join('')}</tr>`
+  ).join('')}</tbody>`;
+  document.getElementById('tabla-preview').innerHTML = thead + tbody;
+}
+
+async function ejecutarImport() {
+  const colCodigo = parseInt(document.getElementById('map-codigo').value, 10);
+  const colNombre = parseInt(document.getElementById('map-nombre').value, 10);
+  const colPrecio = parseInt(document.getElementById('map-precio').value, 10);
+  const colCosto  = parseInt(document.getElementById('map-costo').value,  10);
+  const colStock  = parseInt(document.getElementById('map-stock').value,  10);
+
+  if (colCodigo < 0) { mostrarErrorImport('Debés mapear la columna "Código".'); return; }
+  if (colNombre < 0) { mostrarErrorImport('Debés mapear la columna "Nombre".'); return; }
+
+  const btnImp = document.getElementById('btn-ejecutar-import');
+  btnImp.disabled = true;
+  btnImp.textContent = 'Importando...';
+  importStatus.classList.remove('hidden');
+
+  let nuevos = 0, actualizados = 0, errores = 0;
+
+  for (let i = 0; i < importRows.length; i++) {
+    const row    = importRows[i];
+    const codigo = String(row[colCodigo] ?? '').trim().toUpperCase();
+    const nombre = String(row[colNombre] ?? '').trim();
+
+    importStatus.textContent = `Procesando fila ${i + 1} de ${importRows.length}…`;
+
+    if (!codigo || !nombre) { errores++; continue; }
+
+    const precio = colPrecio >= 0 ? parsearNumero(String(row[colPrecio] ?? ''), null) : null;
+    const costo  = colCosto  >= 0 ? parsearNumero(String(row[colCosto]  ?? ''), 0)    : 0;
+    const stock  = colStock  >= 0 ? parsearNumero(String(row[colStock]  ?? ''), 0)    : 0;
+
+    try {
+      const existente = await window.api.articulos.getByCodigo(codigo);
+      if (existente) {
+        const upd = { nombre };
+        if (precio !== null && precio > 0) upd.precio_unitario = precio;
+        if (colCosto >= 0)  upd.costo_unitario = costo;
+        if (colStock >= 0)  upd.stock_actual   = stock;
+        await window.api.articulos.update(existente.id, upd);
+        actualizados++;
+      } else {
+        if (precio === null || precio <= 0) { errores++; continue; }
+        await window.api.articulos.create({
+          codigo,
+          nombre,
+          precio_unitario: precio,
+          costo_unitario:  costo,
+          stock_actual:    stock,
+          stock_minimo:    0,
+          unidad_medida:   'unidad',
+        });
+        nuevos++;
+      }
+    } catch {
+      errores++;
+    }
+  }
+
+  importStatus.innerHTML = `
+    <div style="padding:10px 14px;background:rgba(59,130,246,.1);border:1px solid rgba(59,130,246,.3);border-radius:var(--r-in);line-height:1.7;">
+      Importación finalizada:<br>
+      <strong>${nuevos}</strong> artículos nuevos &nbsp;·&nbsp;
+      <strong>${actualizados}</strong> actualizados &nbsp;·&nbsp;
+      <strong style="color:#fca5a5;">${errores}</strong> filas con error
+    </div>`;
+
+  btnImp.disabled = false;
+  btnImp.textContent = 'Importar de nuevo';
+  await cargarArticulos();
+}
+
+function mostrarErrorImport(msg) {
+  importStatus.classList.remove('hidden');
+  importStatus.innerHTML = `<div style="padding:8px 12px;background:rgba(239,68,68,.1);border:1px solid rgba(239,68,68,.25);border-radius:var(--r-in);color:#fca5a5;">${esc(msg)}</div>`;
 }
 
 // ── Helpers ───────────────────────────────────────────────────

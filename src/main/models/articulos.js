@@ -2,7 +2,7 @@ const { getDb } = require('../database');
 
 const CAMPOS_EDITABLES = [
   'codigo', 'nombre', 'descripcion', 'costo_unitario', 'precio_unitario',
-  'stock_actual', 'stock_minimo', 'proveedor',
+  'stock_actual', 'stock_minimo', 'proveedor', 'unidad_medida',
 ];
 
 function getAll() {
@@ -28,12 +28,12 @@ function create(data) {
   const stmt = getDb().prepare(`
     INSERT INTO articulos
       (codigo, nombre, descripcion, costo_unitario, precio_unitario,
-       stock_actual, stock_minimo, proveedor, sync_status, updated_at)
+       stock_actual, stock_minimo, proveedor, unidad_medida, sync_status, updated_at)
     VALUES
       (@codigo, @nombre, @descripcion, @costo_unitario, @precio_unitario,
-       @stock_actual, @stock_minimo, @proveedor, 'pending', datetime('now'))
+       @stock_actual, @stock_minimo, @proveedor, @unidad_medida, 'pending', datetime('now'))
   `);
-  const result = stmt.run(data);
+  const result = stmt.run({ unidad_medida: 'unidad', ...data });
   return getById(result.lastInsertRowid);
 }
 

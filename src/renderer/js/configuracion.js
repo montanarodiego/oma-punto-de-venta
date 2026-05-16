@@ -5,9 +5,14 @@ const mensaje = document.getElementById('mensaje');
 let timerMensaje = null;
 
 // ── Init ───────────────────────────────────────────────────────
-document.addEventListener('DOMContentLoaded', cargarConfig);
+document.addEventListener('DOMContentLoaded', () => {
+  cargarConfig();
+  cargarBackups();
+});
 form.addEventListener('submit', guardar);
 document.getElementById('btn-sync').addEventListener('click', sincronizarAhora);
+document.getElementById('btn-backup-ahora').addEventListener('click', hacerBackupAhora);
+document.getElementById('btn-abrir-carpeta-backup').addEventListener('click', () => window.api.backup.abrirCarpeta());
 
 async function cargarConfig() {
   const config = await window.api.config.getAll();
@@ -19,6 +24,8 @@ async function cargarConfig() {
   // tasa_iva tiene prioridad; impuesto_porcentaje es el nombre legacy
   form.tasa_iva.value       = config.tasa_iva ?? config.impuesto_porcentaje ?? '21';
   form.moneda.value         = config.moneda          ?? '$';
+  // toggle IVA: si no existe la clave se trata como ON (comportamiento previo)
+  document.getElementById('toggle-iva').checked = config.mostrar_iva_desglosado !== '0';
 }
 
 // ── Guardar ────────────────────────────────────────────────────
@@ -32,13 +39,14 @@ async function guardar(e) {
   }
 
   const valores = {
-    nombre_negocio:      form.nombre_negocio.value.trim(),
-    direccion:           form.direccion.value.trim(),
-    telefono:            form.telefono.value.trim(),
-    cuit:                form.cuit.value.trim(),
-    tasa_iva:            String(tasa),
-    impuesto_porcentaje: String(tasa),   // alias que usan caja.js e informes.js
-    moneda:              form.moneda.value.trim() || '$',
+    nombre_negocio:        form.nombre_negocio.value.trim(),
+    direccion:             form.direccion.value.trim(),
+    telefono:              form.telefono.value.trim(),
+    cuit:                  form.cuit.value.trim(),
+    tasa_iva:              String(tasa),
+    impuesto_porcentaje:   String(tasa),   // alias que usan caja.js e informes.js
+    moneda:                form.moneda.value.trim() || '$',
+    mostrar_iva_desglosado: document.getElementById('toggle-iva').checked ? '1' : '0',
   };
 
   const btn = document.getElementById('btn-guardar');
@@ -114,4 +122,51 @@ function mostrarMensaje(texto, tipo) {
 function ocultarMensaje() {
   mensaje.classList.add('hidden');
   mensaje.textContent = '';
+}
+
+// ── Backup ─────────────────────────────────────────────────────
+async function cargarBackups() {
+  const lista = await window.api.backup.listar();
+  const el    = document.getElementById('lista-backups');
+  if (!lista || lista.length === 0) {
+    el.innerHTML = '<div style="font-size:13px;color:var(--text-subtle);">Sin backups guardados.</div>';
+    return;
+  }
+  el.innerHTML = lista.map(b => {
+    const fecha = new Date(b.fecha).toLocaleString('es-AR', {
+      day: '2-digit', month: '2-digit', year: 'numeric',
+      hour: '2-digit', minute: '2-digit',
+    });
+    const kb = (b.tamanio / 1024).toFixed(0);
+    return `<div style="display:flex;justify-content:space-between;align-items:center;padding:6px 10px;background:var(--surface-2);border-radius:var(--r-in);font-size:12px;">
+      <span style="color:var(--text-muted);font-family:monospace;">${esc(b.nombre)}</span>
+      <span style="color:var(--text-subtle);white-space:nowrap;margin-left:12px;">${fecha} · ${kb} KB</span>
+    </div>`;
+  }).join('');
+}
+
+async function hacerBackupAhora() {
+  const btn = document.getElementById('btn-backup-ahora');
+  const res_el = document.getElementById('backup-resultado');
+  btn.disabled    = true;
+  res_el.textContent = '';
+  const res = await window.api.backup.hacerAhora();
+  if (res.ok) {
+    res_el.textContent = 'Backup creado correctamente.';
+    res_el.style.color = '#4ade80';
+    await cargarBackups();
+  } else {
+    res_el.textContent = 'Error: ' + (res.error || 'error desconocido');
+    res_el.style.color = '#f87171';
+  }
+  btn.disabled = false;
+  setTimeout(() => { res_el.textContent = ''; }, 4000);
+}
+
+function esc(str) {
+  return String(str ?? '')
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;');
 }

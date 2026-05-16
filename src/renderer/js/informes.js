@@ -110,35 +110,43 @@ function renderVentas({ resumen, porFormaPago, transacciones }) {
     return;
   }
 
-  const promedio = resumen.cantidad > 0 ? resumen.total / resumen.cantidad : 0;
+  const ticketPromedio = resumen.cantidad > 0 ? resumen.total / resumen.cantidad : 0;
+  const ganancia       = Number(resumen.ganancia_bruta) || 0;
+  const margen         = resumen.total > 0 ? (ganancia / resumen.total) * 100 : 0;
 
   el.innerHTML = `
     <!-- Tarjetas resumen -->
-    <div class="grid grid-cols-2 lg:grid-cols-4 gap-3 shrink-0">
-      ${tarjeta('Total vendido',      fmt(resumen.total),       'blue')}
-      ${tarjeta('Sin IVA',            fmt(resumen.total_sin_iva), 'gray')}
-      ${tarjeta('IVA recaudado',      fmt(resumen.total_iva),   'gray')}
-      ${tarjeta(`${resumen.cantidad} ticket${resumen.cantidad !== 1 ? 's' : ''} · Promedio`, fmt(promedio), 'gray')}
+    <div class="grid grid-cols-2 lg:grid-cols-3 gap-3 shrink-0">
+      ${tarjeta('Total vendido',     fmt(resumen.total),                    'blue')}
+      ${tarjeta('Ganancia bruta',    fmt(ganancia),                         ganancia >= 0 ? 'green' : 'red')}
+      ${tarjeta('Margen promedio',   fmtPct(margen),                        ganancia >= 0 ? 'green' : 'red')}
+      ${tarjeta('Transacciones',     String(resumen.cantidad),              'gray')}
+      ${tarjeta('Ticket promedio',   fmt(ticketPromedio),                   'gray')}
+      ${tarjeta('IVA recaudado',     fmt(resumen.total_iva),                'gray')}
     </div>
 
-    <!-- Desglose por forma de pago -->
+    <!-- Medios de pago -->
     <div class="bg-white rounded-lg border border-gray-200 shrink-0">
       <div class="px-4 py-2 bg-gray-50 border-b border-gray-200">
         <span class="text-xs font-semibold text-gray-500 uppercase tracking-wide">
-          Desglose por forma de pago
+          Medios de pago
         </span>
       </div>
       <div class="divide-y divide-gray-100">
-        ${porFormaPago.map(fp => `
+        ${porFormaPago.map(fp => {
+          const pct = resumen.total > 0 ? (fp.total / resumen.total * 100).toFixed(1) : '0.0';
+          return `
           <div class="flex items-center justify-between px-4 py-2.5 text-sm">
-            <span class="text-gray-700">${FORMAS_PAGO[fp.forma_pago] || fp.forma_pago}</span>
-            <div>
-              <span class="font-semibold font-mono">${fmt(fp.total)}</span>
-              <span class="text-gray-400 text-xs ml-2">
-                ${fp.cantidad} ticket${fp.cantidad !== 1 ? 's' : ''}
-              </span>
+            <div class="flex items-center gap-3">
+              <span class="text-gray-700">${FORMAS_PAGO[fp.forma_pago] || fp.forma_pago}</span>
+              <span class="text-xs text-gray-400">${fp.cantidad} ticket${fp.cantidad !== 1 ? 's' : ''}</span>
             </div>
-          </div>`).join('')}
+            <div class="flex items-center gap-3">
+              <span class="text-xs font-semibold text-gray-500 w-12 text-right">${pct}%</span>
+              <span class="font-semibold font-mono w-28 text-right">${fmt(fp.total)}</span>
+            </div>
+          </div>`;
+        }).join('')}
       </div>
     </div>
 
@@ -209,10 +217,13 @@ function renderArticulos(lista) {
             <th class="px-4 py-2.5 text-left font-medium">Código</th>
             <th class="px-4 py-2.5 text-right font-medium">Cantidad vendida</th>
             <th class="px-4 py-2.5 text-right font-medium">Importe total</th>
+            <th class="px-4 py-2.5 text-right font-medium">Ganancia</th>
           </tr>
         </thead>
         <tbody class="divide-y divide-gray-100">
-          ${lista.map((a, i) => `
+          ${lista.map((a, i) => {
+            const gan = Number(a.ganancia) || 0;
+            return `
             <tr class="hover:bg-gray-50">
               <td class="px-4 py-2.5">
                 <span class="inline-flex items-center gap-2">
@@ -223,7 +234,11 @@ function renderArticulos(lista) {
               <td class="px-4 py-2.5 font-mono text-xs text-gray-500">${esc(a.codigo)}</td>
               <td class="px-4 py-2.5 text-right font-bold">${fmtNum(a.cantidad_total)}</td>
               <td class="px-4 py-2.5 text-right font-semibold font-mono">${fmt(a.importe_total)}</td>
-            </tr>`).join('')}
+              <td class="px-4 py-2.5 text-right font-semibold font-mono ${gan >= 0 ? 'text-green-700' : 'text-red-600'}">
+                ${fmt(gan)}
+              </td>
+            </tr>`;
+          }).join('')}
         </tbody>
       </table>
     </div>`;
@@ -374,30 +389,52 @@ function renderSaldos({ clientes, totalDeuda }) {
 function exportarVentas() {
   if (!datos.ventas) return;
   const rango = rangoLabel();
-  const { transacciones } = datos.ventas;
-  exportarCSV(`ventas_${rango}.csv`,
+  const { resumen, porFormaPago, transacciones } = datos.ventas;
+  const ganancia = Number(resumen.ganancia_bruta) || 0;
+  const margen   = resumen.total > 0 ? (ganancia / resumen.total * 100).toFixed(2) : '0.00';
+
+  // Hoja 1: resumen
+  const resumenRows = [
+    ['Total vendido',    fmtCSV(resumen.total)],
+    ['Ganancia bruta',   fmtCSV(ganancia)],
+    ['Margen %',         margen.replace('.', ',') + '%'],
+    ['Transacciones',    String(resumen.cantidad)],
+    ['Ticket promedio',  fmtCSV(resumen.cantidad > 0 ? resumen.total / resumen.cantidad : 0)],
+    ['IVA recaudado',    fmtCSV(resumen.total_iva)],
+    [],
+    ['Medio de pago', 'Tickets', 'Total', '%'],
+    ...porFormaPago.map(fp => [
+      FORMAS_PAGO[fp.forma_pago] || fp.forma_pago,
+      String(fp.cantidad),
+      fmtCSV(fp.total),
+      (resumen.total > 0 ? (fp.total / resumen.total * 100).toFixed(1) : '0.0').replace('.', ',') + '%',
+    ]),
+    [],
     ['#', 'Fecha', 'Forma de pago', 'Subtotal', 'IVA', 'Total'],
-    transacciones.map(t => [
+    ...transacciones.map(t => [
       t.id,
       formatFecha(t.created_at),
       FORMAS_PAGO[t.forma_pago] || t.forma_pago,
       fmtCSV(t.subtotal),
       fmtCSV(t.monto_impuesto),
       fmtCSV(t.monto_total),
-    ])
-  );
+    ]),
+  ];
+
+  exportarCSV(`ventas_${rango}.csv`, ['Campo', 'Valor'], resumenRows);
 }
 
 function exportarArticulos() {
   if (!datos.articulos) return;
   const rango = rangoLabel();
   exportarCSV(`articulos_vendidos_${rango}.csv`,
-    ['Código', 'Nombre', 'Cantidad total', 'Importe total'],
+    ['Código', 'Nombre', 'Cantidad total', 'Importe total', 'Ganancia'],
     datos.articulos.map(a => [
       a.codigo,
       a.nombre,
       fmtCSV(a.cantidad_total),
       fmtCSV(a.importe_total),
+      fmtCSV(Number(a.ganancia) || 0),
     ])
   );
 }
@@ -511,6 +548,10 @@ function fmt(n) {
 function fmtNum(n) {
   const num = parseFloat(n) || 0;
   return num % 1 === 0 ? String(num) : num.toFixed(3).replace(/\.?0+$/, '');
+}
+
+function fmtPct(n) {
+  return (parseFloat(n) || 0).toFixed(1).replace('.', ',') + '%';
 }
 
 function fmtCSV(n) {

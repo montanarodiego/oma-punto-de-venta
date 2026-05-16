@@ -40,17 +40,20 @@ document.addEventListener('DOMContentLoaded', async () => {
   document.getElementById('items-table').innerHTML = transaccion.detalle.map(item => `
     <tr>
       <td class="py-0.5 pr-2 truncate max-w-[8rem]">${esc(item.nombre)}</td>
-      <td class="py-0.5 text-right pr-2">${item.cantidad}</td>
+      <td class="py-0.5 text-right pr-2">${fmtNum(item.cantidad)} ${esc(item.unidad_medida || 'u.')}</td>
       <td class="py-0.5 text-right pr-2">${fmt(item.precio_al_momento)}</td>
       <td class="py-0.5 text-right font-semibold">${fmt(item.importe_total)}</td>
     </tr>`).join('');
 
   // Totales
-  const tasa = parseFloat(config.impuesto_porcentaje) || 21;
+  const tasa        = parseFloat(config.impuesto_porcentaje) || 21;
+  const mostrarIva  = config.mostrar_iva_desglosado !== '0';
   document.getElementById('subtotal').textContent  = fmt(transaccion.subtotal);
   document.getElementById('label-iva').textContent = `IVA (${tasa}%)`;
   document.getElementById('impuesto').textContent  = fmt(transaccion.monto_impuesto);
   document.getElementById('total').textContent     = fmt(transaccion.monto_total);
+  document.getElementById('fila-subtotal').style.display = mostrarIva ? '' : 'none';
+  document.getElementById('fila-iva').style.display      = mostrarIva ? '' : 'none';
 
   // Forma de pago
   document.getElementById('forma-pago').textContent =
@@ -84,6 +87,11 @@ function fmt(n) {
   return new Intl.NumberFormat('es-AR', {
     style: 'currency', currency: 'ARS', minimumFractionDigits: 2,
   }).format(n ?? 0);
+}
+
+function fmtNum(n) {
+  const num = parseFloat(n) || 0;
+  return num % 1 === 0 ? String(num) : num.toFixed(3).replace(/\.?0+$/, '');
 }
 
 function esc(str) {

@@ -40,6 +40,50 @@ contextBridge.exposeInMainWorld('api', {
     saldosClientes:       ()     => ipcRenderer.invoke('informes:saldosClientes'),
   },
 
+  // Proveedores
+  proveedores: {
+    getAll:    ()           => ipcRenderer.invoke('proveedores:getAll'),
+    getById:   (id)         => ipcRenderer.invoke('proveedores:getById', id),
+    search:    (q)          => ipcRenderer.invoke('proveedores:search', q),
+    create:    (data)       => ipcRenderer.invoke('proveedores:create', data),
+    update:    (id, data)   => ipcRenderer.invoke('proveedores:update', id, data),
+    delete:    (id)         => ipcRenderer.invoke('proveedores:delete', id),
+    articulosConStockBajo: () => ipcRenderer.invoke('proveedores:articulosConStockBajo'),
+  },
+
+  // Pedidos de proveedor
+  pedidos: {
+    getAll:         ()                            => ipcRenderer.invoke('pedidos:getAll'),
+    getById:        (id)                          => ipcRenderer.invoke('pedidos:getById', id),
+    crear:          (prvId, prvNombre, items)     => ipcRenderer.invoke('pedidos:crear', prvId, prvNombre, items),
+    marcarRecibido: (pedidoId, itemsRecibidos)    => ipcRenderer.invoke('pedidos:marcarRecibido', pedidoId, itemsRecibidos),
+  },
+
+  // Recepciones
+  recepciones: {
+    crear:   (data) => ipcRenderer.invoke('recepciones:crear',   data),
+    listar:  ()     => ipcRenderer.invoke('recepciones:listar'),
+    getById: (id)   => ipcRenderer.invoke('recepciones:getById', id),
+  },
+
+  // Turnos
+  turnos: {
+    obtenerActivo:   ()                              => ipcRenderer.invoke('turnos:obtenerActivo'),
+    abrir:           (efectivoInicial)               => ipcRenderer.invoke('turnos:abrir', efectivoInicial),
+    calcularResumen: (id)                            => ipcRenderer.invoke('turnos:calcularResumen', id),
+    cerrar:          (id, efectivoReal, notas)       => ipcRenderer.invoke('turnos:cerrar', id, efectivoReal, notas),
+    historial:       (limite)                        => ipcRenderer.invoke('turnos:historial', limite),
+    detalle:         (id)                            => ipcRenderer.invoke('turnos:detalle', id),
+  },
+
+  // Backup
+  backup: {
+    hacerAhora:    ()  => ipcRenderer.invoke('backup:hacerAhora'),
+    listar:        ()  => ipcRenderer.invoke('backup:listar'),
+    getRuta:       ()  => ipcRenderer.invoke('backup:getRuta'),
+    abrirCarpeta:  ()  => ipcRenderer.invoke('backup:abrirCarpeta'),
+  },
+
   // Caja
   caja: {
     abrirComprobante: (data) => ipcRenderer.invoke('caja:abrirComprobante', data),
