@@ -19,7 +19,8 @@
       "Bash(npm run *)",
       "Bash(dir C:\\\\Users\\\\diego\\\\Desktop\\\\oma-punto-de-venta\\\\dist\\\\win-unpacked *)",
       "Bash(explorer C:\\\\Users\\\\diego\\\\Desktop\\\\oma-punto-de-venta\\\\dist *)",
-      "PowerShell(Start-Process explorer \"C:\\\\Users\\\\diego\\\\Desktop\\\\oma-punto-de-venta\\\\dist\")"
+      "PowerShell(Start-Process explorer \"C:\\\\Users\\\\diego\\\\Desktop\\\\oma-punto-de-venta\\\\dist\")",
+      "Bash(npm list *)"
     ]
   }
 }

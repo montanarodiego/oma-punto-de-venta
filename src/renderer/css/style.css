@@ -540,38 +540,6 @@ body {
   pointer-events: none;
 }
 
-/* ── Toast items ──────────────────────────────────────────── */
-.toast {
-  display: flex;
-  align-items: flex-start;
-  gap: 10px;
-  padding: 12px 16px;
-  border-radius: var(--r);
-  background: var(--surface-2);
-  border: 1px solid var(--border);
-  box-shadow: var(--shadow-lg);
-  font-size: 13px;
-  color: var(--text);
-  min-width: 260px;
-  max-width: 360px;
-  pointer-events: all;
-  animation: toastIn 150ms ease;
-  line-height: 1.4;
-}
-
-.toast-success { border-left: 3px solid var(--success); }
-.toast-danger  { border-left: 3px solid var(--danger); }
-.toast-warning { border-left: 3px solid var(--warning); }
-.toast-info    { border-left: 3px solid var(--accent); }
-
-.toast-icon { flex-shrink: 0; margin-top: 1px; }
-.toast-msg  { flex: 1; }
-
-@keyframes toastIn {
-  from { opacity:0; transform:translateX(16px); }
-  to   { opacity:1; transform:none; }
-}
-
 /* ── Empty state ──────────────────────────────────────────── */
 .empty-state {
   padding: 48px 0;
@@ -658,7 +626,3 @@ body {
 
 /* text mono */
 .app-layout .font-mono { color: var(--text) !important; }
-
-/* ── Alternating rows — JS-generated tables ───────────────── */
-.app-layout tbody > tr:nth-child(even) { background: rgba(51,65,85,.14); }
-.app-layout tbody > tr:nth-child(even):hover { background: rgba(51,65,85,.45); }
