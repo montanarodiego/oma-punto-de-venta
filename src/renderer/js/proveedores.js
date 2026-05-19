@@ -314,38 +314,38 @@ function renderSugerencias(articulos) {
     const rows = items.map(art => {
       const sugerida = Math.max(0, Number(art.stock_minimo) - Number(art.stock_actual)) + Number(art.stock_minimo);
       return `
-        <tr class="hover:bg-gray-50">
-          <td class="px-4 py-2.5 font-medium">${esc(art.nombre)}</td>
-          <td class="px-4 py-2.5 font-mono text-xs text-gray-500">${esc(art.codigo)}</td>
-          <td class="px-4 py-2.5 text-right text-red-600 font-bold">${fmtNum(art.stock_actual)} ${esc(art.unidad_medida)}</td>
-          <td class="px-4 py-2.5 text-right text-gray-500">${fmtNum(art.stock_minimo)}</td>
-          <td class="px-4 py-2.5 text-right font-semibold text-blue-700">${fmtNum(sugerida)}</td>
-          <td class="px-4 py-2.5 text-right text-gray-400 text-xs">${fmt(art.costo_unitario)}</td>
+        <tr style="border-bottom:1px solid var(--border);">
+          <td style="padding:8px 16px;font-weight:500;">${esc(art.nombre)}</td>
+          <td style="padding:8px 16px;font-family:monospace;font-size:12px;color:var(--text-muted);">${esc(art.codigo)}</td>
+          <td style="padding:8px 16px;text-align:right;color:#f87171;font-weight:700;">${fmtNum(art.stock_actual)} ${esc(art.unidad_medida)}</td>
+          <td style="padding:8px 16px;text-align:right;color:var(--text-muted);">${fmtNum(art.stock_minimo)}</td>
+          <td style="padding:8px 16px;text-align:right;font-weight:600;color:var(--accent);">${fmtNum(sugerida)}</td>
+          <td style="padding:8px 16px;text-align:right;color:var(--text-subtle);font-size:12px;">${fmt(art.costo_unitario)}</td>
         </tr>`;
     }).join('');
 
     return `
-      <div class="bg-white rounded-lg border border-gray-200 flex-shrink-0">
-        <div class="px-4 py-3 bg-gray-50 border-b border-gray-200 flex items-center justify-between">
-          <span class="text-sm font-semibold text-gray-700">${esc(proveedor)}</span>
-          <button class="btn btn-ghost" style="font-size:12px;padding:5px 10px;"
+      <div style="border:1px solid var(--border);border-radius:var(--r);background:var(--surface);flex-shrink:0;">
+        <div style="padding:10px 16px;background:var(--surface-2);border-bottom:1px solid var(--border);display:flex;align-items:center;justify-content:space-between;border-radius:var(--r) var(--r) 0 0;">
+          <span style="font-size:13px;font-weight:600;">${esc(proveedor)}</span>
+          <button class="btn btn-primary" style="font-size:12px;padding:5px 12px;"
             data-crear-pedido="${esc(proveedor)}">
             <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
             Crear pedido
           </button>
         </div>
-        <table class="w-full text-sm">
-          <thead class="bg-gray-50 text-gray-500 border-b border-gray-100">
-            <tr>
-              <th class="px-4 py-2 text-left font-medium">Artículo</th>
-              <th class="px-4 py-2 text-left font-medium">Código</th>
-              <th class="px-4 py-2 text-right font-medium">Stock actual</th>
-              <th class="px-4 py-2 text-right font-medium">Stock mín.</th>
-              <th class="px-4 py-2 text-right font-medium">Cant. sugerida</th>
-              <th class="px-4 py-2 text-right font-medium">Costo u.</th>
+        <table style="width:100%;font-size:13px;border-collapse:collapse;">
+          <thead>
+            <tr style="border-bottom:1px solid var(--border);">
+              <th style="padding:8px 16px;text-align:left;color:var(--text-subtle);font-weight:500;font-size:11px;text-transform:uppercase;letter-spacing:.05em;">Artículo</th>
+              <th style="padding:8px 16px;text-align:left;color:var(--text-subtle);font-weight:500;font-size:11px;text-transform:uppercase;letter-spacing:.05em;">Código</th>
+              <th style="padding:8px 16px;text-align:right;color:var(--text-subtle);font-weight:500;font-size:11px;text-transform:uppercase;letter-spacing:.05em;">Stock actual</th>
+              <th style="padding:8px 16px;text-align:right;color:var(--text-subtle);font-weight:500;font-size:11px;text-transform:uppercase;letter-spacing:.05em;">Stock mín.</th>
+              <th style="padding:8px 16px;text-align:right;color:var(--text-subtle);font-weight:500;font-size:11px;text-transform:uppercase;letter-spacing:.05em;">Cant. sugerida</th>
+              <th style="padding:8px 16px;text-align:right;color:var(--text-subtle);font-weight:500;font-size:11px;text-transform:uppercase;letter-spacing:.05em;">Costo u.</th>
             </tr>
           </thead>
-          <tbody class="divide-y divide-gray-100">${rows}</tbody>
+          <tbody>${rows}</tbody>
         </table>
       </div>`;
   }).join('');

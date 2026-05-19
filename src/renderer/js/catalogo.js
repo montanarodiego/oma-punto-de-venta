@@ -1,193 +1,536 @@
-// Módulo Catálogo — ABM de artículos
+// Módulo Catálogo — ABM artículos, departamentos, kits
 
 // ── Estado ────────────────────────────────────────────────────
-let articulos  = [];
-let editandoId = null;   // null → modo crear, number → modo editar
+let articulos     = [];
+let departamentos = [];
+let editandoId    = null;
+let modoNegocio   = '';
+let filtroDepto   = 'todos'; // 'todos' | 0 (sin depto) | id
+let filtroStockBajo = false;
+let modoSeleccion   = false;
+let seleccionados   = new Set();
+let kitComponentes  = [];    // { componente_id, nombre, cantidad }
+let kitCompSeleccionado = null; // { id, nombre }
+let ajustandoId     = null;
+let ajustandoStock  = 0;
 
-// ── Refs DOM ──────────────────────────────────────────────────
-const tabla        = document.getElementById('tabla-articulos');
-const inputBusq    = document.getElementById('busqueda');
-const modal        = document.getElementById('modal');
-const modalTitulo  = document.getElementById('modal-titulo');
-const form         = document.getElementById('form-articulo');
-const errorMsg     = document.getElementById('error-msg');
-const modalConfirm = document.getElementById('modal-confirm');
-const confirmNombre = document.getElementById('confirm-nombre');
+const MODOS_IVA_PRODUCTO = new Set(['responsable_inscripto', 'farmacia']);
 
-// ── Init ──────────────────────────────────────────────────────
-document.addEventListener('DOMContentLoaded', cargarArticulos);
-
-inputBusq.addEventListener('input', () => renderTabla(filtrar(inputBusq.value)));
-
-document.getElementById('btn-nuevo').addEventListener('click', abrirModalNuevo);
-document.getElementById('btn-cancelar-modal').addEventListener('click', cerrarModal);
-document.getElementById('btn-cancelar-confirm').addEventListener('click', cerrarConfirm);
-form.addEventListener('submit', guardar);
-
-// Cerrar modales al hacer clic en el fondo
-modal.addEventListener('click', e => { if (e.target === modal) cerrarModal(); });
-modalConfirm.addEventListener('click', e => { if (e.target === modalConfirm) cerrarConfirm(); });
-
-// Delegación de eventos en la tabla (editar / eliminar)
-tabla.addEventListener('click', e => {
-  const btn = e.target.closest('button[data-action]');
-  if (!btn) return;
-  const id     = parseInt(btn.dataset.id, 10);
-  const action = btn.dataset.action;
-  if (action === 'editar')   abrirModalEdicion(id);
-  if (action === 'eliminar') abrirConfirm(id);
-});
-
-// ── Carga de datos ────────────────────────────────────────────
-async function cargarArticulos() {
-  articulos = await window.api.articulos.getAll();
-  renderTabla(filtrar(inputBusq.value));
-}
-
-// ── Filtro ────────────────────────────────────────────────────
-function filtrar(q) {
-  const term = q.trim().toLowerCase();
-  if (!term) return articulos;
-  return articulos.filter(a =>
-    a.nombre.toLowerCase().includes(term) ||
-    a.codigo.toLowerCase().includes(term)
-  );
-}
-
-// ── Render tabla ──────────────────────────────────────────────
 const LABEL_UNIDAD = {
   unidad: 'Unidad', kg: 'kg', g: 'g', litro: 'Litro', ml: 'ml',
   metro: 'Metro', cm: 'cm', docena: 'Docena', caja: 'Caja', pack: 'Pack',
 };
 
+// ── Init ──────────────────────────────────────────────────────
+document.addEventListener('DOMContentLoaded', async () => {
+  [modoNegocio, articulos, departamentos] = await Promise.all([
+    window.api.config.get('modo_negocio').then(v => v || ''),
+    window.api.articulos.getAll(),
+    window.api.departamentos.getAll(),
+  ]);
+  renderChipsDepto();
+  renderTabla(filtrarArticulos());
+  poblarSelectDepartamento();
+  bindEventos();
+});
+
+// ── Bind de eventos ───────────────────────────────────────────
+function bindEventos() {
+  // Tab switching
+  document.querySelectorAll('.tab-btn').forEach(btn => {
+    btn.addEventListener('click', () => switchTab(btn.dataset.tab));
+  });
+
+  // Tab artículos
+  document.getElementById('busqueda').addEventListener('input', () => renderTabla(filtrarArticulos()));
+  document.getElementById('btn-nuevo').addEventListener('click', abrirModalNuevo);
+  document.getElementById('btn-toggle-stock-bajo').addEventListener('click', toggleStockBajo);
+  document.getElementById('btn-modo-seleccion').addEventListener('click', toggleModoSeleccion);
+  document.getElementById('btn-cancelar-seleccion').addEventListener('click', cancelarSeleccion);
+  document.getElementById('btn-bulk-eliminar').addEventListener('click', bulkEliminar);
+  document.getElementById('btn-bulk-depto').addEventListener('click', e => {
+    e.stopPropagation();
+    toggleBulkDeptoDropdown();
+  });
+
+  // Tab kits
+  document.getElementById('btn-nuevo-kit').addEventListener('click', abrirModalNuevoKit);
+  document.getElementById('busqueda-kits').addEventListener('input', renderKits);
+
+  // Modal artículo
+  document.getElementById('btn-cancelar-modal').addEventListener('click', cerrarModal);
+  document.getElementById('form-articulo').addEventListener('submit', guardar);
+  document.getElementById('modal').addEventListener('click', e => {
+    if (e.target === document.getElementById('modal')) cerrarModal();
+  });
+
+  // Modal confirmar
+  document.getElementById('btn-cancelar-confirm').addEventListener('click', () =>
+    document.getElementById('modal-confirm').classList.add('hidden')
+  );
+  document.getElementById('modal-confirm').addEventListener('click', e => {
+    if (e.target === document.getElementById('modal-confirm'))
+      document.getElementById('modal-confirm').classList.add('hidden');
+  });
+
+  // Modal confirm bulk
+  document.getElementById('btn-cancelar-bulk-confirm').addEventListener('click', () =>
+    document.getElementById('modal-confirm-bulk').classList.add('hidden')
+  );
+
+  // Kit checkboxes & es_kit toggle
+  document.getElementById('chk-es-kit').addEventListener('change', e => {
+    document.getElementById('seccion-kit').style.display = e.target.checked ? '' : 'none';
+    if (e.target.checked) renderKitComponentes();
+  });
+
+  // Kit buscar componente
+  document.getElementById('kit-buscar-comp').addEventListener('input', buscarKitComp);
+  document.getElementById('kit-buscar-comp').addEventListener('keydown', e => {
+    if (e.key === 'Escape') cerrarKitDropdown();
+  });
+  document.getElementById('kit-search-dropdown').addEventListener('click', e => {
+    const item = e.target.closest('[data-kit-id]');
+    if (!item) return;
+    kitCompSeleccionado = { id: parseInt(item.dataset.kitId), nombre: item.dataset.kitNombre };
+    document.getElementById('kit-buscar-comp').value = item.dataset.kitNombre;
+    cerrarKitDropdown();
+  });
+  document.getElementById('btn-agregar-comp').addEventListener('click', agregarKitComp);
+  document.getElementById('kit-comp-cantidad').addEventListener('keydown', e => {
+    if (e.key === 'Enter') { e.preventDefault(); agregarKitComp(); }
+  });
+
+  // Importar Excel
+  document.getElementById('btn-importar-excel').addEventListener('click', () =>
+    document.getElementById('input-excel').click()
+  );
+  document.getElementById('input-excel').addEventListener('change', leerExcel);
+  document.getElementById('btn-cancelar-import').addEventListener('click', cerrarModalImport);
+  document.getElementById('btn-close-import').addEventListener('click', cerrarModalImport);
+  document.getElementById('btn-ejecutar-import').addEventListener('click', ejecutarImport);
+  document.getElementById('modal-import').addEventListener('click', e => {
+    if (e.target === document.getElementById('modal-import')) cerrarModalImport();
+  });
+  ['map-codigo','map-nombre','map-precio','map-costo','map-mayoreo','map-stock','map-stock-min','map-departamento'].forEach(id => {
+    document.getElementById(id).addEventListener('change', renderPreview);
+  });
+
+  // Departamento color preview
+  document.getElementById('depto-color').addEventListener('input', e => {
+    document.getElementById('depto-color-hex').textContent = e.target.value;
+  });
+
+  // Form departamento
+  document.getElementById('form-depto').addEventListener('submit', guardarDepto);
+  document.getElementById('btn-cancelar-depto').addEventListener('click', cancelarEditDepto);
+
+  // Cerrar dropdown bulk depto y kit al hacer click fuera
+  document.addEventListener('click', e => {
+    if (!e.target.closest('#btn-bulk-depto'))
+      document.getElementById('bulk-depto-dropdown').style.display = 'none';
+    if (!e.target.closest('#kit-buscar-comp') && !e.target.closest('#kit-search-dropdown'))
+      cerrarKitDropdown();
+  });
+
+  // Modal ajuste stock
+  document.getElementById('ajuste-cat-tipo').addEventListener('change', actualizarPreviewAjuste);
+  document.getElementById('ajuste-cat-cantidad').addEventListener('input', actualizarPreviewAjuste);
+  document.getElementById('btn-confirmar-ajuste').addEventListener('click', confirmarAjuste);
+  document.getElementById('modal-ajuste').addEventListener('click', e => {
+    if (e.target === document.getElementById('modal-ajuste')) cerrarModalAjuste();
+  });
+
+  // Delegación tabla artículos
+  document.getElementById('tabla-articulos').addEventListener('click', e => {
+    const btn = e.target.closest('[data-action]');
+    if (!btn) return;
+    const id = parseInt(btn.dataset.id, 10);
+    if (btn.dataset.action === 'editar')   abrirModalEdicion(id);
+    if (btn.dataset.action === 'eliminar') abrirConfirm(id);
+    if (btn.dataset.action === 'ajustar')  abrirModalAjuste(id);
+    if (btn.dataset.action === 'toggle-chk') toggleSeleccion(id);
+  });
+
+  // Delegación tabla — checkbox click
+  document.getElementById('tabla-articulos').addEventListener('change', e => {
+    if (e.target.dataset.chk) toggleSeleccion(parseInt(e.target.dataset.chk, 10));
+  });
+}
+
+// ── Tabs ──────────────────────────────────────────────────────
+function switchTab(name) {
+  document.querySelectorAll('.tab-content').forEach(el => {
+    el.style.display = 'none';
+  });
+  document.querySelectorAll('.tab-btn').forEach(btn => {
+    const active = btn.dataset.tab === name;
+    btn.style.color        = active ? 'var(--text)'         : 'var(--text-subtle)';
+    btn.style.borderBottom = active ? '2px solid var(--accent)' : '2px solid transparent';
+    btn.classList.toggle('active', active);
+  });
+
+  const panel = document.getElementById(`tab-${name}`);
+  panel.style.display = 'flex';
+
+  document.getElementById('header-btns-articulos').style.display = name === 'articulos' ? '' : 'none';
+
+  if (name === 'departamentos') renderDepartamentos();
+  if (name === 'kits')          renderKits();
+}
+
+// ── Tab 1: Artículos ──────────────────────────────────────────
+async function recargarArticulos() {
+  articulos = await window.api.articulos.getAll();
+  renderTabla(filtrarArticulos());
+}
+
+async function recargarDepto() {
+  departamentos = await window.api.departamentos.getAll();
+  renderChipsDepto();
+  poblarSelectDepartamento();
+}
+
+function filtrarArticulos() {
+  let lista = articulos;
+  const q = document.getElementById('busqueda').value.trim().toLowerCase();
+
+  if (q) lista = lista.filter(a =>
+    a.nombre.toLowerCase().includes(q) || a.codigo.toLowerCase().includes(q)
+  );
+
+  if (filtroDepto === 0) {
+    lista = lista.filter(a => !a.departamento_id);
+  } else if (filtroDepto !== 'todos') {
+    lista = lista.filter(a => a.departamento_id === filtroDepto);
+  }
+
+  if (filtroStockBajo) {
+    lista = lista.filter(a => a.usa_inventario && Number(a.stock_actual) <= Number(a.stock_minimo));
+  }
+
+  return lista;
+}
+
+function toggleStockBajo() {
+  filtroStockBajo = !filtroStockBajo;
+  const btn = document.getElementById('btn-toggle-stock-bajo');
+  btn.style.background  = filtroStockBajo ? 'rgba(239,68,68,.15)' : '';
+  btn.style.color       = filtroStockBajo ? '#fca5a5'             : '';
+  btn.style.borderColor = filtroStockBajo ? 'rgba(239,68,68,.4)'  : '';
+  renderTabla(filtrarArticulos());
+}
+
+function renderChipsDepto() {
+  const wrap = document.getElementById('chips-departamentos');
+  const activo = filtroDepto;
+
+  const chips = [
+    { key: 'todos', label: 'Todos', color: null },
+    { key: 0,       label: 'Sin departamento', color: null },
+    ...departamentos.map(d => ({ key: d.id, label: d.nombre, color: d.color })),
+  ];
+
+  wrap.innerHTML = chips.map(c => {
+    const isActive = c.key === activo;
+    const dot = c.color ? `<span style="display:inline-block;width:8px;height:8px;border-radius:50%;background:${c.color};margin-right:4px;vertical-align:middle;"></span>` : '';
+    return `<button class="chip-depto${isActive ? ' active' : ''}" data-depto="${c.key}"
+      style="padding:3px 10px;border-radius:20px;font-size:12px;cursor:pointer;white-space:nowrap;
+        border:1px solid ${isActive ? 'var(--accent)' : 'var(--border)'};
+        background:${isActive ? 'var(--accent)' : 'transparent'};
+        color:${isActive ? '#fff' : 'var(--text-muted)'};"
+    >${dot}${esc(c.label)}</button>`;
+  }).join('');
+
+  wrap.querySelectorAll('.chip-depto').forEach(btn => {
+    btn.addEventListener('click', () => {
+      const val = btn.dataset.depto;
+      filtroDepto = val === 'todos' ? 'todos' : parseInt(val) || 0;
+      renderChipsDepto();
+      renderTabla(filtrarArticulos());
+    });
+  });
+}
+
+function poblarSelectDepartamento() {
+  const sel = document.getElementById('select-departamento');
+  sel.innerHTML = '<option value="">— Sin departamento —</option>' +
+    departamentos.map(d =>
+      `<option value="${d.id}">${esc(d.nombre)}</option>`
+    ).join('');
+}
+
 function renderTabla(lista) {
+  const tabla = document.getElementById('tabla-articulos');
+  const chkTh = document.getElementById('th-chk');
+  chkTh.style.display = modoSeleccion ? '' : 'none';
+
   if (lista.length === 0) {
-    const msg = inputBusq.value.trim()
-      ? 'Sin resultados para la búsqueda'
-      : 'No hay artículos cargados. Creá el primero con "+ Nuevo artículo".';
-    tabla.innerHTML = `<tr><td colspan="9" class="px-4 py-8 text-center text-gray-400">${msg}</td></tr>`;
+    const msg = document.getElementById('busqueda').value.trim()
+      ? 'Sin resultados para la búsqueda.'
+      : 'No hay artículos. Creá el primero con "+ Nuevo artículo".';
+    tabla.innerHTML = `<tr><td colspan="10" style="text-align:center;color:var(--text-subtle);padding:32px 0;">${msg}</td></tr>`;
     return;
   }
 
   tabla.innerHTML = lista.map(a => {
-    const bajstock  = Number(a.stock_actual) <= Number(a.stock_minimo);
-    const rowCls    = bajstock ? 'bg-red-50' : 'hover:bg-gray-50';
-    const stockCls  = bajstock ? 'text-red-600 font-bold' : 'text-gray-700';
+    const bajstock = a.usa_inventario && Number(a.stock_actual) <= Number(a.stock_minimo);
     const unidadLabel = LABEL_UNIDAD[a.unidad_medida] || a.unidad_medida || 'Unidad';
+    const deptoChip = a.departamento_nombre
+      ? `<span style="display:inline-flex;align-items:center;gap:4px;padding:1px 7px;border-radius:10px;font-size:11px;background:${a.departamento_color || '#6b7280'}22;color:${a.departamento_color || '#6b7280'};border:1px solid ${a.departamento_color || '#6b7280'}44;">
+          <span style="width:6px;height:6px;border-radius:50%;background:${a.departamento_color || '#6b7280'};display:inline-block;"></span>
+          ${esc(a.departamento_nombre)}</span>`
+      : '<span style="color:var(--text-subtle);font-size:11px;">—</span>';
+    const kitBadge = a.es_kit
+      ? '<span style="margin-left:4px;font-size:10px;padding:1px 5px;border-radius:4px;background:rgba(139,92,246,.2);color:#a78bfa;border:1px solid rgba(139,92,246,.3);">kit</span>'
+      : '';
+    const noInvBadge = !a.usa_inventario
+      ? '<span style="margin-left:4px;font-size:10px;padding:1px 5px;border-radius:4px;background:rgba(107,114,128,.2);color:var(--text-subtle);">libre</span>'
+      : '';
+    const chkCell = modoSeleccion
+      ? `<td style="padding:0 8px;"><input type="checkbox" data-chk="${a.id}" ${seleccionados.has(a.id) ? 'checked' : ''} style="width:14px;height:14px;accent-color:var(--accent);cursor:pointer;"></td>`
+      : '';
 
     return `
-      <tr class="${rowCls} transition-colors">
-        <td class="px-4 py-2.5 font-mono text-xs text-gray-600 whitespace-nowrap">${esc(a.codigo)}</td>
-        <td class="px-4 py-2.5">
-          <span class="font-medium">${esc(a.nombre)}</span>
-          ${bajstock ? '<span class="ml-2 text-xs font-semibold text-red-500">&#9888; Stock bajo</span>' : ''}
+      <tr style="${bajstock ? 'background:rgba(239,68,68,.06);' : ''}">
+        ${chkCell}
+        <td style="padding:8px 10px;font-family:monospace;font-size:11px;color:var(--text-subtle);white-space:nowrap;">${esc(a.codigo)}</td>
+        <td style="padding:8px 10px;">
+          <span style="font-weight:500;">${esc(a.nombre)}</span>${kitBadge}${noInvBadge}
+          ${bajstock ? '<span style="margin-left:6px;font-size:11px;color:#fca5a5;font-weight:600;">↓ stock bajo</span>' : ''}
         </td>
-        <td class="px-4 py-2.5 text-right text-gray-500 whitespace-nowrap">${fmt(a.costo_unitario)}</td>
-        <td class="px-4 py-2.5 text-right font-semibold whitespace-nowrap">${fmt(a.precio_unitario)}</td>
-        <td class="px-4 py-2.5 text-right whitespace-nowrap ${stockCls}">${fmtNum(a.stock_actual)}</td>
-        <td class="px-4 py-2.5 text-right text-gray-500 whitespace-nowrap">${fmtNum(a.stock_minimo)}</td>
-        <td class="px-4 py-2.5 text-gray-500 text-sm whitespace-nowrap">${esc(unidadLabel)}</td>
-        <td class="px-4 py-2.5 text-gray-500 text-sm">${esc(a.proveedor || '—')}</td>
-        <td class="px-4 py-2.5 text-center whitespace-nowrap">
-          <button data-action="editar"   data-id="${a.id}"
-            class="text-blue-600 hover:text-blue-800 text-xs font-medium mr-3 hover:underline">
-            Editar
-          </button>
-          <button data-action="eliminar" data-id="${a.id}"
-            class="text-red-500 hover:text-red-700 text-xs font-medium hover:underline">
-            Eliminar
-          </button>
+        <td style="padding:8px 10px;">${deptoChip}</td>
+        <td style="padding:8px 10px;text-align:right;color:var(--text-subtle);white-space:nowrap;font-size:12px;">${fmt(a.costo_unitario)}</td>
+        <td style="padding:8px 10px;text-align:right;font-weight:600;white-space:nowrap;">${fmt(a.precio_unitario)}</td>
+        <td style="padding:8px 10px;text-align:right;white-space:nowrap;${bajstock ? 'color:#fca5a5;font-weight:700;' : ''}">${a.usa_inventario ? fmtNum(a.stock_actual) : '—'}</td>
+        <td style="padding:8px 10px;text-align:right;color:var(--text-subtle);white-space:nowrap;font-size:12px;">${a.usa_inventario ? fmtNum(a.stock_minimo) : '—'}</td>
+        <td style="padding:8px 10px;color:var(--text-subtle);font-size:12px;white-space:nowrap;">${esc(unidadLabel)}</td>
+        <td style="padding:8px 10px;text-align:center;white-space:nowrap;">
+          <button data-action="editar" data-id="${a.id}" style="font-size:12px;color:var(--accent);background:none;border:none;cursor:pointer;padding:2px 6px;">Editar</button>
+          ${a.usa_inventario ? `<button data-action="ajustar" data-id="${a.id}" style="font-size:12px;color:#a78bfa;background:none;border:none;cursor:pointer;padding:2px 6px;">Ajustar</button>` : ''}
+          <button data-action="eliminar" data-id="${a.id}" style="font-size:12px;color:var(--danger);background:none;border:none;cursor:pointer;padding:2px 6px;">Eliminar</button>
         </td>
       </tr>`;
   }).join('');
 }
 
-// ── Modal ABM ─────────────────────────────────────────────────
+// ── Modo selección ────────────────────────────────────────────
+function toggleModoSeleccion() {
+  modoSeleccion = !modoSeleccion;
+  seleccionados.clear();
+  const btn = document.getElementById('btn-modo-seleccion');
+  btn.textContent = modoSeleccion ? 'Cancelar selección' : 'Seleccionar';
+  document.getElementById('panel-bulk').style.display = modoSeleccion ? 'flex' : 'none';
+  actualizarBulkCount();
+  renderTabla(filtrarArticulos());
+}
+
+function cancelarSeleccion() {
+  if (modoSeleccion) toggleModoSeleccion();
+}
+
+function toggleSeleccion(id) {
+  if (seleccionados.has(id)) seleccionados.delete(id);
+  else seleccionados.add(id);
+  actualizarBulkCount();
+  renderTabla(filtrarArticulos());
+}
+
+function actualizarBulkCount() {
+  document.getElementById('bulk-count').textContent =
+    seleccionados.size === 1 ? '1 seleccionado' : `${seleccionados.size} seleccionados`;
+}
+
+function toggleBulkDeptoDropdown() {
+  const dd = document.getElementById('bulk-depto-dropdown');
+  if (dd.style.display !== 'none') { dd.style.display = 'none'; return; }
+
+  const items = [
+    { id: null, nombre: '— Sin departamento —' },
+    ...departamentos,
+  ];
+  dd.innerHTML = items.map(d => `
+    <div data-depto-id="${d.id ?? ''}"
+      style="padding:8px 14px;font-size:12px;cursor:pointer;border-bottom:1px solid var(--border);color:var(--text);">
+      ${d.color ? `<span style="display:inline-block;width:8px;height:8px;border-radius:50%;background:${d.color};margin-right:6px;"></span>` : ''}
+      ${esc(d.nombre)}
+    </div>`).join('');
+  dd.style.display = 'block';
+
+  dd.querySelectorAll('[data-depto-id]').forEach(el => {
+    el.addEventListener('click', async () => {
+      dd.style.display = 'none';
+      const deptoId = el.dataset.deptoId === '' ? null : parseInt(el.dataset.deptoId);
+      for (const id of seleccionados) {
+        await window.api.articulos.update(id, { departamento_id: deptoId });
+      }
+      articulos = await window.api.articulos.getAll();
+      renderTabla(filtrarArticulos());
+      cancelarSeleccion();
+      toast(`Departamento actualizado en ${seleccionados.size > 0 ? seleccionados.size : 'los'} artículos.`);
+    });
+  });
+}
+
+function bulkEliminar() {
+  if (seleccionados.size === 0) return;
+  const n = seleccionados.size;
+  document.getElementById('confirm-bulk-msg').innerHTML =
+    `¿Eliminar <strong>${n} artículo${n > 1 ? 's' : ''}</strong>? Esta acción no se puede deshacer.`;
+  document.getElementById('modal-confirm-bulk').classList.remove('hidden');
+
+  const btn = document.getElementById('btn-confirmar-bulk-eliminar');
+  const clone = btn.cloneNode(true);
+  btn.parentNode.replaceChild(clone, btn);
+  clone.addEventListener('click', async () => {
+    document.getElementById('modal-confirm-bulk').classList.add('hidden');
+    for (const id of seleccionados) await window.api.articulos.delete(id);
+    articulos = await window.api.articulos.getAll();
+    renderTabla(filtrarArticulos());
+    cancelarSeleccion();
+    toast(`${n} artículo${n > 1 ? 's' : ''} eliminado${n > 1 ? 's' : ''}.`, 'success');
+  });
+}
+
+// ── Modal ABM artículo ────────────────────────────────────────
 function abrirModalNuevo() {
-  editandoId = null;
-  modalTitulo.textContent = 'Nuevo artículo';
+  editandoId    = null;
+  kitComponentes = [];
+  document.getElementById('modal-titulo').textContent = 'Nuevo artículo';
+  const form = document.getElementById('form-articulo');
   form.reset();
-  form.costo_unitario.value = '0';
-  form.stock_actual.value   = '0';
-  form.stock_minimo.value   = '0';
-  form.unidad_medida.value  = 'unidad';
+  form.costo_unitario.value  = '0';
+  form.stock_actual.value    = '0';
+  form.stock_minimo.value    = '0';
+  form.precio_mayoreo.value  = '0';
+  form.unidad_medida.value   = 'unidad';
+  form.tasa_iva.value        = '21';
+  document.getElementById('chk-usa-inventario').checked = true;
+  document.getElementById('chk-es-kit').checked          = false;
+  document.getElementById('seccion-kit').style.display   = 'none';
+  document.getElementById('campo-tasa-iva').style.display = MODOS_IVA_PRODUCTO.has(modoNegocio) ? '' : 'none';
+  poblarSelectDepartamento();
+  renderKitComponentes();
   ocultarError();
-  modal.classList.remove('hidden');
+  document.getElementById('modal').classList.remove('hidden');
   form.codigo.focus();
 }
 
-function abrirModalEdicion(id) {
+function abrirModalNuevoKit() {
+  abrirModalNuevo();
+  document.getElementById('chk-es-kit').checked        = true;
+  document.getElementById('seccion-kit').style.display = '';
+  document.getElementById('modal-titulo').textContent  = 'Nuevo kit';
+}
+
+async function abrirModalEdicion(id) {
   const a = articulos.find(x => x.id === id);
   if (!a) return;
 
-  editandoId = id;
-  modalTitulo.textContent = 'Editar artículo';
+  editandoId     = id;
+  kitComponentes = [];
+  document.getElementById('modal-titulo').textContent = 'Editar artículo';
   ocultarError();
 
+  const form = document.getElementById('form-articulo');
   form.codigo.value          = a.codigo          ?? '';
   form.nombre.value          = a.nombre          ?? '';
   form.descripcion.value     = a.descripcion     ?? '';
   form.costo_unitario.value  = a.costo_unitario  ?? 0;
   form.precio_unitario.value = a.precio_unitario ?? '';
+  form.precio_mayoreo.value  = a.precio_mayoreo  ?? 0;
   form.stock_actual.value    = a.stock_actual    ?? 0;
   form.stock_minimo.value    = a.stock_minimo    ?? 0;
   form.proveedor.value       = a.proveedor       ?? '';
   form.unidad_medida.value   = a.unidad_medida   ?? 'unidad';
+  form.tasa_iva.value        = a.tasa_iva        ?? '21';
+  document.getElementById('chk-usa-inventario').checked = !!a.usa_inventario;
+  document.getElementById('chk-es-kit').checked          = !!a.es_kit;
 
-  modal.classList.remove('hidden');
+  poblarSelectDepartamento();
+  document.getElementById('select-departamento').value = a.departamento_id ?? '';
+
+  document.getElementById('campo-tasa-iva').style.display = MODOS_IVA_PRODUCTO.has(modoNegocio) ? '' : 'none';
+
+  if (a.es_kit) {
+    document.getElementById('seccion-kit').style.display = '';
+    const comps = await window.api.kits.getComponentes(id);
+    kitComponentes = comps.map(c => ({
+      componente_id: c.componente_id,
+      nombre:        c.nombre,
+      cantidad:      c.cantidad,
+    }));
+    renderKitComponentes();
+  } else {
+    document.getElementById('seccion-kit').style.display = 'none';
+  }
+
+  document.getElementById('modal').classList.remove('hidden');
   form.nombre.focus();
 }
 
 function cerrarModal() {
-  modal.classList.add('hidden');
-  form.reset();
+  document.getElementById('modal').classList.add('hidden');
+  document.getElementById('form-articulo').reset();
   ocultarError();
-  editandoId = null;
+  editandoId     = null;
+  kitComponentes = [];
+  kitCompSeleccionado = null;
+  cerrarKitDropdown();
 }
 
-// ── Guardar ───────────────────────────────────────────────────
 async function guardar(e) {
   e.preventDefault();
   ocultarError();
 
+  const form = document.getElementById('form-articulo');
   const data = {
     codigo:          form.codigo.value.trim().toUpperCase(),
     nombre:          form.nombre.value.trim(),
     descripcion:     form.descripcion.value.trim() || null,
     costo_unitario:  parsearNumero(form.costo_unitario.value, 0),
     precio_unitario: parsearNumero(form.precio_unitario.value, null),
+    precio_mayoreo:  parsearNumero(form.precio_mayoreo.value, 0),
     stock_actual:    parsearNumero(form.stock_actual.value, 0),
     stock_minimo:    parsearNumero(form.stock_minimo.value, 0),
     proveedor:       form.proveedor.value.trim() || null,
     unidad_medida:   form.unidad_medida.value || 'unidad',
+    tasa_iva:        form.tasa_iva.value || '21',
+    departamento_id: parseInt(document.getElementById('select-departamento').value) || null,
+    usa_inventario:  document.getElementById('chk-usa-inventario').checked ? 1 : 0,
+    es_kit:          document.getElementById('chk-es-kit').checked          ? 1 : 0,
   };
 
-  // Validaciones de negocio
-  if (!data.codigo)
-    return mostrarError('El código es obligatorio.');
-  if (!data.nombre)
-    return mostrarError('El nombre es obligatorio.');
-  if (data.precio_unitario === null || !(data.precio_unitario > 0))
-    return mostrarError('El precio de venta debe ser mayor a 0.');
-  if (data.stock_actual < 0)
-    return mostrarError('El stock actual no puede ser negativo.');
-  if (data.stock_minimo < 0)
-    return mostrarError('El stock mínimo no puede ser negativo.');
+  if (!data.codigo)                               return mostrarError('El código es obligatorio.');
+  if (!data.nombre)                               return mostrarError('El nombre es obligatorio.');
+  if (data.precio_unitario === null || !(data.precio_unitario > 0)) return mostrarError('El precio de venta debe ser mayor a 0.');
+  if (data.stock_actual < 0)                      return mostrarError('El stock actual no puede ser negativo.');
+  if (data.stock_minimo < 0)                      return mostrarError('El stock mínimo no puede ser negativo.');
 
-  // Validar código único (excluye el propio artículo al editar)
   const existente = await window.api.articulos.getByCodigo(data.codigo);
   if (existente && existente.id !== editandoId)
-    return mostrarError(`El código "${data.codigo}" ya está en uso por otro artículo.`);
+    return mostrarError(`El código "${data.codigo}" ya está en uso.`);
 
   bloquearFormulario(true);
   try {
+    let artId;
     if (editandoId !== null) {
       await window.api.articulos.update(editandoId, data);
+      artId = editandoId;
     } else {
-      await window.api.articulos.create(data);
+      const nuevo = await window.api.articulos.create(data);
+      artId = nuevo.id;
     }
+
+    // Guardar componentes del kit
+    if (data.es_kit) {
+      await window.api.kits.setComponentes(artId, kitComponentes);
+    }
+
     cerrarModal();
-    await cargarArticulos();
+    articulos = await window.api.articulos.getAll();
+    renderTabla(filtrarArticulos());
+    toast(editandoId !== null ? 'Artículo actualizado.' : 'Artículo creado.');
   } catch (err) {
     mostrarError('Error al guardar: ' + (err.message || err));
   } finally {
@@ -195,87 +538,359 @@ async function guardar(e) {
   }
 }
 
-// ── Eliminar ──────────────────────────────────────────────────
+// ── Eliminar artículo ─────────────────────────────────────────
 function abrirConfirm(id) {
   const a = articulos.find(x => x.id === id);
   if (!a) return;
+  document.getElementById('confirm-titulo').textContent = 'Eliminar artículo';
+  document.getElementById('confirm-nombre').textContent = a.nombre;
+  document.getElementById('modal-confirm').classList.remove('hidden');
 
-  confirmNombre.textContent = a.nombre;
-
-  const btnConfirmar = document.getElementById('btn-confirmar-eliminar');
-  // Reemplazar el botón para limpiar listeners previos
-  const clone = btnConfirmar.cloneNode(true);
-  btnConfirmar.parentNode.replaceChild(clone, btnConfirmar);
+  const btn = document.getElementById('btn-confirmar-eliminar');
+  const clone = btn.cloneNode(true);
+  btn.parentNode.replaceChild(clone, btn);
   clone.addEventListener('click', async () => {
-    cerrarConfirm();
+    document.getElementById('modal-confirm').classList.add('hidden');
     await window.api.articulos.delete(id);
-    await cargarArticulos();
+    articulos = await window.api.articulos.getAll();
+    renderTabla(filtrarArticulos());
+    toast('Artículo eliminado.');
   });
-
-  modalConfirm.classList.remove('hidden');
 }
 
-function cerrarConfirm() {
-  modalConfirm.classList.add('hidden');
+// ── Kit componentes ───────────────────────────────────────────
+function buscarKitComp(e) {
+  const q = e.target.value.trim().toLowerCase();
+  const dd = document.getElementById('kit-search-dropdown');
+  kitCompSeleccionado = null;
+  if (!q) { dd.style.display = 'none'; return; }
+
+  const resultados = articulos.filter(a =>
+    a.id !== editandoId &&
+    !kitComponentes.some(c => c.componente_id === a.id) &&
+    (a.nombre.toLowerCase().includes(q) || a.codigo.toLowerCase().includes(q))
+  ).slice(0, 10);
+
+  if (resultados.length === 0) { dd.style.display = 'none'; return; }
+
+  dd.innerHTML = resultados.map(a => `
+    <div data-kit-id="${a.id}" data-kit-nombre="${esc(a.nombre)}"
+      style="padding:7px 12px;cursor:pointer;border-bottom:1px solid var(--border);">
+      <span style="font-size:12px;font-weight:500;">${esc(a.nombre)}</span>
+      <span style="font-size:11px;color:var(--text-subtle);margin-left:8px;">${esc(a.codigo)}</span>
+    </div>`).join('');
+  dd.style.display = 'block';
 }
 
-// ── Importar Excel ────────────────────────────────────────────
+function cerrarKitDropdown() {
+  document.getElementById('kit-search-dropdown').style.display = 'none';
+}
+
+function agregarKitComp() {
+  if (!kitCompSeleccionado) {
+    toast('Seleccioná un artículo de la lista.', 'error');
+    return;
+  }
+  const cantidad = parseFloat(document.getElementById('kit-comp-cantidad').value) || 1;
+  if (kitComponentes.some(c => c.componente_id === kitCompSeleccionado.id)) {
+    toast('Ese componente ya está en el kit.', 'error');
+    return;
+  }
+  kitComponentes.push({ componente_id: kitCompSeleccionado.id, nombre: kitCompSeleccionado.nombre, cantidad });
+  kitCompSeleccionado = null;
+  document.getElementById('kit-buscar-comp').value    = '';
+  document.getElementById('kit-comp-cantidad').value  = '1';
+  renderKitComponentes();
+}
+
+function renderKitComponentes() {
+  const lista = document.getElementById('kit-componentes-lista');
+  if (kitComponentes.length === 0) {
+    lista.innerHTML = '<div style="font-size:12px;color:var(--text-subtle);padding:4px 0;">Sin componentes. Agregá artículos con el buscador.</div>';
+    return;
+  }
+  lista.innerHTML = kitComponentes.map((comp, i) => `
+    <div style="display:flex;align-items:center;gap:8px;padding:5px 8px;background:var(--surface);border:1px solid var(--border);border-radius:var(--r-in);">
+      <span style="flex:1;font-size:12px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${esc(comp.nombre || '#' + comp.componente_id)}</span>
+      <input type="number" min="0.001" step="0.001" value="${comp.cantidad}"
+        onchange="actualizarCantidadComp(${i}, this.value)"
+        style="width:68px;font-size:12px;padding:3px 6px;background:var(--bg);border:1px solid var(--border);border-radius:4px;color:var(--text);text-align:right;" />
+      <button type="button" onclick="quitarKitComp(${i})"
+        style="color:var(--danger);font-size:16px;line-height:1;background:none;border:none;cursor:pointer;padding:0 2px;">×</button>
+    </div>`).join('');
+}
+
+function quitarKitComp(i) {
+  kitComponentes.splice(i, 1);
+  renderKitComponentes();
+}
+
+function actualizarCantidadComp(i, val) {
+  if (kitComponentes[i]) kitComponentes[i].cantidad = parseFloat(val) || 1;
+}
+
+// ── Tab 2: Departamentos ──────────────────────────────────────
+
+function iniciarEditDepto(id) {
+  const d = departamentos.find(x => x.id === id);
+  if (!d) return;
+  document.getElementById('depto-editando-id').value  = id;
+  document.getElementById('depto-nombre').value       = d.nombre;
+  document.getElementById('depto-color').value        = d.color;
+  document.getElementById('depto-color-hex').textContent = d.color;
+  document.getElementById('lbl-form-depto').textContent  = 'Editar departamento';
+  document.getElementById('btn-guardar-depto').textContent = 'Guardar';
+  document.getElementById('btn-cancelar-depto').style.display = '';
+  document.getElementById('depto-nombre').focus();
+}
+
+function cancelarEditDepto() {
+  document.getElementById('depto-editando-id').value = '';
+  document.getElementById('depto-nombre').value      = '';
+  document.getElementById('depto-color').value       = '#6b7280';
+  document.getElementById('depto-color-hex').textContent = '#6b7280';
+  document.getElementById('lbl-form-depto').textContent   = 'Nuevo departamento';
+  document.getElementById('btn-guardar-depto').textContent = 'Agregar';
+  document.getElementById('btn-cancelar-depto').style.display = 'none';
+}
+
+async function guardarDepto(e) {
+  e.preventDefault();
+  const nombre = document.getElementById('depto-nombre').value.trim();
+  const color  = document.getElementById('depto-color').value;
+  const idEdit = document.getElementById('depto-editando-id').value;
+
+  if (!nombre) { toast('El nombre del departamento es obligatorio.', 'error'); return; }
+
+  try {
+    if (idEdit) {
+      await window.api.departamentos.update(parseInt(idEdit), { nombre, color });
+      toast('Departamento actualizado.');
+    } else {
+      await window.api.departamentos.create({ nombre, color });
+      toast('Departamento creado.');
+    }
+    cancelarEditDepto();
+    departamentos = await window.api.departamentos.getAll();
+    articulos     = await window.api.articulos.getAll();
+    renderDepartamentos();
+    renderChipsDepto();
+    poblarSelectDepartamento();
+  } catch (err) {
+    toast('Error: ' + (err.message || err), 'error');
+  }
+}
+
+function confirmarEliminarDepto2(id, nombre) {
+  document.getElementById('confirm-titulo').textContent = 'Eliminar departamento';
+  document.getElementById('confirm-nombre').textContent = nombre;
+  document.getElementById('modal-confirm').classList.remove('hidden');
+
+  const btn = document.getElementById('btn-confirmar-eliminar');
+  const clone = btn.cloneNode(true);
+  btn.parentNode.replaceChild(clone, btn);
+  clone.addEventListener('click', async () => {
+    document.getElementById('modal-confirm').classList.add('hidden');
+    await window.api.departamentos.delete(id);
+    departamentos = await window.api.departamentos.getAll();
+    articulos     = await window.api.articulos.getAll();
+    renderDepartamentos();
+    renderChipsDepto();
+    poblarSelectDepartamento();
+    toast('Departamento eliminado.');
+  });
+}
+
+// Rewrite renderDepartamentos to fix delegation issue
+function renderDepartamentos() {
+  const lista  = document.getElementById('lista-departamentos');
+  const vacio  = document.getElementById('depto-vacio');
+
+  if (departamentos.length === 0) {
+    lista.innerHTML = '';
+    vacio.style.display = '';
+    return;
+  }
+  vacio.style.display = 'none';
+
+  lista.innerHTML = departamentos.map(d => {
+    const cnt = articulos.filter(a => a.departamento_id === d.id).length;
+    return `
+      <div style="display:flex;align-items:center;gap:12px;padding:10px 16px;background:var(--surface);border:1px solid var(--border);border-radius:var(--r-in);">
+        <div style="width:24px;height:24px;border-radius:50%;background:${d.color};flex-shrink:0;border:2px solid rgba(255,255,255,.1);"></div>
+        <span style="flex:1;font-size:13px;font-weight:500;">${esc(d.nombre)}</span>
+        <span style="font-size:11px;color:var(--text-subtle);">${cnt} artículo${cnt !== 1 ? 's' : ''}</span>
+        <button onclick="iniciarEditDepto(${d.id})" style="font-size:12px;color:var(--accent);background:none;border:none;cursor:pointer;padding:2px 8px;">Editar</button>
+        <button onclick="confirmarEliminarDepto2(${d.id}, '${d.nombre.replace(/'/g, "\\'")}')" style="font-size:12px;color:var(--danger);background:none;border:none;cursor:pointer;padding:2px 8px;">Eliminar</button>
+      </div>`;
+  }).join('');
+}
+
+// ── Ajustar stock (desde catálogo) ────────────────────────────
+function abrirModalAjuste(id) {
+  const a = articulos.find(x => x.id === id);
+  if (!a) return;
+  ajustandoId    = id;
+  ajustandoStock = a.stock_actual;
+  document.getElementById('ajuste-cat-nombre').textContent   = a.nombre;
+  document.getElementById('ajuste-cat-codigo').textContent   = a.codigo;
+  document.getElementById('ajuste-cat-stock').textContent    = `${fmtNum(a.stock_actual)} ${a.unidad_medida || 'u.'}`;
+  document.getElementById('ajuste-cat-tipo').value           = 'entrada';
+  document.getElementById('ajuste-cat-cantidad').value       = '';
+  document.getElementById('ajuste-cat-motivo').value         = '';
+  document.getElementById('ajuste-cat-usuario').value        = '';
+  document.getElementById('ajuste-error-cat').classList.add('hidden');
+  actualizarPreviewAjuste();
+  document.getElementById('modal-ajuste').classList.remove('hidden');
+  document.getElementById('ajuste-cat-cantidad').focus();
+}
+
+function cerrarModalAjuste() {
+  document.getElementById('modal-ajuste').classList.add('hidden');
+  ajustandoId = null;
+  ajustandoStock = 0;
+}
+
+function actualizarPreviewAjuste() {
+  const tipo  = document.getElementById('ajuste-cat-tipo').value;
+  const cant  = parseFloat(document.getElementById('ajuste-cat-cantidad').value) || 0;
+  const label = document.getElementById('ajuste-cat-cant-label');
+  const prev  = document.getElementById('ajuste-cat-preview');
+  const actual = ajustandoStock;
+  let nuevo;
+
+  if (tipo === 'entrada')     { nuevo = actual + cant; label.innerHTML = 'Cantidad a sumar <span class="required">*</span>'; }
+  else if (tipo === 'salida') { nuevo = actual - cant; label.innerHTML = 'Cantidad a restar <span class="required">*</span>'; }
+  else                        { nuevo = cant;           label.innerHTML = 'Nuevo stock total <span class="required">*</span>'; }
+
+  const color = nuevo < actual ? '#fca5a5' : nuevo > actual ? '#86efac' : 'var(--text)';
+  prev.innerHTML = `<span style="color:var(--text-subtle);">Actual:</span> <strong>${fmtNum(actual)}</strong> → <span style="color:var(--text-subtle);">Nuevo:</span> <strong style="color:${color};">${fmtNum(nuevo)}</strong>`;
+}
+
+async function confirmarAjuste() {
+  const tipo     = document.getElementById('ajuste-cat-tipo').value;
+  const cantidad = parseFloat(document.getElementById('ajuste-cat-cantidad').value);
+  const motivo   = document.getElementById('ajuste-cat-motivo').value.trim();
+  const usuario  = document.getElementById('ajuste-cat-usuario').value.trim();
+  const errEl    = document.getElementById('ajuste-error-cat');
+  errEl.classList.add('hidden');
+
+  if (!(cantidad > 0)) { errEl.textContent = 'La cantidad debe ser mayor a 0.'; errEl.classList.remove('hidden'); return; }
+  if (!motivo)          { errEl.textContent = 'El motivo es obligatorio.';        errEl.classList.remove('hidden'); return; }
+
+  const btn = document.getElementById('btn-confirmar-ajuste');
+  btn.disabled = true; btn.textContent = 'Procesando...';
+  try {
+    const r = await window.api.inventario.ajustar({ articulo_id: ajustandoId, tipo_ajuste: tipo, cantidad, motivo, usuario: usuario || null });
+    cerrarModalAjuste();
+    articulos = await window.api.articulos.getAll();
+    renderTabla(filtrarArticulos());
+    toast(`Stock ajustado: ${fmtNum(r.anterior)} → ${fmtNum(r.nuevo)}`);
+  } catch (err) {
+    errEl.textContent = 'Error: ' + (err.message || err);
+    errEl.classList.remove('hidden');
+  } finally {
+    btn.disabled = false; btn.textContent = 'Confirmar ajuste';
+  }
+}
+
+// ── Tab 3: Kits ───────────────────────────────────────────────
+async function renderKits() {
+  const q = (document.getElementById('busqueda-kits').value || '').trim().toLowerCase();
+  const lista  = document.getElementById('lista-kits');
+  const vacio  = document.getElementById('kits-vacio');
+
+  let kits = articulos.filter(a => a.es_kit);
+  if (q) kits = kits.filter(a => a.nombre.toLowerCase().includes(q) || a.codigo.toLowerCase().includes(q));
+
+  if (kits.length === 0) {
+    lista.innerHTML = '';
+    vacio.style.display = '';
+    return;
+  }
+  vacio.style.display = 'none';
+
+  // Cargar componentes de todos los kits en paralelo
+  const compsMap = {};
+  await Promise.all(kits.map(async k => {
+    compsMap[k.id] = await window.api.kits.getComponentes(k.id);
+  }));
+
+  lista.innerHTML = kits.map(k => {
+    const comps = compsMap[k.id] || [];
+    const deptoChip = k.departamento_nombre
+      ? `<span style="padding:1px 7px;border-radius:10px;font-size:11px;background:${k.departamento_color || '#6b7280'}22;color:${k.departamento_color || '#6b7280'};border:1px solid ${k.departamento_color || '#6b7280'}44;margin-left:6px;">${esc(k.departamento_nombre)}</span>`
+      : '';
+    const compRows = comps.length > 0
+      ? comps.map(c => `
+          <div style="display:flex;gap:8px;font-size:12px;padding:3px 0;color:var(--text-muted);">
+            <span style="flex:1;">${esc(c.nombre)}</span>
+            <span style="color:var(--text-subtle);">${fmtNum(c.cantidad)} ${c.unidad_medida || 'u.'}</span>
+            <span style="color:var(--text-subtle);">Stock: ${fmtNum(c.stock_actual)}</span>
+          </div>`).join('')
+      : '<div style="font-size:12px;color:var(--text-subtle);font-style:italic;padding:4px 0;">Sin componentes definidos.</div>';
+
+    return `
+      <div style="background:var(--surface);border:1px solid var(--border);border-radius:var(--r-card);overflow:hidden;">
+        <div style="display:flex;align-items:center;gap:10px;padding:10px 14px;">
+          <div style="flex:1;">
+            <span style="font-weight:600;font-size:13px;">${esc(k.nombre)}</span>
+            ${deptoChip}
+            <span style="font-family:monospace;font-size:11px;color:var(--text-subtle);margin-left:8px;">${esc(k.codigo)}</span>
+          </div>
+          <span style="font-size:13px;color:var(--text-muted);">${fmt(k.precio_unitario)}</span>
+          <button onclick="abrirModalEdicion(${k.id})" style="font-size:12px;color:var(--accent);background:none;border:none;cursor:pointer;padding:2px 8px;">Editar</button>
+        </div>
+        <div style="padding:8px 14px;border-top:1px solid var(--border);background:var(--bg);">
+          <div style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.04em;color:var(--text-subtle);margin-bottom:6px;">Componentes (${comps.length})</div>
+          ${compRows}
+        </div>
+      </div>`;
+  }).join('');
+}
+
+// ── Importar Excel / CSV ──────────────────────────────────────
 let importRows    = [];
 let importHeaders = [];
 
-const inputExcel  = document.getElementById('input-excel');
-const modalImport = document.getElementById('modal-import');
-const importStatus = document.getElementById('import-status');
-
-document.getElementById('btn-importar-excel').addEventListener('click', () => inputExcel.click());
-inputExcel.addEventListener('change', leerExcel);
-document.getElementById('btn-cancelar-import').addEventListener('click', cerrarModalImport);
-document.getElementById('btn-close-import').addEventListener('click', cerrarModalImport);
-document.getElementById('btn-ejecutar-import').addEventListener('click', ejecutarImport);
-modalImport.addEventListener('click', e => { if (e.target === modalImport) cerrarModalImport(); });
-
-['map-codigo', 'map-nombre', 'map-precio', 'map-costo', 'map-stock'].forEach(id => {
-  document.getElementById(id).addEventListener('change', renderPreview);
-});
-
 function cerrarModalImport() {
-  modalImport.classList.add('hidden');
-  inputExcel.value = '';
+  document.getElementById('modal-import').classList.add('hidden');
+  document.getElementById('input-excel').value = '';
   importRows = [];
   importHeaders = [];
   document.getElementById('import-step-mapeo').classList.add('hidden');
   document.getElementById('import-step-vacio').style.display = '';
   document.getElementById('btn-ejecutar-import').classList.add('hidden');
-  importStatus.classList.add('hidden');
+  document.getElementById('import-status').classList.add('hidden');
 }
 
 function leerExcel(e) {
   const file = e.target.files[0];
   if (!file) return;
 
-  if (typeof XLSX === 'undefined') {
-    alert('La librería XLSX no está disponible. Verificá tu conexión a internet.');
-    return;
-  }
+  const isCSV = file.name.endsWith('.csv');
 
   const reader = new FileReader();
   reader.onload = evt => {
-    const wb   = XLSX.read(evt.target.result, { type: 'array' });
-    const ws   = wb.Sheets[wb.SheetNames[0]];
-    const data = XLSX.utils.sheet_to_json(ws, { header: 1, defval: '' });
-
-    if (!data || data.length < 2) {
-      alert('El archivo no tiene datos suficientes (se necesita al menos una fila de encabezado y una de datos).');
-      return;
+    let data;
+    if (isCSV) {
+      const text = evt.target.result;
+      // Detectar separador
+      const sep = text.indexOf(';') > text.indexOf(',') ? ';' : ',';
+      data = text.split('\n').map(row => row.split(sep).map(c => c.replace(/^"|"$/g, '').trim()));
+    } else {
+      if (typeof XLSX === 'undefined') { alert('La librería XLSX no está disponible.'); return; }
+      const wb  = XLSX.read(evt.target.result, { type: 'array' });
+      const ws  = wb.Sheets[wb.SheetNames[0]];
+      data = XLSX.utils.sheet_to_json(ws, { header: 1, defval: '' });
     }
+
+    if (!data || data.length < 2) { alert('El archivo no tiene datos suficientes.'); return; }
 
     importHeaders = data[0].map(h => String(h ?? ''));
     importRows    = data.slice(1).filter(row => row.some(cell => String(cell).trim() !== ''));
 
-    if (importRows.length === 0) {
-      alert('El archivo no tiene filas con datos.');
-      return;
-    }
+    if (importRows.length === 0) { alert('El archivo no tiene filas con datos.'); return; }
 
     rellenarSelectsMapeo();
     autoDetectColumns();
@@ -284,10 +899,12 @@ function leerExcel(e) {
     document.getElementById('import-step-vacio').style.display = 'none';
     document.getElementById('import-step-mapeo').classList.remove('hidden');
     document.getElementById('btn-ejecutar-import').classList.remove('hidden');
-    importStatus.classList.add('hidden');
-    modalImport.classList.remove('hidden');
+    document.getElementById('import-status').classList.add('hidden');
+    document.getElementById('modal-import').classList.remove('hidden');
   };
-  reader.readAsArrayBuffer(file);
+
+  if (isCSV) reader.readAsText(file, 'UTF-8');
+  else        reader.readAsArrayBuffer(file);
 }
 
 function rellenarSelectsMapeo() {
@@ -295,8 +912,7 @@ function rellenarSelectsMapeo() {
   const colOpts = importHeaders.map((h, i) =>
     `<option value="${i}">${esc(h || `Columna ${i + 1}`)}</option>`
   ).join('');
-
-  ['map-codigo', 'map-nombre', 'map-precio', 'map-costo', 'map-stock'].forEach(id => {
+  ['map-codigo','map-nombre','map-precio','map-costo','map-mayoreo','map-stock','map-stock-min','map-departamento'].forEach(id => {
     document.getElementById(id).innerHTML = ningunaOpt + colOpts;
     document.getElementById(id).value = '-1';
   });
@@ -304,25 +920,24 @@ function rellenarSelectsMapeo() {
 
 function autoDetectColumns() {
   const KEYWORDS = {
-    'map-codigo': ['codigo', 'code', 'cod', 'sku', 'id'],
-    'map-nombre': ['nombre', 'name', 'descripcion', 'producto', 'articulo', 'item'],
-    'map-precio': ['precio', 'price', 'venta', 'pvp', 'precio_venta', 'p_venta'],
-    'map-costo':  ['costo', 'cost', 'compra', 'precio_costo', 'p_costo'],
-    'map-stock':  ['stock', 'cantidad', 'existencia', 'qty', 'inventario'],
+    'map-codigo':      ['codigo', 'code', 'cod', 'sku', 'id'],
+    'map-nombre':      ['nombre', 'name', 'descripcion', 'producto', 'articulo', 'item'],
+    'map-precio':      ['precio', 'price', 'venta', 'pvp', 'precio_venta', 'p_venta'],
+    'map-costo':       ['costo', 'cost', 'compra', 'precio_costo', 'p_costo'],
+    'map-mayoreo':     ['mayoreo', 'mayor', 'bulk', 'precio_mayor'],
+    'map-stock':       ['stock', 'cantidad', 'existencia', 'qty', 'inventario'],
+    'map-stock-min':   ['stock_min', 'minimo', 'stock_minimo', 'min'],
+    'map-departamento':['departamento', 'categoria', 'category', 'dept', 'rubro'],
   };
   for (const [selId, kws] of Object.entries(KEYWORDS)) {
-    const idx = importHeaders.findIndex(h =>
-      kws.some(kw => h.toLowerCase().includes(kw))
-    );
+    const idx = importHeaders.findIndex(h => kws.some(kw => h.toLowerCase().includes(kw)));
     if (idx >= 0) document.getElementById(selId).value = String(idx);
   }
 }
 
 function renderPreview() {
   const preview = importRows.slice(0, 5);
-  const thead = `<thead><tr>${importHeaders.map(h =>
-    `<th style="white-space:nowrap;">${esc(h)}</th>`
-  ).join('')}</tr></thead>`;
+  const thead = `<thead><tr>${importHeaders.map(h => `<th style="white-space:nowrap;">${esc(h)}</th>`).join('')}</tr></thead>`;
   const tbody = `<tbody>${preview.map(row =>
     `<tr>${importHeaders.map((_, i) =>
       `<td style="white-space:nowrap;max-width:120px;overflow:hidden;text-overflow:ellipsis;">${esc(String(row[i] ?? ''))}</td>`
@@ -332,60 +947,97 @@ function renderPreview() {
 }
 
 async function ejecutarImport() {
-  const colCodigo = parseInt(document.getElementById('map-codigo').value, 10);
-  const colNombre = parseInt(document.getElementById('map-nombre').value, 10);
-  const colPrecio = parseInt(document.getElementById('map-precio').value, 10);
-  const colCosto  = parseInt(document.getElementById('map-costo').value,  10);
-  const colStock  = parseInt(document.getElementById('map-stock').value,  10);
+  const cols = {
+    codigo:    parseInt(document.getElementById('map-codigo').value, 10),
+    nombre:    parseInt(document.getElementById('map-nombre').value, 10),
+    precio:    parseInt(document.getElementById('map-precio').value, 10),
+    costo:     parseInt(document.getElementById('map-costo').value, 10),
+    mayoreo:   parseInt(document.getElementById('map-mayoreo').value, 10),
+    stock:     parseInt(document.getElementById('map-stock').value, 10),
+    stockMin:  parseInt(document.getElementById('map-stock-min').value, 10),
+    depto:     parseInt(document.getElementById('map-departamento').value, 10),
+  };
 
-  if (colCodigo < 0) { mostrarErrorImport('Debés mapear la columna "Código".'); return; }
-  if (colNombre < 0) { mostrarErrorImport('Debés mapear la columna "Nombre".'); return; }
+  if (cols.codigo < 0) { mostrarStatusImport('Debés mapear la columna "Código".', true); return; }
+  if (cols.nombre < 0) { mostrarStatusImport('Debés mapear la columna "Nombre".', true); return; }
 
   const btnImp = document.getElementById('btn-ejecutar-import');
   btnImp.disabled = true;
   btnImp.textContent = 'Importando...';
+
+  const importStatus = document.getElementById('import-status');
   importStatus.classList.remove('hidden');
 
   let nuevos = 0, actualizados = 0, errores = 0;
 
+  // Mapear nombre de departamento a id (crea si no existe)
+  const deptoCache = {};
+
   for (let i = 0; i < importRows.length; i++) {
     const row    = importRows[i];
-    const codigo = String(row[colCodigo] ?? '').trim().toUpperCase();
-    const nombre = String(row[colNombre] ?? '').trim();
+    const codigo = String(row[cols.codigo] ?? '').trim().toUpperCase();
+    const nombre = String(row[cols.nombre] ?? '').trim();
 
     importStatus.textContent = `Procesando fila ${i + 1} de ${importRows.length}…`;
 
     if (!codigo || !nombre) { errores++; continue; }
 
-    const precio = colPrecio >= 0 ? parsearNumero(String(row[colPrecio] ?? ''), null) : null;
-    const costo  = colCosto  >= 0 ? parsearNumero(String(row[colCosto]  ?? ''), 0)    : 0;
-    const stock  = colStock  >= 0 ? parsearNumero(String(row[colStock]  ?? ''), 0)    : 0;
+    const precio    = cols.precio   >= 0 ? parsearNumero(String(row[cols.precio]   ?? ''), null) : null;
+    const costo     = cols.costo    >= 0 ? parsearNumero(String(row[cols.costo]    ?? ''), 0)    : 0;
+    const mayoreo   = cols.mayoreo  >= 0 ? parsearNumero(String(row[cols.mayoreo]  ?? ''), 0)    : 0;
+    const stock     = cols.stock    >= 0 ? parsearNumero(String(row[cols.stock]    ?? ''), 0)    : 0;
+    const stockMin  = cols.stockMin >= 0 ? parsearNumero(String(row[cols.stockMin] ?? ''), 0)    : 0;
+
+    // Resolución de departamento
+    let departamento_id = null;
+    if (cols.depto >= 0) {
+      const deptoNombre = String(row[cols.depto] ?? '').trim();
+      if (deptoNombre) {
+        if (deptoCache[deptoNombre] !== undefined) {
+          departamento_id = deptoCache[deptoNombre];
+        } else {
+          const existing = departamentos.find(d => d.nombre.toLowerCase() === deptoNombre.toLowerCase());
+          if (existing) {
+            departamento_id = existing.id;
+          } else {
+            try {
+              const nuevo = await window.api.departamentos.create({ nombre: deptoNombre });
+              departamentos.push(nuevo);
+              departamento_id = nuevo.id;
+            } catch { departamento_id = null; }
+          }
+          deptoCache[deptoNombre] = departamento_id;
+        }
+      }
+    }
 
     try {
       const existente = await window.api.articulos.getByCodigo(codigo);
       if (existente) {
         const upd = { nombre };
         if (precio !== null && precio > 0) upd.precio_unitario = precio;
-        if (colCosto >= 0)  upd.costo_unitario = costo;
-        if (colStock >= 0)  upd.stock_actual   = stock;
+        if (cols.costo    >= 0) upd.costo_unitario  = costo;
+        if (cols.mayoreo  >= 0) upd.precio_mayoreo  = mayoreo;
+        if (cols.stock    >= 0) upd.stock_actual    = stock;
+        if (cols.stockMin >= 0) upd.stock_minimo    = stockMin;
+        if (departamento_id !== null) upd.departamento_id = departamento_id;
         await window.api.articulos.update(existente.id, upd);
         actualizados++;
       } else {
         if (precio === null || precio <= 0) { errores++; continue; }
         await window.api.articulos.create({
-          codigo,
-          nombre,
+          codigo, nombre,
           precio_unitario: precio,
           costo_unitario:  costo,
+          precio_mayoreo:  mayoreo,
           stock_actual:    stock,
-          stock_minimo:    0,
+          stock_minimo:    stockMin,
+          departamento_id,
           unidad_medida:   'unidad',
         });
         nuevos++;
       }
-    } catch {
-      errores++;
-    }
+    } catch { errores++; }
   }
 
   importStatus.innerHTML = `
@@ -396,14 +1048,20 @@ async function ejecutarImport() {
       <strong style="color:#fca5a5;">${errores}</strong> filas con error
     </div>`;
 
-  btnImp.disabled = false;
+  btnImp.disabled   = false;
   btnImp.textContent = 'Importar de nuevo';
-  await cargarArticulos();
+  articulos = await window.api.articulos.getAll();
+  await recargarDepto();
+  renderTabla(filtrarArticulos());
 }
 
-function mostrarErrorImport(msg) {
-  importStatus.classList.remove('hidden');
-  importStatus.innerHTML = `<div style="padding:8px 12px;background:rgba(239,68,68,.1);border:1px solid rgba(239,68,68,.25);border-radius:var(--r-in);color:#fca5a5;">${esc(msg)}</div>`;
+function mostrarStatusImport(msg, esError = false) {
+  const el = document.getElementById('import-status');
+  el.classList.remove('hidden');
+  const color = esError ? 'rgba(239,68,68,.1)' : 'rgba(59,130,246,.1)';
+  const border = esError ? 'rgba(239,68,68,.25)' : 'rgba(59,130,246,.3)';
+  const txt    = esError ? '#fca5a5' : 'var(--text)';
+  el.innerHTML = `<div style="padding:8px 12px;background:${color};border:1px solid ${border};border-radius:var(--r-in);color:${txt};">${esc(msg)}</div>`;
 }
 
 // ── Helpers ───────────────────────────────────────────────────
@@ -415,7 +1073,6 @@ function fmt(n) {
 
 function fmtNum(n) {
   const num = parseFloat(n) || 0;
-  // Mostrar sin decimales si es entero, con hasta 3 si no
   return num % 1 === 0 ? String(num) : num.toFixed(3).replace(/\.?0+$/, '');
 }
 
@@ -433,17 +1090,27 @@ function esc(str) {
 }
 
 function mostrarError(msg) {
-  errorMsg.textContent = msg;
-  errorMsg.classList.remove('hidden');
+  const el = document.getElementById('error-msg');
+  el.textContent = msg;
+  el.classList.remove('hidden');
 }
 
 function ocultarError() {
-  errorMsg.textContent = '';
-  errorMsg.classList.add('hidden');
+  const el = document.getElementById('error-msg');
+  el.textContent = '';
+  el.classList.add('hidden');
 }
 
-function bloquearFormulario(bloquear) {
+function bloquearFormulario(b) {
   const btn = document.getElementById('btn-guardar');
-  btn.disabled    = bloquear;
-  btn.textContent = bloquear ? 'Guardando...' : 'Guardar';
+  btn.disabled    = b;
+  btn.textContent = b ? 'Guardando...' : 'Guardar';
+}
+
+function toast(msg, tipo = 'success') {
+  const el = document.createElement('div');
+  el.className = `toast toast-${tipo}`;
+  el.textContent = msg;
+  document.getElementById('toast-wrap').appendChild(el);
+  setTimeout(() => el.remove(), 3200);
 }

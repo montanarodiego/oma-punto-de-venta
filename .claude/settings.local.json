@@ -20,7 +20,19 @@
       "Bash(dir C:\\\\Users\\\\diego\\\\Desktop\\\\oma-punto-de-venta\\\\dist\\\\win-unpacked *)",
       "Bash(explorer C:\\\\Users\\\\diego\\\\Desktop\\\\oma-punto-de-venta\\\\dist *)",
       "PowerShell(Start-Process explorer \"C:\\\\Users\\\\diego\\\\Desktop\\\\oma-punto-de-venta\\\\dist\")",
-      "Bash(npm list *)"
+      "Bash(npm list *)",
+      "Bash(timeout 5)",
+      "Bash(ping -n 4 127.0.0.1)",
+      "Bash(node --check src/main/database.js)",
+      "Bash(node --check src/main/models/departamentos.js)",
+      "Bash(node --check src/main/models/kits.js)",
+      "Bash(node --check src/main/models/articulos.js)",
+      "Bash(node --check src/main/models/transacciones.js)",
+      "Bash(node --check src/renderer/js/catalogo.js)",
+      "Bash(ping -n 5 127.0.0.1)",
+      "Bash(node --check \"C:\\\\Users\\\\diego\\\\Desktop\\\\oma-punto-de-venta\\\\src\\\\renderer\\\\js\\\\hotkeys.js\")",
+      "Bash(node --check \"C:\\\\Users\\\\diego\\\\Desktop\\\\oma-punto-de-venta\\\\src\\\\main\\\\models\\\\proveedores.js\")",
+      "Bash(node --check \"C:\\\\Users\\\\diego\\\\Desktop\\\\oma-punto-de-venta\\\\src\\\\renderer\\\\js\\\\catalogo.js\")"
     ]
   }
 }

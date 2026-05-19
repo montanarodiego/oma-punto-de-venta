@@ -191,14 +191,27 @@
           <span>Subtotal</span>
           <span id="subtotal"></span>
         </div>
+        <div id="fila-descuento-global" class="total-line" style="display:none;color:#b45309;">
+          <span id="label-desc-global">Descuento</span>
+          <span id="desc-global-monto"></span>
+        </div>
         <div id="fila-iva" class="total-line">
           <span id="label-iva">IVA</span>
           <span id="impuesto"></span>
+        </div>
+        <div id="fila-propina" class="total-line" style="display:none;">
+          <span>Propina</span>
+          <span id="propina-monto"></span>
         </div>
         <div class="total-line grand">
           <span>TOTAL</span>
           <span id="total"></span>
         </div>
+      </div>
+
+      <div id="seccion-notas" style="display:none;margin-top:10px;font-size:11px;color:#6b7280;border-top:1px dashed #d1d5db;padding-top:10px;">
+        <div style="font-weight:600;margin-bottom:3px;">Nota:</div>
+        <div id="notas-texto" style="line-height:1.4;"></div>
       </div>
 
       <hr class="dashed" />

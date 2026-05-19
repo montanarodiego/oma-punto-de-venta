@@ -1,6 +1,20 @@
 const { contextBridge, ipcRenderer } = require('electron');
 
 contextBridge.exposeInMainWorld('api', {
+  // Departamentos
+  departamentos: {
+    getAll:  ()           => ipcRenderer.invoke('departamentos:getAll'),
+    create:  (data)       => ipcRenderer.invoke('departamentos:create', data),
+    update:  (id, data)   => ipcRenderer.invoke('departamentos:update', id, data),
+    delete:  (id)         => ipcRenderer.invoke('departamentos:delete', id),
+  },
+
+  // Kits
+  kits: {
+    getComponentes: (kitId)       => ipcRenderer.invoke('kits:getComponentes', kitId),
+    setComponentes: (kitId, comp) => ipcRenderer.invoke('kits:setComponentes', kitId, comp),
+  },
+
   // Artículos
   articulos: {
     getAll:      ()           => ipcRenderer.invoke('articulos:getAll'),
@@ -26,10 +40,25 @@ contextBridge.exposeInMainWorld('api', {
 
   // Transacciones
   transacciones: {
-    getAll:      ()                 => ipcRenderer.invoke('transacciones:getAll'),
-    getById:     (id)               => ipcRenderer.invoke('transacciones:getById', id),
-    create:      (data)             => ipcRenderer.invoke('transacciones:create', data),
-    getByFecha:  (desde, hasta)     => ipcRenderer.invoke('transacciones:getByFecha', desde, hasta),
+    getAll:       ()               => ipcRenderer.invoke('transacciones:getAll'),
+    getById:      (id)             => ipcRenderer.invoke('transacciones:getById', id),
+    create:       (data)           => ipcRenderer.invoke('transacciones:create', data),
+    getByFecha:   (desde, hasta)   => ipcRenderer.invoke('transacciones:getByFecha', desde, hasta),
+    getRecientes: (limite)         => ipcRenderer.invoke('transacciones:getRecientes', limite),
+  },
+
+  // Movimientos de caja
+  movimientos: {
+    registrar:      (data)     => ipcRenderer.invoke('movimientos:registrar', data),
+    listarPorTurno: (turnoId)  => ipcRenderer.invoke('movimientos:listarPorTurno', turnoId),
+  },
+
+  // Devoluciones
+  devoluciones: {
+    cancelar:     (data)  => ipcRenderer.invoke('devoluciones:cancelar',   data),
+    parcial:      (data)  => ipcRenderer.invoke('devoluciones:parcial',    data),
+    getByTrans:   (id)    => ipcRenderer.invoke('devoluciones:getByTrans', id),
+    recientes:    (lim)   => ipcRenderer.invoke('devoluciones:recientes',  lim),
   },
 
   // Informes
@@ -38,6 +67,10 @@ contextBridge.exposeInMainWorld('api', {
     articulosMasVendidos: (d, h) => ipcRenderer.invoke('informes:articulosMasVendidos', d, h),
     utilidadBruta:        (d, h) => ipcRenderer.invoke('informes:utilidadBruta',        d, h),
     saldosClientes:       ()     => ipcRenderer.invoke('informes:saldosClientes'),
+    ventasPorDia:         (d, h) => ipcRenderer.invoke('informes:ventasPorDia',         d, h),
+    ventasPorHora:        (d)    => ipcRenderer.invoke('informes:ventasPorHora',        d),
+    mejorDia:             (d, h) => ipcRenderer.invoke('informes:mejorDia',             d, h),
+    resumenRapido:        (d, h) => ipcRenderer.invoke('informes:resumenRapido',        d, h),
   },
 
   // Proveedores
@@ -106,4 +139,15 @@ contextBridge.exposeInMainWorld('api', {
   auth: {
     login: (email, password) => ipcRenderer.invoke('auth:login', email, password),
   },
+
+  // Inventario
+  inventario: {
+    ajustar:          (data)    => ipcRenderer.invoke('inventario:ajustar', data),
+    listarMovimientos:(filtros) => ipcRenderer.invoke('inventario:listarMovimientos', filtros),
+    kardex:           (artId)   => ipcRenderer.invoke('inventario:kardex', artId),
+    stockBajo:        ()        => ipcRenderer.invoke('inventario:stockBajo'),
+  },
+
+  // Navegación (main process loadFile — funciona aunque location.href falle en Electron)
+  navegar: (file) => ipcRenderer.invoke('navegar', file),
 });

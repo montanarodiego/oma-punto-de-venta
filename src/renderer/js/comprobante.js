@@ -8,11 +8,14 @@ const FORMAS_PAGO = {
   cuenta_corriente: 'Crédito cliente',
 };
 
+const MODOS_SIN_IVA = new Set(['monotributista', 'restaurante']);
+
 document.addEventListener('DOMContentLoaded', async () => {
-  const params       = new URLSearchParams(location.search);
-  const id           = parseInt(params.get('id'), 10);
+  const params        = new URLSearchParams(location.search);
+  const id            = parseInt(params.get('id'), 10);
   const montoRecibido = parseFloat(params.get('recibido')) || 0;
-  const vuelto       = parseFloat(params.get('vuelto'))   || 0;
+  const vuelto        = parseFloat(params.get('vuelto'))   || 0;
+  const propina       = parseFloat(params.get('propina'))  || 0;
 
   const [transaccion, config] = await Promise.all([
     window.api.transacciones.getById(id),
@@ -21,7 +24,7 @@ document.addEventListener('DOMContentLoaded', async () => {
 
   if (!transaccion) {
     document.getElementById('ticket').innerHTML =
-      '<p class="text-red-500 text-center py-4">Error: comprobante no encontrado.</p>';
+      '<p style="text-align:center;color:#ef4444;padding:16px;">Error: comprobante no encontrado.</p>';
     return;
   }
 
@@ -30,30 +33,65 @@ document.addEventListener('DOMContentLoaded', async () => {
     cliente = await window.api.clientes.getById(transaccion.cuenta_cliente_id);
   }
 
+  const modo = config.modo_negocio || '';
+
   // Encabezado
   document.getElementById('nombre-negocio').textContent = config.nombre_negocio || 'Mi Negocio';
   document.getElementById('fecha').textContent          = formatFecha(transaccion.created_at);
   document.getElementById('ticket-num').textContent     = `Ticket #${transaccion.id}`;
   document.title = `Comprobante #${transaccion.id}`;
 
-  // Items
-  document.getElementById('items-table').innerHTML = transaccion.detalle.map(item => `
-    <tr>
-      <td class="py-0.5 pr-2 truncate max-w-[8rem]">${esc(item.nombre)}</td>
-      <td class="py-0.5 text-right pr-2">${fmtNum(item.cantidad)} ${esc(item.unidad_medida || 'u.')}</td>
-      <td class="py-0.5 text-right pr-2">${fmt(item.precio_al_momento)}</td>
-      <td class="py-0.5 text-right font-semibold">${fmt(item.importe_total)}</td>
-    </tr>`).join('');
+  // Items — mostrar descuento por ítem si existe
+  document.getElementById('items-table').innerHTML = transaccion.detalle.map(item => {
+    const tieneDesc = (item.descuento_porcentaje || 0) > 0;
+    const precioOriginal = tieneDesc
+      ? item.importe_total / (item.cantidad * (1 - item.descuento_porcentaje / 100))
+      : item.precio_al_momento;
 
-  // Totales
-  const tasa        = parseFloat(config.impuesto_porcentaje) || 21;
-  const mostrarIva  = config.mostrar_iva_desglosado !== '0';
+    return `
+      <tr>
+        <td class="py-0.5 pr-2 truncate max-w-[8rem]">${esc(item.nombre)}</td>
+        <td class="py-0.5 text-right pr-2">${fmtNum(item.cantidad)} ${esc(item.unidad_medida || 'u.')}</td>
+        <td class="py-0.5 text-right pr-2">
+          ${tieneDesc
+            ? `<span style="text-decoration:line-through;color:#9ca3af;font-size:10px;">${fmt(precioOriginal)}</span><br>${fmt(item.precio_al_momento * (1 - item.descuento_porcentaje / 100))}`
+            : fmt(item.precio_al_momento)}
+        </td>
+        <td class="py-0.5 text-right font-semibold">${fmt(item.importe_total)}</td>
+      </tr>
+      ${tieneDesc ? `<tr><td colspan="3" style="font-size:10px;color:#b45309;padding-bottom:3px;">Desc. ${fmtNum(item.descuento_porcentaje)}%</td><td></td></tr>` : ''}`;
+  }).join('');
+
+  // Totales — adaptar según modo
+  const tasa = parseFloat(config.impuesto_porcentaje) || 21;
+  let mostrarIva;
+  if (MODOS_SIN_IVA.has(modo)) {
+    mostrarIva = false;
+  } else if (modo === 'personalizado' || modo === '') {
+    mostrarIva = config.mostrar_iva_desglosado !== '0';
+  } else {
+    mostrarIva = true;
+  }
+
   document.getElementById('subtotal').textContent  = fmt(transaccion.subtotal);
   document.getElementById('label-iva').textContent = `IVA (${tasa}%)`;
   document.getElementById('impuesto').textContent  = fmt(transaccion.monto_impuesto);
   document.getElementById('total').textContent     = fmt(transaccion.monto_total);
   document.getElementById('fila-subtotal').style.display = mostrarIva ? '' : 'none';
   document.getElementById('fila-iva').style.display      = mostrarIva ? '' : 'none';
+
+  // Descuento global
+  const descGlobal = transaccion.descuento_global || 0;
+  if (descGlobal > 0) {
+    document.getElementById('fila-descuento-global').style.display = '';
+    document.getElementById('desc-global-monto').textContent = `−${fmt(descGlobal)}`;
+  }
+
+  // Propina (sólo RESTAURANTE)
+  if (modo === 'restaurante' && propina > 0) {
+    document.getElementById('fila-propina').style.display = '';
+    document.getElementById('propina-monto').textContent  = fmt(propina);
+  }
 
   // Forma de pago
   document.getElementById('forma-pago').textContent =
@@ -71,11 +109,16 @@ document.addEventListener('DOMContentLoaded', async () => {
     document.getElementById('seccion-cliente').classList.remove('hidden');
     document.getElementById('nombre-cliente').textContent = cliente.nombre;
   }
+
+  // Notas del ticket
+  if (transaccion.notas?.trim()) {
+    document.getElementById('seccion-notas').style.display = '';
+    document.getElementById('notas-texto').textContent = transaccion.notas.trim();
+  }
 });
 
 function formatFecha(str) {
   if (!str) return '';
-  // SQLite datetime() devuelve UTC sin zona — agregamos Z para que Date lo interprete correctamente
   const d = new Date(str.replace(' ', 'T') + 'Z');
   return d.toLocaleString('es-AR', {
     day: '2-digit', month: '2-digit', year: 'numeric',

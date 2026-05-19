@@ -1,15 +1,31 @@
 const { ipcMain, shell } = require('electron');
-const Articulos    = require('./models/articulos');
-const Transacciones = require('./models/transacciones');
-const Clientes     = require('./models/clientes');
-const Informes     = require('./models/informes');
-const Proveedores  = require('./models/proveedores');
-const Recepciones  = require('./models/recepciones');
-const Turnos       = require('./models/turnos');
-const Backup       = require('./backup');
-const { getDb }    = require('./database');
+const path           = require('path');
+const Articulos      = require('./models/articulos');
+const Transacciones  = require('./models/transacciones');
+const Clientes       = require('./models/clientes');
+const Informes       = require('./models/informes');
+const Proveedores    = require('./models/proveedores');
+const Recepciones    = require('./models/recepciones');
+const Turnos         = require('./models/turnos');
+const MovimientosCaja = require('./models/movimientos_caja');
+const Devoluciones   = require('./models/devoluciones');
+const Departamentos  = require('./models/departamentos');
+const Kits           = require('./models/kits');
+const Inventario     = require('./models/inventario');
+const Backup         = require('./backup');
+const { getDb }      = require('./database');
 
 function registerHandlers() {
+  // ── Departamentos ──────────────────────────────────────────
+  ipcMain.handle('departamentos:getAll',   ()               => Departamentos.getAll());
+  ipcMain.handle('departamentos:create',   (_e, data)       => Departamentos.create(data));
+  ipcMain.handle('departamentos:update',   (_e, id, data)   => Departamentos.update(id, data));
+  ipcMain.handle('departamentos:delete',   (_e, id)         => Departamentos.remove(id));
+
+  // ── Kits ───────────────────────────────────────────────────
+  ipcMain.handle('kits:getComponentes', (_e, kitId)          => Kits.getComponentes(kitId));
+  ipcMain.handle('kits:setComponentes', (_e, kitId, comps)   => Kits.setComponentes(kitId, comps));
+
   // ── Artículos ──────────────────────────────────────────────
   ipcMain.handle('articulos:getAll', () => Articulos.getAll());
   ipcMain.handle('articulos:getById', (_e, id) => Articulos.getById(id));
@@ -30,18 +46,31 @@ function registerHandlers() {
   ipcMain.handle('clientes:registrarPago', (_e, id, monto) => Clientes.registrarPago(id, monto));
 
   // ── Transacciones ──────────────────────────────────────────
-  ipcMain.handle('transacciones:getAll', () => Transacciones.getAll());
-  ipcMain.handle('transacciones:getById', (_e, id) => Transacciones.getById(id));
-  ipcMain.handle('transacciones:create', (_e, data) => Transacciones.create(data));
-  ipcMain.handle('transacciones:getByFecha', (_e, desde, hasta) =>
-    Transacciones.getByFecha(desde, hasta)
-  );
+  ipcMain.handle('transacciones:getAll',      ()              => Transacciones.getAll());
+  ipcMain.handle('transacciones:getById',     (_e, id)        => Transacciones.getById(id));
+  ipcMain.handle('transacciones:create',      (_e, data)      => Transacciones.create(data));
+  ipcMain.handle('transacciones:getByFecha',  (_e, desde, hasta) => Transacciones.getByFecha(desde, hasta));
+  ipcMain.handle('transacciones:getRecientes',(_e, limite)    => Transacciones.getRecientes(limite));
+
+  // ── Movimientos de caja ────────────────────────────────────
+  ipcMain.handle('movimientos:registrar',     (_e, data)      => MovimientosCaja.registrar(data));
+  ipcMain.handle('movimientos:listarPorTurno',(_e, turnoId)   => MovimientosCaja.listarPorTurno(turnoId));
+
+  // ── Devoluciones ───────────────────────────────────────────
+  ipcMain.handle('devoluciones:cancelar',     (_e, data)      => Devoluciones.cancelarTransaccion(data));
+  ipcMain.handle('devoluciones:parcial',      (_e, data)      => Devoluciones.devolucionParcial(data));
+  ipcMain.handle('devoluciones:getByTrans',   (_e, id)        => Devoluciones.getByTransaccion(id));
+  ipcMain.handle('devoluciones:recientes',    (_e, limite)    => Devoluciones.getRecientes(limite));
 
   // ── Informes ───────────────────────────────────────────────
   ipcMain.handle('informes:ventasPorPeriodo',     (_e, d, h) => Informes.ventasPorPeriodo(d, h));
   ipcMain.handle('informes:articulosMasVendidos', (_e, d, h) => Informes.articulosMasVendidos(d, h));
   ipcMain.handle('informes:utilidadBruta',        (_e, d, h) => Informes.utilidadBruta(d, h));
   ipcMain.handle('informes:saldosClientes',       ()         => Informes.saldosClientes());
+  ipcMain.handle('informes:ventasPorDia',         (_e, d, h) => Informes.ventasPorDia(d, h));
+  ipcMain.handle('informes:ventasPorHora',        (_e, d)    => Informes.ventasPorHora(d));
+  ipcMain.handle('informes:mejorDia',             (_e, d, h) => Informes.mejorDia(d, h));
+  ipcMain.handle('informes:resumenRapido',        (_e, d, h) => Informes.resumenRapido(d, h));
 
   // ── Proveedores ────────────────────────────────────────────
   ipcMain.handle('proveedores:getAll',    ()           => Proveedores.getAll());
@@ -71,6 +100,12 @@ function registerHandlers() {
   ipcMain.handle('turnos:historial',        (_e, limite)                 => Turnos.historial(limite));
   ipcMain.handle('turnos:detalle',          (_e, id)                     => Turnos.detalle(id));
 
+  // ── Inventario ─────────────────────────────────────────────
+  ipcMain.handle('inventario:ajustar',          (_e, data)    => Inventario.ajustar(data));
+  ipcMain.handle('inventario:listarMovimientos',(_e, filtros) => Inventario.listarMovimientos(filtros));
+  ipcMain.handle('inventario:kardex',           (_e, artId)   => Inventario.kardex(artId));
+  ipcMain.handle('inventario:stockBajo',        ()            => Inventario.stockBajo());
+
   // ── Backup ─────────────────────────────────────────────────
   ipcMain.handle('backup:hacerAhora', () => {
     try { return { ok: true, ruta: Backup.hacerBackup() }; }
@@ -79,6 +114,12 @@ function registerHandlers() {
   ipcMain.handle('backup:listar',       () => Backup.listarBackups());
   ipcMain.handle('backup:getRuta',      () => Backup.getBackupDir());
   ipcMain.handle('backup:abrirCarpeta', () => { shell.openPath(Backup.getBackupDir()); return true; });
+
+  // ── Navegación ─────────────────────────────────────────────
+  ipcMain.handle('navegar', (e, file) => {
+    const win = e.sender.getOwnerBrowserWindow();
+    if (win) win.loadFile(path.join(__dirname, '..', 'renderer', 'views', file));
+  });
 
   // ── Sync ───────────────────────────────────────────────────
   ipcMain.handle('sync:contarPendientes', () => {

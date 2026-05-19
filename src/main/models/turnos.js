@@ -34,15 +34,32 @@ function calcularResumen(turnoId) {
       COALESCE(SUM(CASE WHEN forma_pago='tarjeta_debito'    THEN monto_total ELSE 0 END), 0)      AS ventas_debito,
       COALESCE(SUM(CASE WHEN forma_pago='tarjeta_credito'   THEN monto_total ELSE 0 END), 0)      AS ventas_credito,
       COALESCE(SUM(CASE WHEN forma_pago='transferencia'     THEN monto_total ELSE 0 END), 0)      AS ventas_transferencia,
-      COALESCE(SUM(CASE WHEN forma_pago='cuenta_corriente'  THEN monto_total ELSE 0 END), 0)      AS ventas_cuenta_corriente
+      COALESCE(SUM(CASE WHEN forma_pago='cuenta_corriente'  THEN monto_total ELSE 0 END), 0)      AS ventas_cuenta_corriente,
+      COALESCE(SUM(descuento_global), 0)                                                          AS total_descuentos
     FROM transacciones
     WHERE created_at >= ? AND created_at <= ?
+      AND (estado IS NULL OR estado != 'cancelada')
   `).get(desde, hasta);
+
+  const mov = db.prepare(`
+    SELECT
+      COALESCE(SUM(CASE WHEN tipo='entrada' THEN monto ELSE 0 END), 0) AS total_entradas,
+      COALESCE(SUM(CASE WHEN tipo='salida'  THEN monto ELSE 0 END), 0) AS total_salidas
+    FROM movimientos_caja WHERE turno_id = ?
+  `).get(turnoId);
+
+  const efectivoEsperado =
+    (turno.efectivo_inicial ?? 0) +
+    r.ventas_efectivo +
+    (mov?.total_entradas ?? 0) -
+    (mov?.total_salidas  ?? 0);
 
   return {
     ...turno,
     ...r,
-    efectivo_esperado: (turno.efectivo_inicial ?? 0) + r.ventas_efectivo,
+    total_entradas:    mov?.total_entradas ?? 0,
+    total_salidas:     mov?.total_salidas  ?? 0,
+    efectivo_esperado: efectivoEsperado,
   };
 }
 

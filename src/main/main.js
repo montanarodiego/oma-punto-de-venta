@@ -21,17 +21,19 @@ let syncInterval    = null;
 // ── Menú de navegación ─────────────────────────────────────────
 function createMenu(win) {
   const views = [
-    { label: 'Caja',          file: 'caja.html' },
-    { label: 'Catálogo',      file: 'catalogo.html' },
-    { label: 'Clientes',      file: 'clientes.html' },
-    { label: 'Informes',      file: 'informes.html' },
-    { label: 'Proveedores',   file: 'proveedores.html' },
-    { label: 'Turno',         file: 'turno.html' },
-    { label: 'Configuración', file: 'configuracion.html' },
+    { label: 'Caja',          file: 'caja.html',          accelerator: 'F1' },
+    { label: 'Catálogo',      file: 'catalogo.html',      accelerator: 'F2' },
+    { label: 'Inventario',    file: 'inventario.html',    accelerator: 'F3' },
+    { label: 'Clientes',      file: 'clientes.html',      accelerator: 'F4' },
+    { label: 'Proveedores',   file: 'proveedores.html',   accelerator: 'F5' },
+    { label: 'Informes',      file: 'informes.html',      accelerator: 'F6' },
+    { label: 'Turno',         file: 'turno.html',         accelerator: 'F7' },
+    { label: 'Configuración', file: 'configuracion.html', accelerator: 'F8' },
   ];
 
   const viewItems = views.map(v => ({
-    label: v.label,
+    label:       v.label,
+    accelerator: v.accelerator,
     click() {
       win.loadFile(path.join(__dirname, '..', 'renderer', 'views', v.file));
     },
@@ -198,7 +200,7 @@ app.whenReady().then(async () => {
   registerHandlers();
   registerAuthHandlers();
 
-  ipcMain.handle('caja:abrirComprobante', (_e, { transaccionId, montoRecibido, vuelto }) => {
+  ipcMain.handle('caja:abrirComprobante', (_e, { transaccionId, montoRecibido, vuelto, propina }) => {
     const popup = new BrowserWindow({
       width: 560,
       height: 700,
@@ -217,6 +219,7 @@ app.whenReady().then(async () => {
           id:       String(transaccionId),
           recibido: String(montoRecibido ?? 0),
           vuelto:   String(vuelto ?? 0),
+          propina:  String(propina ?? 0),
       }}
     );
   });

@@ -24,31 +24,31 @@
     <nav class="sidebar-nav">
       <a href="caja.html" class="nav-item">
         <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="7" width="20" height="13" rx="2"/><path d="M16 7V5a2 2 0 0 0-4 0v2"/><line x1="12" y1="12" x2="12" y2="16"/><line x1="10" y1="14" x2="14" y2="14"/></svg>
-        Caja
+        Caja <span class="nav-fkey">F1</span>
       </a>
       <a href="catalogo.html" class="nav-item active">
         <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"/></svg>
-        Catálogo
+        Catálogo <span class="nav-fkey">F2</span>
       </a>
       <a href="clientes.html" class="nav-item">
         <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
-        Clientes
+        Clientes <span class="nav-fkey">F3</span>
       </a>
       <a href="informes.html" class="nav-item">
         <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="20" x2="18" y2="10"/><line x1="12" y1="20" x2="12" y2="4"/><line x1="6" y1="20" x2="6" y2="14"/><line x1="2" y1="20" x2="22" y2="20"/></svg>
-        Informes
+        Informes <span class="nav-fkey">F5</span>
       </a>
       <a href="proveedores.html" class="nav-item">
         <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="1" y="3" width="15" height="13"/><polygon points="16 8 20 8 23 11 23 16 16 16 16 8"/><circle cx="5.5" cy="18.5" r="2.5"/><circle cx="18.5" cy="18.5" r="2.5"/></svg>
-        Proveedores
+        Proveedores <span class="nav-fkey">F4</span>
       </a>
       <a href="turno.html" class="nav-item">
         <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
-        Turno
+        Turno <span class="nav-fkey">F6</span>
       </a>
       <a href="configuracion.html" class="nav-item">
         <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>
-        Configuración
+        Configuración <span class="nav-fkey">F7</span>
         <span id="badge-sync" class="nav-badge hidden"></span>
       </a>
     </nav>
@@ -70,14 +70,15 @@
   <!-- ── Contenido principal ────────────────────────────────── -->
   <div class="page-content">
 
-    <div class="page-header">
-      <h1 class="page-title">Catálogo de artículos</h1>
-      <div style="display:flex;gap:8px;">
+    <!-- Header -->
+    <div class="page-header" style="flex-shrink:0;">
+      <h1 class="page-title">Catálogo</h1>
+      <div style="display:flex;gap:8px;" id="header-btns-articulos">
         <button id="btn-importar-excel" class="btn btn-ghost">
           <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="12" y1="18" x2="12" y2="12"/><line x1="9" y1="15" x2="15" y2="15"/></svg>
-          Importar Excel
+          Importar
         </button>
-        <input type="file" id="input-excel" accept=".xls,.xlsx" style="display:none" />
+        <input type="file" id="input-excel" accept=".xls,.xlsx,.csv" style="display:none" />
         <button id="btn-nuevo" class="btn btn-primary">
           <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
           Nuevo artículo
@@ -85,18 +86,45 @@
       </div>
     </div>
 
-    <main style="flex:1;overflow:hidden;display:flex;flex-direction:column;padding:18px;gap:14px;">
+    <!-- Tab bar -->
+    <div style="display:flex;gap:0;border-bottom:1px solid var(--border);flex-shrink:0;padding:0 18px;">
+      <button class="tab-btn active" data-tab="articulos" style="padding:10px 18px;font-size:13px;font-weight:500;background:none;border:none;color:var(--text);cursor:pointer;border-bottom:2px solid var(--accent);margin-bottom:-1px;">Artículos</button>
+      <button class="tab-btn" data-tab="departamentos" style="padding:10px 18px;font-size:13px;font-weight:500;background:none;border:none;color:var(--text-subtle);cursor:pointer;border-bottom:2px solid transparent;margin-bottom:-1px;">Departamentos</button>
+      <button class="tab-btn" data-tab="kits" style="padding:10px 18px;font-size:13px;font-weight:500;background:none;border:none;color:var(--text-subtle);cursor:pointer;border-bottom:2px solid transparent;margin-bottom:-1px;">Kits</button>
+    </div>
 
-      <!-- Barra de búsqueda -->
-      <div style="position:relative;flex-shrink:0;">
-        <svg style="position:absolute;left:11px;top:50%;transform:translateY(-50%);color:var(--text-subtle);pointer-events:none;" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
-        <input
-          id="busqueda"
-          type="text"
-          placeholder="Buscar por código o nombre..."
-          class="inp"
-          style="padding-left:36px;"
-        />
+    <!-- ── TAB: ARTÍCULOS ────────────────────────────────────── -->
+    <div id="tab-articulos" class="tab-content" style="flex:1;overflow:hidden;display:flex;flex-direction:column;padding:14px 18px;gap:10px;">
+
+      <!-- Barra de búsqueda + controles -->
+      <div style="display:flex;gap:8px;align-items:center;flex-shrink:0;">
+        <div style="position:relative;flex:1;">
+          <svg style="position:absolute;left:11px;top:50%;transform:translateY(-50%);color:var(--text-subtle);pointer-events:none;" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+          <input id="busqueda" type="text" placeholder="Buscar por código o nombre..." class="inp" style="padding-left:34px;" />
+        </div>
+        <button id="btn-toggle-stock-bajo" class="btn btn-ghost" style="white-space:nowrap;font-size:12px;" title="Mostrar sólo artículos con stock bajo">
+          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>
+          Stock bajo
+        </button>
+        <button id="btn-modo-seleccion" class="btn btn-ghost" style="white-space:nowrap;font-size:12px;">
+          Seleccionar
+        </button>
+      </div>
+
+      <!-- Chips de departamento -->
+      <div id="chips-departamentos" style="display:flex;flex-wrap:wrap;gap:6px;flex-shrink:0;min-height:28px;">
+        <button class="chip-depto active" data-depto="todos" style="padding:3px 10px;border-radius:20px;font-size:12px;border:1px solid var(--accent);background:var(--accent);color:#fff;cursor:pointer;">Todos</button>
+      </div>
+
+      <!-- Panel bulk -->
+      <div id="panel-bulk" style="display:none;align-items:center;gap:10px;flex-shrink:0;padding:8px 12px;background:var(--surface);border:1px solid var(--border);border-radius:var(--r-in);">
+        <span id="bulk-count" style="font-size:12px;color:var(--text-subtle);min-width:90px;">0 seleccionados</span>
+        <button id="btn-bulk-depto" class="btn btn-ghost" style="font-size:12px;position:relative;">
+          Asignar departamento
+          <div id="bulk-depto-dropdown" style="display:none;position:absolute;top:100%;left:0;z-index:200;background:var(--surface);border:1px solid var(--border);border-radius:var(--r-in);box-shadow:0 8px 24px rgba(0,0,0,.4);min-width:180px;margin-top:4px;overflow:hidden;"></div>
+        </button>
+        <button id="btn-bulk-eliminar" class="btn btn-danger" style="font-size:12px;">Eliminar seleccionados</button>
+        <button id="btn-cancelar-seleccion" class="btn btn-ghost" style="font-size:12px;margin-left:auto;">Cancelar</button>
       </div>
 
       <!-- Tabla -->
@@ -104,37 +132,99 @@
         <table class="tbl">
           <thead>
             <tr>
+              <th id="th-chk" style="width:32px;display:none;"></th>
               <th>Código</th>
               <th>Nombre</th>
-              <th style="text-align:right;">Precio costo</th>
-              <th style="text-align:right;">Precio venta</th>
+              <th>Departamento</th>
+              <th style="text-align:right;">Costo</th>
+              <th style="text-align:right;">Venta</th>
               <th style="text-align:right;">Stock</th>
-              <th style="text-align:right;">Stock mín.</th>
+              <th style="text-align:right;">Mín.</th>
               <th>Unidad</th>
-              <th>Proveedor</th>
               <th style="text-align:center;">Acciones</th>
             </tr>
           </thead>
           <tbody id="tabla-articulos">
-            <tr>
-              <td colspan="9" style="text-align:center;color:var(--text-subtle);padding:32px 0;">Cargando...</td>
-            </tr>
+            <tr><td colspan="10" style="text-align:center;color:var(--text-subtle);padding:32px 0;">Cargando...</td></tr>
           </tbody>
         </table>
       </div>
-    </main>
-  </div>
+    </div>
 
-  <!-- ── Modal: ABM artículo ─────────────────────────────────── -->
+    <!-- ── TAB: DEPARTAMENTOS ───────────────────────────────── -->
+    <div id="tab-departamentos" class="tab-content" style="display:none;flex:1;overflow:hidden;display:none;flex-direction:column;padding:18px;gap:14px;">
+
+      <!-- Formulario agregar/editar departamento -->
+      <div style="background:var(--surface);border:1px solid var(--border);border-radius:var(--r-card);padding:16px;flex-shrink:0;">
+        <div style="font-size:12px;font-weight:600;color:var(--text-muted);margin-bottom:12px;text-transform:uppercase;letter-spacing:.05em;" id="lbl-form-depto">Nuevo departamento</div>
+        <form id="form-depto" style="display:flex;gap:10px;align-items:flex-end;flex-wrap:wrap;">
+          <input type="hidden" id="depto-editando-id" value="" />
+          <div class="field" style="flex:1;min-width:160px;margin:0;">
+            <label class="field-label">Nombre <span class="required">*</span></label>
+            <input id="depto-nombre" type="text" class="inp" placeholder="Ej: Bebidas, Snacks..." autocomplete="off" />
+          </div>
+          <div class="field" style="margin:0;">
+            <label class="field-label">Color</label>
+            <div style="display:flex;align-items:center;gap:6px;">
+              <input id="depto-color" type="color" value="#6b7280" style="width:36px;height:36px;border:1px solid var(--border);border-radius:6px;cursor:pointer;background:none;padding:2px;" />
+              <span id="depto-color-hex" style="font-size:11px;color:var(--text-subtle);font-family:monospace;">#6b7280</span>
+            </div>
+          </div>
+          <div style="display:flex;gap:6px;">
+            <button type="button" id="btn-cancelar-depto" class="btn btn-ghost" style="display:none;">Cancelar</button>
+            <button type="submit" id="btn-guardar-depto" class="btn btn-primary">Agregar</button>
+          </div>
+        </form>
+      </div>
+
+      <!-- Lista de departamentos -->
+      <div style="flex:1;overflow-y:auto;">
+        <div id="lista-departamentos" style="display:flex;flex-direction:column;gap:8px;"></div>
+        <div id="depto-vacio" style="display:none;text-align:center;padding:48px 0;color:var(--text-subtle);font-size:13px;">
+          No hay departamentos. Creá el primero usando el formulario de arriba.
+        </div>
+      </div>
+    </div>
+
+    <!-- ── TAB: KITS ─────────────────────────────────────────── -->
+    <div id="tab-kits" class="tab-content" style="display:none;flex:1;overflow:hidden;flex-direction:column;padding:14px 18px;gap:10px;">
+
+      <div style="display:flex;align-items:center;gap:8px;flex-shrink:0;">
+        <div style="position:relative;flex:1;">
+          <svg style="position:absolute;left:11px;top:50%;transform:translateY(-50%);color:var(--text-subtle);pointer-events:none;" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+          <input id="busqueda-kits" type="text" placeholder="Buscar kit..." class="inp" style="padding-left:34px;" />
+        </div>
+        <button id="btn-nuevo-kit" class="btn btn-primary" style="font-size:13px;">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+          Nuevo kit
+        </button>
+      </div>
+
+      <div style="flex:1;overflow-y:auto;">
+        <div id="lista-kits" style="display:flex;flex-direction:column;gap:8px;"></div>
+        <div id="kits-vacio" style="display:none;text-align:center;padding:48px 0;color:var(--text-subtle);font-size:13px;">
+          No hay kits creados. Creá un artículo marcándolo como "Es kit" desde el catálogo.
+        </div>
+      </div>
+    </div>
+
+  </div><!-- /page-content -->
+
+  <!-- ═══════════════════════════════════════════════════════════ -->
+  <!-- MODALES                                                     -->
+  <!-- ═══════════════════════════════════════════════════════════ -->
+
+  <!-- Modal: ABM artículo -->
   <div id="modal" class="modal-overlay hidden">
-    <div class="modal-box" style="max-width:520px;">
+    <div class="modal-box" style="max-width:600px;width:96%;">
       <div class="modal-header">
         <h3 id="modal-titulo" class="modal-title">Nuevo artículo</h3>
         <button class="modal-close" onclick="document.getElementById('btn-cancelar-modal').click()">×</button>
       </div>
-      <div class="modal-body">
+      <div class="modal-body" style="max-height:calc(90vh - 140px);overflow-y:auto;">
         <div id="error-msg" class="hidden" style="margin-bottom:14px;padding:8px 12px;background:rgba(239,68,68,.1);border:1px solid rgba(239,68,68,.25);border-radius:var(--r-in);color:#fca5a5;font-size:13px;"></div>
-        <form id="form-articulo" style="display:grid;grid-template-columns:1fr 1fr;gap:14px;" novalidate>
+        <form id="form-articulo" style="display:grid;grid-template-columns:1fr 1fr;gap:12px;" novalidate>
+
           <div class="field">
             <label class="field-label">Código <span class="required">*</span></label>
             <input name="codigo" autocomplete="off" class="inp" />
@@ -147,6 +237,7 @@
             <label class="field-label">Descripción</label>
             <input name="descripcion" autocomplete="off" class="inp" />
           </div>
+
           <div class="field">
             <label class="field-label">Precio costo</label>
             <input name="costo_unitario" type="number" step="0.01" min="0" value="0" class="inp" />
@@ -156,6 +247,15 @@
             <input name="precio_unitario" type="number" step="0.01" min="0.01" class="inp" />
           </div>
           <div class="field">
+            <label class="field-label">Precio mayoreo</label>
+            <input name="precio_mayoreo" type="number" step="0.01" min="0" value="0" class="inp" placeholder="0 = sin mayoreo" />
+          </div>
+          <div class="field">
+            <label class="field-label">Proveedor</label>
+            <input name="proveedor" autocomplete="off" class="inp" />
+          </div>
+
+          <div class="field">
             <label class="field-label">Stock actual</label>
             <input name="stock_actual" type="number" step="0.001" min="0" value="0" class="inp" />
           </div>
@@ -163,10 +263,7 @@
             <label class="field-label">Stock mínimo</label>
             <input name="stock_minimo" type="number" step="0.001" min="0" value="0" class="inp" />
           </div>
-          <div class="field">
-            <label class="field-label">Proveedor</label>
-            <input name="proveedor" autocomplete="off" class="inp" />
-          </div>
+
           <div class="field">
             <label class="field-label">Unidad de medida</label>
             <select name="unidad_medida" class="inp">
@@ -182,28 +279,68 @@
               <option value="pack">Pack</option>
             </select>
           </div>
+          <div class="field">
+            <label class="field-label">Departamento</label>
+            <select name="departamento_id" id="select-departamento" class="inp">
+              <option value="">— Sin departamento —</option>
+            </select>
+          </div>
+
+          <div class="field" id="campo-tasa-iva" style="display:none;">
+            <label class="field-label">Tasa IVA</label>
+            <select name="tasa_iva" class="inp">
+              <option value="21">21%</option>
+              <option value="10.5">10,5%</option>
+              <option value="0">0% (exento)</option>
+            </select>
+          </div>
+          <div class="field" id="campo-tasa-iva-placeholder"></div>
+
+          <!-- Checkboxes -->
+          <div class="field" style="display:flex;align-items:center;gap:8px;">
+            <input type="checkbox" name="usa_inventario" id="chk-usa-inventario"
+              style="width:15px;height:15px;accent-color:var(--accent);cursor:pointer;flex-shrink:0;" checked />
+            <label for="chk-usa-inventario" class="field-label" style="margin:0;cursor:pointer;font-size:13px;">Controla inventario</label>
+          </div>
+          <div class="field" style="display:flex;align-items:center;gap:8px;">
+            <input type="checkbox" name="es_kit" id="chk-es-kit"
+              style="width:15px;height:15px;accent-color:var(--accent);cursor:pointer;flex-shrink:0;" />
+            <label for="chk-es-kit" class="field-label" style="margin:0;cursor:pointer;font-size:13px;">Es kit (producto compuesto)</label>
+          </div>
+
+          <!-- Sección kit componentes -->
+          <div id="seccion-kit" style="grid-column:1/-1;display:none;background:var(--bg);border:1px solid var(--border);border-radius:var(--r-in);padding:12px;">
+            <div style="font-size:11px;font-weight:700;color:var(--text-muted);text-transform:uppercase;letter-spacing:.05em;margin-bottom:10px;">Componentes del kit</div>
+            <div id="kit-componentes-lista" style="display:flex;flex-direction:column;gap:5px;margin-bottom:10px;min-height:24px;"></div>
+            <div style="position:relative;display:flex;gap:6px;">
+              <div style="position:relative;flex:1;">
+                <input id="kit-buscar-comp" autocomplete="off" placeholder="Buscar artículo componente..." class="inp" style="font-size:12px;" />
+                <div id="kit-search-dropdown" style="display:none;position:absolute;top:100%;left:0;right:0;z-index:300;background:var(--surface);border:1px solid var(--border);border-radius:var(--r-in);box-shadow:0 8px 24px rgba(0,0,0,.5);max-height:180px;overflow-y:auto;margin-top:3px;"></div>
+              </div>
+              <input id="kit-comp-cantidad" type="number" min="0.001" step="0.001" value="1" class="inp" style="width:72px;font-size:12px;" placeholder="Cant." />
+              <button type="button" id="btn-agregar-comp" class="btn btn-ghost" style="font-size:12px;white-space:nowrap;">+ Agregar</button>
+            </div>
+          </div>
+
         </form>
       </div>
       <div class="modal-footer">
         <button type="button" id="btn-cancelar-modal" class="btn btn-ghost">Cancelar</button>
-        <button type="submit" id="btn-guardar" form="form-articulo" class="btn btn-primary">
-          Guardar
-        </button>
+        <button type="submit" id="btn-guardar" form="form-articulo" class="btn btn-primary">Guardar</button>
       </div>
     </div>
   </div>
 
-  <!-- ── Modal: confirmar eliminación ───────────────────────── -->
+  <!-- Modal: confirmar eliminación -->
   <div id="modal-confirm" class="modal-overlay hidden">
     <div class="modal-box" style="max-width:380px;">
       <div class="modal-header">
-        <h3 class="modal-title">Eliminar artículo</h3>
+        <h3 class="modal-title" id="confirm-titulo">Eliminar artículo</h3>
         <button class="modal-close" onclick="document.getElementById('btn-cancelar-confirm').click()">×</button>
       </div>
       <div class="modal-body">
         <p style="font-size:13px;color:var(--text-muted);line-height:1.6;">
-          ¿Estás seguro que querés eliminar
-          <span id="confirm-nombre" style="font-weight:600;color:var(--text);"></span>?
+          ¿Estás seguro que querés eliminar <span id="confirm-nombre" style="font-weight:600;color:var(--text);"></span>?
           Esta acción no se puede deshacer.
         </p>
       </div>
@@ -214,18 +351,34 @@
     </div>
   </div>
 
-  <!-- ── Modal: Importar Excel ──────────────────────────────── -->
-  <div id="modal-import" class="modal-overlay hidden">
-    <div class="modal-box" style="max-width:720px;width:96%;">
+  <!-- Modal: confirmar eliminación bulk -->
+  <div id="modal-confirm-bulk" class="modal-overlay hidden">
+    <div class="modal-box" style="max-width:400px;">
       <div class="modal-header">
-        <h3 class="modal-title">Importar desde Excel</h3>
+        <h3 class="modal-title">Eliminar artículos</h3>
+        <button class="modal-close" onclick="document.getElementById('modal-confirm-bulk').classList.add('hidden')">×</button>
+      </div>
+      <div class="modal-body">
+        <p style="font-size:13px;color:var(--text-muted);line-height:1.6;" id="confirm-bulk-msg"></p>
+      </div>
+      <div class="modal-footer">
+        <button id="btn-cancelar-bulk-confirm" class="btn btn-ghost">Cancelar</button>
+        <button id="btn-confirmar-bulk-eliminar" class="btn btn-danger">Eliminar todos</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Modal: Importar Excel/CSV -->
+  <div id="modal-import" class="modal-overlay hidden">
+    <div class="modal-box" style="max-width:740px;width:96%;">
+      <div class="modal-header">
+        <h3 class="modal-title">Importar desde Excel / CSV</h3>
         <button class="modal-close" id="btn-close-import">×</button>
       </div>
       <div class="modal-body" style="display:flex;flex-direction:column;gap:14px;">
 
-        <!-- Mapeo de columnas -->
         <div id="import-step-mapeo" class="hidden">
-          <p style="font-size:12px;color:var(--text-subtle);margin-bottom:10px;">Mapeá las columnas del archivo con los campos del sistema. Los campos marcados con * son obligatorios.</p>
+          <p style="font-size:12px;color:var(--text-subtle);margin-bottom:10px;">Mapeá las columnas del archivo. Los campos con * son obligatorios.</p>
           <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(130px,1fr));gap:10px;margin-bottom:14px;">
             <div class="field">
               <label class="field-label">Código <span class="required">*</span></label>
@@ -244,23 +397,33 @@
               <select id="map-costo" class="inp"></select>
             </div>
             <div class="field">
+              <label class="field-label">Precio mayoreo</label>
+              <select id="map-mayoreo" class="inp"></select>
+            </div>
+            <div class="field">
               <label class="field-label">Stock actual</label>
               <select id="map-stock" class="inp"></select>
+            </div>
+            <div class="field">
+              <label class="field-label">Stock mínimo</label>
+              <select id="map-stock-min" class="inp"></select>
+            </div>
+            <div class="field">
+              <label class="field-label">Departamento</label>
+              <select id="map-departamento" class="inp"></select>
             </div>
           </div>
 
           <div style="font-size:11px;color:var(--text-subtle);margin-bottom:6px;">Vista previa — primeras 5 filas:</div>
-          <div style="overflow-x:auto;border:1px solid var(--border);border-radius:var(--r-in);max-height:200px;overflow-y:auto;">
+          <div style="overflow-x:auto;border:1px solid var(--border);border-radius:var(--r-in);max-height:180px;overflow-y:auto;">
             <table class="tbl" id="tabla-preview" style="font-size:11px;min-width:100%;"></table>
           </div>
         </div>
 
-        <!-- Estado inicial: sin archivo -->
         <div id="import-step-vacio" style="text-align:center;padding:32px 0;color:var(--text-subtle);font-size:13px;">
-          Seleccioná un archivo .xls o .xlsx para comenzar.
+          Seleccioná un archivo .xls, .xlsx o .csv para comenzar.
         </div>
 
-        <!-- Resultado / progreso -->
         <div id="import-status" class="hidden" style="font-size:13px;"></div>
 
       </div>
@@ -271,7 +434,51 @@
     </div>
   </div>
 
+  <!-- Modal: Ajustar stock -->
+  <div id="modal-ajuste" class="modal-overlay hidden">
+    <div class="modal-box" style="max-width:420px;">
+      <div class="modal-header">
+        <h3 class="modal-title">Ajustar stock</h3>
+        <button class="modal-close" onclick="cerrarModalAjuste()">×</button>
+      </div>
+      <div class="modal-body" style="display:flex;flex-direction:column;gap:12px;">
+        <div id="ajuste-error-cat" class="hidden" style="padding:8px 12px;background:rgba(239,68,68,.1);border:1px solid rgba(239,68,68,.25);border-radius:var(--r-in);color:#fca5a5;font-size:13px;"></div>
+        <div style="padding:10px 14px;background:var(--bg);border:1px solid var(--border);border-radius:var(--r-in);">
+          <div style="font-weight:600;font-size:14px;" id="ajuste-cat-nombre"></div>
+          <div style="font-size:11px;color:var(--text-subtle);font-family:monospace;" id="ajuste-cat-codigo"></div>
+          <div style="font-size:12px;color:var(--text-muted);margin-top:4px;">Stock actual: <strong id="ajuste-cat-stock"></strong></div>
+        </div>
+        <div class="field">
+          <label class="field-label">Tipo de ajuste <span class="required">*</span></label>
+          <select id="ajuste-cat-tipo" class="inp">
+            <option value="entrada">Entrada — suma al stock</option>
+            <option value="salida">Salida — resta del stock</option>
+            <option value="correccion">Corrección — fija el stock total</option>
+          </select>
+        </div>
+        <div class="field">
+          <label class="field-label" id="ajuste-cat-cant-label">Cantidad <span class="required">*</span></label>
+          <input id="ajuste-cat-cantidad" type="number" step="0.001" min="0.001" class="inp" placeholder="0" />
+        </div>
+        <div class="field">
+          <label class="field-label">Motivo <span class="required">*</span></label>
+          <input id="ajuste-cat-motivo" type="text" class="inp" placeholder="Ej: merma, robo, error de conteo..." autocomplete="off" />
+        </div>
+        <div class="field">
+          <label class="field-label">Usuario</label>
+          <input id="ajuste-cat-usuario" type="text" class="inp" placeholder="Opcional" autocomplete="off" />
+        </div>
+        <div id="ajuste-cat-preview" style="padding:8px 12px;background:var(--bg);border:1px solid var(--border);border-radius:var(--r-in);font-size:13px;color:var(--text-muted);"></div>
+      </div>
+      <div class="modal-footer">
+        <button type="button" onclick="cerrarModalAjuste()" class="btn btn-ghost">Cancelar</button>
+        <button type="button" id="btn-confirmar-ajuste" class="btn btn-primary">Confirmar ajuste</button>
+      </div>
+    </div>
+  </div>
+
   <div class="toast-wrap" id="toast-wrap"></div>
+  <script src="../js/hotkeys.js"></script>
   <script src="../js/catalogo.js"></script>
   <script src="../js/nav-badge.js"></script>
 </body>

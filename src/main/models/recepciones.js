@@ -1,4 +1,5 @@
 const { getDb } = require('../database');
+const { registrarMovimiento } = require('./inventario');
 
 function crear(data) {
   const db = getDb();
@@ -23,6 +24,7 @@ function crear(data) {
         (recepcion_id, articulo_id, descripcion, cantidad_recibida, costo_unitario, importe_total)
       VALUES (@recepcion_id, @articulo_id, @descripcion, @cantidad_recibida, @costo_unitario, @importe_total)
     `);
+    const getArt = db.prepare('SELECT stock_actual, precio_unitario FROM articulos WHERE id = ?');
 
     for (const d of (detalle || [])) {
       insDetalle.run({
@@ -35,6 +37,9 @@ function crear(data) {
       });
 
       if (d.articulo_id && d.cantidad_recibida > 0) {
+        const art      = getArt.get(d.articulo_id);
+        const anterior = art ? art.stock_actual : 0;
+
         if (d.costo_unitario > 0) {
           db.prepare(`
             UPDATE articulos SET
@@ -53,6 +58,17 @@ function crear(data) {
             WHERE id = ?
           `).run(d.cantidad_recibida, d.articulo_id);
         }
+
+        registrarMovimiento(db, {
+          articulo_id:        d.articulo_id,
+          tipo:               'recepcion',
+          cantidad_anterior:  anterior,
+          cantidad_cambio:    d.cantidad_recibida,
+          cantidad_resultante: anterior + d.cantidad_recibida,
+          costo_unitario:     d.costo_unitario ?? 0,
+          precio_unitario:    art ? art.precio_unitario : 0,
+          referencia_id:      lastInsertRowid,
+        });
       }
     }
 

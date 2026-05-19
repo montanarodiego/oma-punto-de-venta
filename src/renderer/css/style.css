@@ -626,3 +626,40 @@ body {
 
 /* text mono */
 .app-layout .font-mono { color: var(--text) !important; }
+
+/* ── Nav F-key hint ───────────────────────────────────────────── */
+.nav-fkey {
+  margin-left: auto;
+  font-size: 10px;
+  font-weight: 500;
+  color: var(--text-subtle);
+  background: var(--bg);
+  border: 1px solid var(--border);
+  padding: 1px 5px;
+  border-radius: 3px;
+  line-height: 16px;
+  flex-shrink: 0;
+  opacity: .7;
+}
+.nav-item.active .nav-fkey { background: rgba(255,255,255,.12); border-color: rgba(255,255,255,.2); color: #fff; opacity: .85; }
+
+/* ── HUD Sizes — caja ─────────────────────────────────────────── */
+body.hud-compacto    { font-size: 12px; }
+body.hud-normal      { font-size: 14px; }
+body.hud-grande      { font-size: 16px; }
+body.hud-extra_grande{ font-size: 19px; }
+
+body.hud-compacto     #total  { font-size: 24px; }
+body.hud-normal       #total  { font-size: 32px; }
+body.hud-grande       #total  { font-size: 42px; }
+body.hud-extra_grande #total  { font-size: 56px; }
+
+body.hud-compacto     .pago-btn { min-height: 40px; }
+body.hud-normal       .pago-btn { min-height: 48px; }
+body.hud-grande       .pago-btn { min-height: 56px; }
+body.hud-extra_grande .pago-btn { min-height: 68px; }
+
+body.hud-compacto     #btn-cobrar { min-height: 48px; font-size: 14px; }
+body.hud-normal       #btn-cobrar { min-height: 56px; font-size: 16px; }
+body.hud-grande       #btn-cobrar { min-height: 68px; font-size: 18px; }
+body.hud-extra_grande #btn-cobrar { min-height: 80px; font-size: 21px; }

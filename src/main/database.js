@@ -18,6 +18,12 @@ function initDatabase() {
 
   // Schema base (fresh installs) — ya con las columnas nuevas
   db.exec(`
+    CREATE TABLE IF NOT EXISTS departamentos (
+      id     INTEGER PRIMARY KEY AUTOINCREMENT,
+      nombre TEXT NOT NULL UNIQUE,
+      color  TEXT NOT NULL DEFAULT '#6b7280'
+    );
+
     CREATE TABLE IF NOT EXISTS articulos (
       id              INTEGER PRIMARY KEY AUTOINCREMENT,
       codigo          TEXT UNIQUE NOT NULL,
@@ -25,12 +31,25 @@ function initDatabase() {
       descripcion     TEXT,
       costo_unitario  REAL NOT NULL DEFAULT 0,
       precio_unitario REAL NOT NULL DEFAULT 0,
+      precio_mayoreo  REAL NOT NULL DEFAULT 0,
       stock_actual    REAL NOT NULL DEFAULT 0,
       stock_minimo    REAL NOT NULL DEFAULT 0,
       proveedor       TEXT,
       unidad_medida   TEXT NOT NULL DEFAULT 'unidad',
+      tasa_iva        TEXT NOT NULL DEFAULT '21',
+      departamento_id INTEGER REFERENCES departamentos(id),
+      es_kit          INTEGER NOT NULL DEFAULT 0,
+      usa_inventario  INTEGER NOT NULL DEFAULT 1,
       sync_status     TEXT NOT NULL DEFAULT 'pending',
       updated_at      TEXT NOT NULL DEFAULT (datetime('now'))
+    );
+
+    CREATE TABLE IF NOT EXISTS kits_componentes (
+      id            INTEGER PRIMARY KEY AUTOINCREMENT,
+      kit_id        INTEGER NOT NULL REFERENCES articulos(id),
+      componente_id INTEGER NOT NULL REFERENCES articulos(id),
+      cantidad      REAL NOT NULL DEFAULT 1,
+      UNIQUE(kit_id, componente_id)
     );
 
     CREATE TABLE IF NOT EXISTS clientes (
@@ -49,6 +68,11 @@ function initDatabase() {
       monto_total        REAL NOT NULL DEFAULT 0,
       subtotal           REAL NOT NULL DEFAULT 0,
       monto_impuesto     REAL NOT NULL DEFAULT 0,
+      descuento_global   REAL NOT NULL DEFAULT 0,
+      notas              TEXT,
+      estado             TEXT NOT NULL DEFAULT 'vigente',
+      motivo_cancelacion TEXT,
+      turno_id           INTEGER REFERENCES turnos(id),
       forma_pago         TEXT NOT NULL DEFAULT 'efectivo',
       cuenta_cliente_id  INTEGER REFERENCES clientes(id),
       sync_status        TEXT NOT NULL DEFAULT 'pending',
@@ -56,13 +80,14 @@ function initDatabase() {
     );
 
     CREATE TABLE IF NOT EXISTS detalle_transaccion (
-      id                 INTEGER PRIMARY KEY AUTOINCREMENT,
-      transaccion_id     INTEGER NOT NULL REFERENCES transacciones(id),
-      articulo_id        INTEGER REFERENCES articulos(id),
-      descripcion_libre  TEXT,
-      cantidad           REAL NOT NULL,
-      precio_al_momento  REAL NOT NULL,
-      importe_total      REAL NOT NULL
+      id                   INTEGER PRIMARY KEY AUTOINCREMENT,
+      transaccion_id       INTEGER NOT NULL REFERENCES transacciones(id),
+      articulo_id          INTEGER REFERENCES articulos(id),
+      descripcion_libre    TEXT,
+      cantidad             REAL NOT NULL,
+      precio_al_momento    REAL NOT NULL,
+      descuento_porcentaje REAL NOT NULL DEFAULT 0,
+      importe_total        REAL NOT NULL
     );
 
     CREATE TABLE IF NOT EXISTS configuracion (
@@ -141,6 +166,51 @@ function initDatabase() {
       importe_total     REAL DEFAULT 0
     );
 
+    CREATE TABLE IF NOT EXISTS movimientos_caja (
+      id          INTEGER PRIMARY KEY AUTOINCREMENT,
+      turno_id    INTEGER REFERENCES turnos(id),
+      tipo        TEXT NOT NULL CHECK(tipo IN ('entrada','salida')),
+      monto       REAL NOT NULL,
+      descripcion TEXT NOT NULL,
+      created_at  TEXT NOT NULL DEFAULT (datetime('now'))
+    );
+
+    CREATE TABLE IF NOT EXISTS devoluciones (
+      id              INTEGER PRIMARY KEY AUTOINCREMENT,
+      transaccion_id  INTEGER NOT NULL REFERENCES transacciones(id),
+      turno_id        INTEGER REFERENCES turnos(id),
+      motivo          TEXT NOT NULL,
+      monto_devuelto  REAL NOT NULL DEFAULT 0,
+      tipo            TEXT NOT NULL DEFAULT 'parcial',
+      created_at      TEXT NOT NULL DEFAULT (datetime('now'))
+    );
+
+    CREATE TABLE IF NOT EXISTS devoluciones_detalle (
+      id              INTEGER PRIMARY KEY AUTOINCREMENT,
+      devolucion_id   INTEGER NOT NULL REFERENCES devoluciones(id),
+      detalle_id      INTEGER REFERENCES detalle_transaccion(id),
+      articulo_id     INTEGER REFERENCES articulos(id),
+      descripcion     TEXT,
+      cantidad        REAL NOT NULL,
+      precio_unitario REAL NOT NULL,
+      importe         REAL NOT NULL
+    );
+
+    CREATE TABLE IF NOT EXISTS movimientos_inventario (
+      id                  INTEGER PRIMARY KEY AUTOINCREMENT,
+      articulo_id         INTEGER NOT NULL REFERENCES articulos(id),
+      tipo                TEXT NOT NULL,
+      cantidad_anterior   REAL NOT NULL DEFAULT 0,
+      cantidad_cambio     REAL NOT NULL DEFAULT 0,
+      cantidad_resultante REAL NOT NULL DEFAULT 0,
+      costo_unitario      REAL DEFAULT 0,
+      precio_unitario     REAL DEFAULT 0,
+      motivo              TEXT,
+      usuario             TEXT,
+      referencia_id       INTEGER,
+      fecha               TEXT NOT NULL DEFAULT (datetime('now'))
+    );
+
     INSERT OR IGNORE INTO configuracion (clave, valor) VALUES
       ('nombre_negocio',     'Mi Negocio'),
       ('direccion',          ''),
@@ -149,7 +219,9 @@ function initDatabase() {
       ('moneda',             '$'),
       ('tasa_iva',           '21'),
       ('impuesto_porcentaje','21'),
-      ('sync_enabled',       'false');
+      ('sync_enabled',       'false'),
+      ('modo_negocio',       ''),
+      ('tamano_hud',         'normal');
   `);
 
   // Migraciones para bases existentes
@@ -166,6 +238,137 @@ function runMigrations(db) {
       db.exec("ALTER TABLE articulos ADD COLUMN unidad_medida TEXT NOT NULL DEFAULT 'unidad'");
     }
   }
+
+  // ── Feature: tasa_iva por artículo ────────────────────────────
+  {
+    const cols = db.prepare('PRAGMA table_info(articulos)').all();
+    if (!cols.some(c => c.name === 'tasa_iva')) {
+      db.exec("ALTER TABLE articulos ADD COLUMN tasa_iva TEXT NOT NULL DEFAULT '21'");
+    }
+  }
+
+  // ── Feature: modo_negocio en configuracion ────────────────────
+  {
+    try {
+      db.prepare("INSERT OR IGNORE INTO configuracion (clave, valor) VALUES ('modo_negocio', '')").run();
+    } catch { /* tabla puede no existir aún en flujos muy viejos */ }
+  }
+
+  // ── Feature: tamano_hud en configuracion ──────────────────────
+  {
+    try {
+      db.prepare("INSERT OR IGNORE INTO configuracion (clave, valor) VALUES ('tamano_hud', 'normal')").run();
+    } catch { /* tabla puede no existir aún en flujos muy viejos */ }
+  }
+
+  // ── Feature: precio_mayoreo en articulos ─────────────────────
+  {
+    const cols = db.prepare('PRAGMA table_info(articulos)').all();
+    if (!cols.some(c => c.name === 'precio_mayoreo')) {
+      db.exec('ALTER TABLE articulos ADD COLUMN precio_mayoreo REAL NOT NULL DEFAULT 0');
+    }
+  }
+
+  // ── Feature: campos nuevos en transacciones ───────────────────
+  {
+    const cols = db.prepare('PRAGMA table_info(transacciones)').all();
+    const names = new Set(cols.map(c => c.name));
+    if (!names.has('descuento_global'))   db.exec('ALTER TABLE transacciones ADD COLUMN descuento_global REAL NOT NULL DEFAULT 0');
+    if (!names.has('notas'))              db.exec('ALTER TABLE transacciones ADD COLUMN notas TEXT');
+    if (!names.has('estado'))             db.exec("ALTER TABLE transacciones ADD COLUMN estado TEXT NOT NULL DEFAULT 'vigente'");
+    if (!names.has('motivo_cancelacion')) db.exec('ALTER TABLE transacciones ADD COLUMN motivo_cancelacion TEXT');
+    if (!names.has('turno_id'))           db.exec('ALTER TABLE transacciones ADD COLUMN turno_id INTEGER');
+  }
+
+  // ── Feature: descuento_porcentaje en detalle_transaccion ─────
+  {
+    const cols = db.prepare('PRAGMA table_info(detalle_transaccion)').all();
+    if (!cols.some(c => c.name === 'descuento_porcentaje')) {
+      db.exec('ALTER TABLE detalle_transaccion ADD COLUMN descuento_porcentaje REAL NOT NULL DEFAULT 0');
+    }
+  }
+
+  // ── Feature: movimientos_caja table ──────────────────────────
+  db.exec(`
+    CREATE TABLE IF NOT EXISTS movimientos_caja (
+      id          INTEGER PRIMARY KEY AUTOINCREMENT,
+      turno_id    INTEGER REFERENCES turnos(id),
+      tipo        TEXT NOT NULL CHECK(tipo IN ('entrada','salida')),
+      monto       REAL NOT NULL,
+      descripcion TEXT NOT NULL,
+      created_at  TEXT NOT NULL DEFAULT (datetime('now'))
+    )
+  `);
+
+  // ── Feature: devoluciones tables ─────────────────────────────
+  db.exec(`
+    CREATE TABLE IF NOT EXISTS devoluciones (
+      id              INTEGER PRIMARY KEY AUTOINCREMENT,
+      transaccion_id  INTEGER NOT NULL REFERENCES transacciones(id),
+      turno_id        INTEGER REFERENCES turnos(id),
+      motivo          TEXT NOT NULL,
+      monto_devuelto  REAL NOT NULL DEFAULT 0,
+      tipo            TEXT NOT NULL DEFAULT 'parcial',
+      created_at      TEXT NOT NULL DEFAULT (datetime('now'))
+    );
+    CREATE TABLE IF NOT EXISTS devoluciones_detalle (
+      id              INTEGER PRIMARY KEY AUTOINCREMENT,
+      devolucion_id   INTEGER NOT NULL REFERENCES devoluciones(id),
+      detalle_id      INTEGER REFERENCES detalle_transaccion(id),
+      articulo_id     INTEGER REFERENCES articulos(id),
+      descripcion     TEXT,
+      cantidad        REAL NOT NULL,
+      precio_unitario REAL NOT NULL,
+      importe         REAL NOT NULL
+    )
+  `);
+
+  // ── Module 2: departamentos ───────────────────────────────────
+  db.exec(`
+    CREATE TABLE IF NOT EXISTS departamentos (
+      id     INTEGER PRIMARY KEY AUTOINCREMENT,
+      nombre TEXT NOT NULL UNIQUE,
+      color  TEXT NOT NULL DEFAULT '#6b7280'
+    )
+  `);
+
+  // ── Module 2: articulos — nuevas columnas ─────────────────────
+  {
+    const cols = db.prepare('PRAGMA table_info(articulos)').all();
+    const names = new Set(cols.map(c => c.name));
+    if (!names.has('departamento_id')) db.exec('ALTER TABLE articulos ADD COLUMN departamento_id INTEGER');
+    if (!names.has('es_kit'))          db.exec("ALTER TABLE articulos ADD COLUMN es_kit INTEGER NOT NULL DEFAULT 0");
+    if (!names.has('usa_inventario'))  db.exec("ALTER TABLE articulos ADD COLUMN usa_inventario INTEGER NOT NULL DEFAULT 1");
+  }
+
+  // ── Module 2: kits_componentes ────────────────────────────────
+  db.exec(`
+    CREATE TABLE IF NOT EXISTS kits_componentes (
+      id            INTEGER PRIMARY KEY AUTOINCREMENT,
+      kit_id        INTEGER NOT NULL REFERENCES articulos(id),
+      componente_id INTEGER NOT NULL REFERENCES articulos(id),
+      cantidad      REAL NOT NULL DEFAULT 1,
+      UNIQUE(kit_id, componente_id)
+    )
+  `);
+
+  // ── Module 3: movimientos_inventario ─────────────────────────
+  db.exec(`
+    CREATE TABLE IF NOT EXISTS movimientos_inventario (
+      id                  INTEGER PRIMARY KEY AUTOINCREMENT,
+      articulo_id         INTEGER NOT NULL REFERENCES articulos(id),
+      tipo                TEXT NOT NULL,
+      cantidad_anterior   REAL NOT NULL DEFAULT 0,
+      cantidad_cambio     REAL NOT NULL DEFAULT 0,
+      cantidad_resultante REAL NOT NULL DEFAULT 0,
+      costo_unitario      REAL DEFAULT 0,
+      precio_unitario     REAL DEFAULT 0,
+      motivo              TEXT,
+      usuario             TEXT,
+      referencia_id       INTEGER,
+      fecha               TEXT NOT NULL DEFAULT (datetime('now'))
+    )
+  `);
 
   // ── Feature: articulo_id nullable + descripcion_libre en detalle_transaccion
   // SQLite no soporta ALTER COLUMN, así que si articulo_id es NOT NULL hay que recrear la tabla

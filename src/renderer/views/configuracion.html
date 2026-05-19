@@ -39,6 +39,30 @@
     }
     .toggle-switch input:checked + .toggle-track { background:var(--accent); }
     .toggle-switch input:checked + .toggle-track::before { transform:translateX(18px); }
+
+    /* Wizard Modo Negocio */
+    .wizard-overlay {
+      position:fixed; inset:0; z-index:9999;
+      background:rgba(15,23,42,.97);
+      display:flex; align-items:center; justify-content:center;
+      padding:20px;
+    }
+    .wizard-box {
+      max-width:800px; width:100%;
+      background:#1e293b; border-radius:14px;
+      border:1px solid #334155; padding:32px;
+      display:flex; flex-direction:column; gap:24px;
+    }
+    .wizard-cards { display:grid; grid-template-columns:repeat(3,1fr); gap:14px; }
+    @media (max-width:640px) { .wizard-cards { grid-template-columns:repeat(2,1fr); } }
+    .wizard-card {
+      background:#0f172a; border:2px solid #334155; border-radius:10px;
+      padding:20px 16px; text-align:left; cursor:pointer;
+      display:flex; flex-direction:column; gap:10px;
+      transition:border-color .18s,background .18s;
+      font-family:inherit; color:inherit; outline:none;
+    }
+    .wizard-card:hover, .wizard-card:focus { border-color:#3b82f6; background:rgba(59,130,246,.07); }
   </style>
 </head>
 <body class="app-layout">
@@ -57,31 +81,31 @@
     <nav class="sidebar-nav">
       <a href="caja.html" class="nav-item">
         <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="7" width="20" height="13" rx="2"/><path d="M16 7V5a2 2 0 0 0-4 0v2"/><line x1="12" y1="12" x2="12" y2="16"/><line x1="10" y1="14" x2="14" y2="14"/></svg>
-        Caja
+        Caja <span class="nav-fkey">F1</span>
       </a>
       <a href="catalogo.html" class="nav-item">
         <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"/></svg>
-        Catálogo
+        Catálogo <span class="nav-fkey">F2</span>
       </a>
       <a href="clientes.html" class="nav-item">
         <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
-        Clientes
+        Clientes <span class="nav-fkey">F3</span>
       </a>
       <a href="informes.html" class="nav-item">
         <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="20" x2="18" y2="10"/><line x1="12" y1="20" x2="12" y2="4"/><line x1="6" y1="20" x2="6" y2="14"/><line x1="2" y1="20" x2="22" y2="20"/></svg>
-        Informes
+        Informes <span class="nav-fkey">F5</span>
       </a>
       <a href="proveedores.html" class="nav-item">
         <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="1" y="3" width="15" height="13"/><polygon points="16 8 20 8 23 11 23 16 16 16 16 8"/><circle cx="5.5" cy="18.5" r="2.5"/><circle cx="18.5" cy="18.5" r="2.5"/></svg>
-        Proveedores
+        Proveedores <span class="nav-fkey">F4</span>
       </a>
       <a href="turno.html" class="nav-item">
         <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
-        Turno
+        Turno <span class="nav-fkey">F6</span>
       </a>
       <a href="configuracion.html" class="nav-item active">
         <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>
-        Configuración
+        Configuración <span class="nav-fkey">F7</span>
         <span id="badge-sync" class="nav-badge hidden"></span>
       </a>
     </nav>
@@ -109,6 +133,57 @@
 
     <main style="flex:1;overflow-y:auto;padding:24px;">
       <div style="max-width:560px;margin:0 auto;display:flex;flex-direction:column;gap:18px;">
+
+        <!-- Modo Negocio -->
+        <div class="card" id="card-modo-negocio">
+          <div class="card-header">Modo Negocio</div>
+          <div class="card-body" style="display:flex;flex-direction:column;gap:16px;">
+            <div id="modo-actual-display" style="display:flex;align-items:center;gap:14px;padding:14px;background:var(--surface-2);border-radius:var(--r-in);border:1px solid var(--border);">
+              <div id="modo-icono" style="color:#3b82f6;flex-shrink:0;"></div>
+              <div style="flex:1;min-width:0;">
+                <div id="modo-nombre" style="font-weight:600;font-size:14px;color:var(--text);"></div>
+                <div id="modo-descripcion" style="font-size:12px;color:var(--text-muted);margin-top:2px;"></div>
+              </div>
+            </div>
+            <!-- Opciones específicas por modo -->
+            <div id="modo-opciones-ri" style="display:none;flex-direction:column;gap:12px;padding-top:4px;border-top:1px solid var(--border);">
+              <div class="field">
+                <label class="field-label">Tasa IVA por defecto</label>
+                <select id="tasa-iva-default" class="inp" style="max-width:200px;">
+                  <option value="21">21%</option>
+                  <option value="10.5">10,5%</option>
+                  <option value="0">0% (exento)</option>
+                </select>
+                <span class="field-hint">Se aplica a productos nuevos sin tasa específica</span>
+              </div>
+            </div>
+            <div id="modo-opciones-rest" style="display:none;flex-direction:column;gap:12px;padding-top:4px;border-top:1px solid var(--border);">
+              <div style="display:flex;align-items:center;justify-content:space-between;">
+                <div>
+                  <div class="field-label">Habilitar propina en cobro</div>
+                  <span class="field-hint">Muestra campo de propina antes de cobrar</span>
+                </div>
+                <label class="toggle-switch">
+                  <input type="checkbox" id="toggle-propina" checked />
+                  <span class="toggle-track"></span>
+                </label>
+              </div>
+            </div>
+            <button type="button" id="btn-cambiar-modo" class="btn btn-ghost" style="align-self:flex-start;">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="1 4 1 10 7 10"/><path d="M3.51 15a9 9 0 1 0 .49-3"/></svg>
+              Cambiar modo
+            </button>
+          </div>
+        </div>
+
+        <!-- Tamaño HUD Caja -->
+        <div class="card">
+          <div class="card-header">Tamaño de pantalla de caja</div>
+          <div class="card-body" style="display:flex;flex-direction:column;gap:12px;">
+            <p style="font-size:12px;color:var(--text-muted);">Ajustá el tamaño del texto en la pantalla de caja según la distancia a la que trabajás.</p>
+            <div id="hud-size-cards" style="display:grid;grid-template-columns:1fr 1fr;gap:10px;"></div>
+          </div>
+        </div>
 
         <form id="form-config" style="display:flex;flex-direction:column;gap:18px;" novalidate>
 
@@ -222,7 +297,24 @@
     </main>
   </div>
 
+  <!-- ── Modal: Wizard Modo Negocio ────────────────────────────── -->
+  <div id="modal-wizard" class="wizard-overlay" style="display:none;">
+    <div class="wizard-box">
+      <div style="text-align:center;">
+        <div style="font-size:22px;font-weight:700;color:#f1f5f9;margin-bottom:8px;">Elegí el modo de negocio</div>
+        <div style="font-size:13px;color:#94a3b8;line-height:1.5;">El modo configura cómo se comporta el IVA y el ticket.<br>Podés cambiarlo en cualquier momento desde aquí.</div>
+      </div>
+      <div class="wizard-cards" id="wizard-cards-config"></div>
+      <div style="text-align:center;">
+        <button type="button" id="btn-cancelar-wizard" class="btn btn-ghost" style="font-size:12px;">
+          Cancelar (mantener modo actual)
+        </button>
+      </div>
+    </div>
+  </div>
+
   <div class="toast-wrap" id="toast-wrap"></div>
+  <script src="../js/hotkeys.js"></script>
   <script src="../js/configuracion.js"></script>
   <script src="../js/nav-badge.js"></script>
 </body>

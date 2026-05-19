@@ -110,4 +110,95 @@ function saldosClientes() {
   return { clientes, totalDeuda };
 }
 
-module.exports = { ventasPorPeriodo, articulosMasVendidos, utilidadBruta, saldosClientes };
+function ventasPorDia(desde, hasta) {
+  const db = getDb();
+  const d  = desde + ' 00:00:00';
+  const h  = hasta  + ' 23:59:59';
+
+  return db.prepare(`
+    WITH g AS (
+      SELECT dt.transaccion_id,
+        SUM(CASE WHEN dt.articulo_id IS NOT NULL
+          THEN dt.cantidad * (dt.precio_al_momento - a.costo_unitario)
+          ELSE 0 END) AS ganancia
+      FROM detalle_transaccion dt
+      LEFT JOIN articulos a ON a.id = dt.articulo_id
+      GROUP BY dt.transaccion_id
+    )
+    SELECT
+      DATE(t.created_at)          AS fecha,
+      COUNT(*)                    AS cantidad,
+      COALESCE(SUM(t.monto_total), 0) AS total,
+      COALESCE(SUM(g.ganancia),   0)  AS ganancia
+    FROM transacciones t
+    LEFT JOIN g ON g.transaccion_id = t.id
+    WHERE t.created_at BETWEEN ? AND ?
+    GROUP BY DATE(t.created_at)
+    ORDER BY fecha ASC
+  `).all(d, h);
+}
+
+function ventasPorHora(fecha) {
+  const db = getDb();
+  const d  = fecha + ' 00:00:00';
+  const h  = fecha + ' 23:59:59';
+
+  return db.prepare(`
+    SELECT
+      CAST(strftime('%H', created_at) AS INTEGER) AS hora,
+      COUNT(*)                                    AS cantidad,
+      COALESCE(SUM(monto_total), 0)               AS total
+    FROM transacciones
+    WHERE created_at BETWEEN ? AND ?
+    GROUP BY strftime('%H', created_at)
+    ORDER BY hora ASC
+  `).all(d, h);
+}
+
+function mejorDia(desde, hasta) {
+  const db = getDb();
+  const d  = desde + ' 00:00:00';
+  const h  = hasta  + ' 23:59:59';
+
+  return db.prepare(`
+    SELECT
+      DATE(created_at)             AS fecha,
+      COUNT(*)                     AS cantidad,
+      COALESCE(SUM(monto_total), 0) AS total
+    FROM transacciones
+    WHERE created_at BETWEEN ? AND ?
+    GROUP BY DATE(created_at)
+    ORDER BY total DESC
+    LIMIT 1
+  `).get(d, h) || null;
+}
+
+function resumenRapido(desde, hasta) {
+  const db = getDb();
+  const d  = desde + ' 00:00:00';
+  const h  = hasta  + ' 23:59:59';
+
+  const row = db.prepare(`
+    SELECT COUNT(*) AS cantidad, COALESCE(SUM(monto_total), 0) AS total
+    FROM transacciones WHERE created_at BETWEEN ? AND ?
+  `).get(d, h);
+
+  const gan = db.prepare(`
+    SELECT COALESCE(SUM(
+      CASE WHEN dt.articulo_id IS NOT NULL
+        THEN dt.cantidad * (dt.precio_al_momento - a.costo_unitario)
+        ELSE 0 END
+    ), 0) AS ganancia_bruta
+    FROM detalle_transaccion dt
+    LEFT JOIN articulos a ON a.id = dt.articulo_id
+    JOIN transacciones t ON t.id = dt.transaccion_id
+    WHERE t.created_at BETWEEN ? AND ?
+  `).get(d, h);
+
+  return { cantidad: row.cantidad, total: row.total, ganancia_bruta: gan.ganancia_bruta };
+}
+
+module.exports = {
+  ventasPorPeriodo, articulosMasVendidos, utilidadBruta, saldosClientes,
+  ventasPorDia, ventasPorHora, mejorDia, resumenRapido,
+};

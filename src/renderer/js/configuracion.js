@@ -2,12 +2,77 @@
 
 const form    = document.getElementById('form-config');
 const mensaje = document.getElementById('mensaje');
-let timerMensaje = null;
+let timerMensaje   = null;
+let modoActual     = '';
+let tamanoHudActual = 'normal';
+
+const HUD_OPCIONES = [
+  { id: 'compacto',     label: 'Compacto',     desc: 'Texto pequeño, más info en pantalla', muestra: 'A' },
+  { id: 'normal',      label: 'Normal',        desc: 'Tamaño estándar (recomendado)',        muestra: 'A' },
+  { id: 'grande',      label: 'Grande',        desc: 'Para uso a 1-2 metros de distancia',  muestra: 'A' },
+  { id: 'extra_grande',label: 'Extra Grande',  desc: 'Máximo tamaño, lectura a distancia',  muestra: 'A' },
+];
+
+// ── Definición de modos (misma que caja.js) ────────────────────
+const WIZARD_MODOS = [
+  {
+    id: 'monotributista',
+    nombre: 'Monotributista',
+    desc: 'Precios finales, sin IVA desglosado',
+    ejemplos: 'Kiosco, almacén, bazar, librería',
+    icono: `<svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M6 2 3 6v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V6l-3-4z"/><line x1="3" y1="6" x2="21" y2="6"/><path d="M16 10a4 4 0 0 1-8 0"/></svg>`,
+    iconoPeq: `<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M6 2 3 6v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V6l-3-4z"/><line x1="3" y1="6" x2="21" y2="6"/><path d="M16 10a4 4 0 0 1-8 0"/></svg>`,
+  },
+  {
+    id: 'responsable_inscripto',
+    nombre: 'Responsable Inscripto',
+    desc: 'IVA desglosado (21% por defecto, configurable por producto)',
+    ejemplos: 'Distribuidora, mayorista, empresa',
+    icono: `<svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/><polyline points="10 9 9 9 8 9"/></svg>`,
+    iconoPeq: `<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/></svg>`,
+  },
+  {
+    id: 'restaurante',
+    nombre: 'Restaurante / Rotisería',
+    desc: 'Sin IVA desglosado, con opción de propina',
+    ejemplos: 'Rotisería, pizzería, comida para llevar',
+    icono: `<svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M3 2v7c0 1.1.9 2 2 2h4a2 2 0 0 0 2-2V2"/><path d="M7 2v20"/><path d="M21 15V2a5 5 0 0 0-5 5v6c0 1.1.9 2 2 2h3z"/><path d="M21 15v7"/></svg>`,
+    iconoPeq: `<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M3 2v7c0 1.1.9 2 2 2h4a2 2 0 0 0 2-2V2"/><path d="M7 2v20"/></svg>`,
+  },
+  {
+    id: 'mayorista',
+    nombre: 'Mayorista',
+    desc: 'Precios base sin IVA; IVA sumado al total',
+    ejemplos: 'Distribuidora, depósito, venta al por mayor',
+    icono: `<svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><line x1="16.5" y1="9.4" x2="7.5" y2="4.21"/><path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"/><polyline points="3.27 6.96 12 12.01 20.73 6.96"/><line x1="12" y1="22.08" x2="12" y2="12"/></svg>`,
+    iconoPeq: `<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"/></svg>`,
+  },
+  {
+    id: 'farmacia',
+    nombre: 'Farmacia / Perfumería',
+    desc: 'IVA desglosado, múltiples tasas por producto (21%, 10,5%, 0%)',
+    ejemplos: 'Farmacia, perfumería, cosmética',
+    icono: `<svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="2" ry="2"/><line x1="12" y1="8" x2="12" y2="16"/><line x1="8" y1="12" x2="16" y2="12"/></svg>`,
+    iconoPeq: `<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="2"/><line x1="12" y1="8" x2="12" y2="16"/><line x1="8" y1="12" x2="16" y2="12"/></svg>`,
+  },
+  {
+    id: 'personalizado',
+    nombre: 'Personalizado',
+    desc: 'Configurá manualmente el comportamiento de IVA desde Configuración',
+    ejemplos: '',
+    icono: `<svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>`,
+    iconoPeq: `<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06"/></svg>`,
+  },
+];
 
 // ── Init ───────────────────────────────────────────────────────
 document.addEventListener('DOMContentLoaded', () => {
   cargarConfig();
   cargarBackups();
+  cargarModoNegocio();
+  cargarTamanoHud();
+  document.getElementById('btn-cambiar-modo').addEventListener('click', abrirWizard);
+  document.getElementById('btn-cancelar-wizard').addEventListener('click', cerrarWizard);
 });
 form.addEventListener('submit', guardar);
 document.getElementById('btn-sync').addEventListener('click', sincronizarAhora);
@@ -161,6 +226,108 @@ async function hacerBackupAhora() {
   }
   btn.disabled = false;
   setTimeout(() => { res_el.textContent = ''; }, 4000);
+}
+
+// ── Modo Negocio ───────────────────────────────────────────────
+async function cargarModoNegocio() {
+  const [modo, tasaDefault] = await Promise.all([
+    window.api.config.get('modo_negocio'),
+    window.api.config.get('tasa_iva'),
+  ]);
+  modoActual = modo || '';
+  renderModoActual(modoActual, tasaDefault);
+}
+
+function renderModoActual(modo, tasaDefault) {
+  const def  = WIZARD_MODOS.find(m => m.id === modo);
+  const nombre     = def ? def.nombre : 'Sin configurar';
+  const desc       = def ? def.desc   : 'Abrí Caja para elegir el modo de negocio.';
+  const iconoHtml  = def ? def.iconoPeq : '<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>';
+
+  document.getElementById('modo-icono').innerHTML       = iconoHtml;
+  document.getElementById('modo-nombre').textContent    = nombre;
+  document.getElementById('modo-descripcion').textContent = desc;
+
+  // Opciones específicas por modo
+  const opRI   = document.getElementById('modo-opciones-ri');
+  const opRest = document.getElementById('modo-opciones-rest');
+  opRI.style.display   = (modo === 'responsable_inscripto' || modo === 'farmacia') ? 'flex' : 'none';
+  opRest.style.display = (modo === 'restaurante') ? 'flex' : 'none';
+
+  if (opRI.style.display !== 'none') {
+    const sel = document.getElementById('tasa-iva-default');
+    sel.value = tasaDefault || '21';
+    sel.onchange = async () => {
+      await window.api.config.set('tasa_iva', sel.value);
+      await window.api.config.set('impuesto_porcentaje', sel.value);
+    };
+  }
+}
+
+function abrirWizard() {
+  const container = document.getElementById('wizard-cards-config');
+  container.innerHTML = WIZARD_MODOS.map(m => `
+    <button class="wizard-card${m.id === modoActual ? '" style="border-color:#3b82f6;background:rgba(59,130,246,.07);' : '"'} data-modo="${m.id}" type="button">
+      <div style="color:#3b82f6;">${m.icono}</div>
+      <div>
+        <div style="font-weight:700;font-size:14px;color:#f1f5f9;">${esc(m.nombre)}</div>
+        <div style="font-size:12px;color:#94a3b8;margin-top:4px;line-height:1.5;">${esc(m.desc)}</div>
+        ${m.ejemplos ? `<div style="font-size:11px;color:#64748b;margin-top:6px;">${esc(m.ejemplos)}</div>` : ''}
+      </div>
+    </button>`
+  ).join('');
+
+  container.onclick = async e => {
+    const card = e.target.closest('.wizard-card[data-modo]');
+    if (!card) return;
+    await window.api.config.set('modo_negocio', card.dataset.modo);
+    modoActual = card.dataset.modo;
+    cerrarWizard();
+    await cargarModoNegocio();
+    mostrarMensaje('Modo de negocio actualizado correctamente.', 'ok');
+  };
+
+  document.getElementById('modal-wizard').style.display = 'flex';
+}
+
+function cerrarWizard() {
+  document.getElementById('modal-wizard').style.display = 'none';
+}
+
+// ── Tamaño HUD ─────────────────────────────────────────────────
+async function cargarTamanoHud() {
+  const valor = await window.api.config.get('tamano_hud');
+  tamanoHudActual = valor || 'normal';
+  renderTamanoHud();
+}
+
+function renderTamanoHud() {
+  const FONT_SIZES = { compacto: '11px', normal: '15px', grande: '20px', extra_grande: '27px' };
+  const container = document.getElementById('hud-size-cards');
+  container.innerHTML = HUD_OPCIONES.map(op => {
+    const activo = op.id === tamanoHudActual;
+    return `<button type="button" data-hud="${op.id}"
+      style="display:flex;flex-direction:column;gap:8px;padding:14px;
+        border-radius:var(--r);cursor:pointer;font-family:inherit;text-align:left;
+        background:${activo ? 'rgba(59,130,246,.1)' : 'var(--surface-2)'};
+        border:2px solid ${activo ? '#3b82f6' : 'var(--border)'};
+        transition:border-color .15s,background .15s;">
+      <span style="font-size:${FONT_SIZES[op.id]};font-weight:700;color:var(--text);line-height:1;">A</span>
+      <div>
+        <div style="font-size:13px;font-weight:600;color:${activo ? '#93c5fd' : 'var(--text)'};">${esc(op.label)}</div>
+        <div style="font-size:11px;color:var(--text-muted);margin-top:2px;">${esc(op.desc)}</div>
+      </div>
+    </button>`;
+  }).join('');
+
+  container.onclick = async e => {
+    const btn = e.target.closest('[data-hud]');
+    if (!btn) return;
+    tamanoHudActual = btn.dataset.hud;
+    await window.api.config.set('tamano_hud', tamanoHudActual);
+    renderTamanoHud();
+    mostrarMensaje('Tamaño actualizado. El cambio se aplica al abrir la Caja.', 'ok');
+  };
 }
 
 function esc(str) {

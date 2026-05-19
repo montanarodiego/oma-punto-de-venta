@@ -1,39 +1,54 @@
 const { getDb } = require('../database');
 
 const CAMPOS_EDITABLES = [
-  'codigo', 'nombre', 'descripcion', 'costo_unitario', 'precio_unitario',
-  'stock_actual', 'stock_minimo', 'proveedor', 'unidad_medida',
+  'codigo', 'nombre', 'descripcion', 'costo_unitario', 'precio_unitario', 'precio_mayoreo',
+  'stock_actual', 'stock_minimo', 'proveedor', 'unidad_medida', 'tasa_iva',
+  'departamento_id', 'es_kit', 'usa_inventario',
 ];
 
+const SEL = `
+  SELECT a.*,
+    d.nombre AS departamento_nombre,
+    d.color  AS departamento_color
+  FROM articulos a
+  LEFT JOIN departamentos d ON d.id = a.departamento_id
+`;
+
 function getAll() {
-  return getDb().prepare('SELECT * FROM articulos ORDER BY nombre').all();
+  return getDb().prepare(`${SEL} ORDER BY a.nombre`).all();
 }
 
 function getById(id) {
-  return getDb().prepare('SELECT * FROM articulos WHERE id = ?').get(id);
+  return getDb().prepare(`${SEL} WHERE a.id = ?`).get(id);
 }
 
 function getByCodigo(codigo) {
-  return getDb().prepare('SELECT * FROM articulos WHERE codigo = ?').get(codigo);
+  return getDb().prepare(`${SEL} WHERE a.codigo = ?`).get(codigo);
 }
 
 function search(query) {
   const like = `%${query}%`;
   return getDb()
-    .prepare('SELECT * FROM articulos WHERE nombre LIKE ? OR codigo LIKE ? ORDER BY nombre')
+    .prepare(`${SEL} WHERE a.nombre LIKE ? OR a.codigo LIKE ? ORDER BY a.nombre`)
     .all(like, like);
 }
 
 function create(data) {
   const stmt = getDb().prepare(`
     INSERT INTO articulos
-      (codigo, nombre, descripcion, costo_unitario, precio_unitario,
-       stock_actual, stock_minimo, proveedor, unidad_medida, sync_status, updated_at)
+      (codigo, nombre, descripcion, costo_unitario, precio_unitario, precio_mayoreo,
+       stock_actual, stock_minimo, proveedor, unidad_medida, tasa_iva,
+       departamento_id, es_kit, usa_inventario, sync_status, updated_at)
     VALUES
-      (@codigo, @nombre, @descripcion, @costo_unitario, @precio_unitario,
-       @stock_actual, @stock_minimo, @proveedor, @unidad_medida, 'pending', datetime('now'))
+      (@codigo, @nombre, @descripcion, @costo_unitario, @precio_unitario, @precio_mayoreo,
+       @stock_actual, @stock_minimo, @proveedor, @unidad_medida, @tasa_iva,
+       @departamento_id, @es_kit, @usa_inventario, 'pending', datetime('now'))
   `);
-  const result = stmt.run({ unidad_medida: 'unidad', ...data });
+  const result = stmt.run({
+    unidad_medida: 'unidad', tasa_iva: '21', precio_mayoreo: 0,
+    departamento_id: null, es_kit: 0, usa_inventario: 1,
+    ...data,
+  });
   return getById(result.lastInsertRowid);
 }
 

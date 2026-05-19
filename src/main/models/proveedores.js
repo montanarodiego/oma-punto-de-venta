@@ -1,6 +1,7 @@
 // Modelo Proveedores — CRUD de proveedores y gestión de pedidos
 
 const { getDb } = require('../database');
+const { registrarMovimiento } = require('./inventario');
 
 // ── Proveedores ───────────────────────────────────────────────
 
@@ -68,7 +69,7 @@ function articulosConStockBajo() {
     SELECT id, codigo, nombre, proveedor, stock_actual, stock_minimo,
            costo_unitario, unidad_medida
     FROM articulos
-    WHERE stock_actual <= stock_minimo
+    WHERE stock_actual <= stock_minimo AND stock_minimo > 0 AND COALESCE(usa_inventario, 1) = 1
     ORDER BY proveedor ASC, nombre ASC
   `).all();
 }
@@ -144,6 +145,8 @@ function crearPedido(proveedorId, proveedorNombre, items) {
 function marcarRecibido(pedidoId, itemsRecibidos) {
   const db = getDb();
 
+  const getArt = db.prepare('SELECT stock_actual, costo_unitario, precio_unitario FROM articulos WHERE id = ?');
+
   const transaction = db.transaction(() => {
     for (const item of itemsRecibidos) {
       db.prepare(
@@ -151,6 +154,9 @@ function marcarRecibido(pedidoId, itemsRecibidos) {
       ).run(item.recibido, item.detalle_id);
 
       if (item.articulo_id && item.recibido > 0) {
+        const art      = getArt.get(item.articulo_id);
+        const anterior = art ? art.stock_actual : 0;
+
         db.prepare(`
           UPDATE articulos SET
             stock_actual = stock_actual + ?,
@@ -158,6 +164,18 @@ function marcarRecibido(pedidoId, itemsRecibidos) {
             updated_at   = datetime('now')
           WHERE id = ?
         `).run(item.recibido, item.articulo_id);
+
+        registrarMovimiento(db, {
+          articulo_id:        item.articulo_id,
+          tipo:               'entrada_compra',
+          cantidad_anterior:  anterior,
+          cantidad_cambio:    item.recibido,
+          cantidad_resultante: anterior + item.recibido,
+          costo_unitario:     art ? art.costo_unitario  : 0,
+          precio_unitario:    art ? art.precio_unitario : 0,
+          motivo:             `Pedido #${pedidoId}`,
+          referencia_id:      pedidoId,
+        });
       }
     }
     db.prepare(
