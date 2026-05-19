@@ -1042,6 +1042,7 @@ async function cobrar() {
     subtotal:          subtotalItems,
     monto_impuesto:    impuesto,
     descuento_global:  descuentoGlobal,
+    propina:           totales.propina ?? 0,
     notas:             t.notas?.trim() || null,
     turno_id:          turnoActivo?.id ?? null,
     forma_pago:        formaPago,

@@ -450,6 +450,14 @@ function runMigrations(db) {
     )
   `);
 
+  // ── Feature: propina en transacciones ────────────────────────
+  {
+    const cols = db.prepare('PRAGMA table_info(transacciones)').all();
+    if (!cols.some(c => c.name === 'propina')) {
+      db.exec('ALTER TABLE transacciones ADD COLUMN propina REAL NOT NULL DEFAULT 0');
+    }
+  }
+
   // ── Feature: promociones por volumen ─────────────────────────
   db.exec(`
     CREATE TABLE IF NOT EXISTS promociones (

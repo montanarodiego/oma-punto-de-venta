@@ -46,6 +46,7 @@ function bindEventos() {
   // Tab artículos
   document.getElementById('busqueda').addEventListener('input', () => renderTabla(filtrarArticulos()));
   document.getElementById('btn-nuevo').addEventListener('click', abrirModalNuevo);
+  document.getElementById('btn-exportar-csv').addEventListener('click', exportarCSV);
   document.getElementById('btn-toggle-stock-bajo').addEventListener('click', toggleStockBajo);
   document.getElementById('btn-modo-seleccion').addEventListener('click', toggleModoSeleccion);
   document.getElementById('btn-cancelar-seleccion').addEventListener('click', cancelarSeleccion);
@@ -1258,4 +1259,60 @@ async function eliminarPromo(id) {
   } catch (err) {
     toast('Error al eliminar: ' + (err.message || err), 'error');
   }
+}
+
+// ── Exportar catálogo a CSV ───────────────────────────────────
+
+function exportarCSV() {
+  const lista = filtrarArticulos();
+  if (lista.length === 0) {
+    toast('No hay artículos para exportar con el filtro actual.', 'error');
+    return;
+  }
+
+  const csvEsc = val => {
+    const s = String(val ?? '');
+    return (s.includes(',') || s.includes('"') || s.includes('\n'))
+      ? '"' + s.replace(/"/g, '""') + '"'
+      : s;
+  };
+
+  const headers = [
+    'codigo', 'nombre', 'descripcion',
+    'precio_costo', 'precio_venta', 'precio_mayoreo',
+    'stock_actual', 'stock_minimo',
+    'departamento', 'proveedor', 'unidad_medida',
+    'usa_inventario', 'es_kit',
+  ];
+
+  const filas = lista.map(a => [
+    a.codigo,
+    a.nombre,
+    a.descripcion         ?? '',
+    a.costo_unitario      ?? 0,
+    a.precio_unitario     ?? 0,
+    a.precio_mayoreo      ?? 0,
+    a.stock_actual        ?? 0,
+    a.stock_minimo        ?? 0,
+    a.departamento_nombre ?? '',
+    a.proveedor           ?? '',
+    a.unidad_medida       ?? 'unidad',
+    a.usa_inventario ? '1' : '0',
+    a.es_kit         ? '1' : '0',
+  ].map(csvEsc).join(','));
+
+  const csv   = [headers.join(','), ...filas].join('\r\n');
+  const fecha = new Date().toISOString().slice(0, 10);
+  const nombre = `catalogo_${fecha}.csv`;
+
+  // BOM para que Excel abra correctamente con tildes y ñ
+  const blob = new Blob(['﻿' + csv], { type: 'text/csv;charset=utf-8;' });
+  const url  = URL.createObjectURL(blob);
+  const link = document.createElement('a');
+  link.href     = url;
+  link.download = nombre;
+  link.click();
+  URL.revokeObjectURL(url);
+
+  toast(`${nombre} exportado (${lista.length} artículos)`);
 }

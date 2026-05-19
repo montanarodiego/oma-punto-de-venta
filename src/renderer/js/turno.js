@@ -58,12 +58,22 @@ function renderResumen(r) {
   document.getElementById('turno-ventas-efectivo').textContent     = fmt(r.ventas_efectivo);
   document.getElementById('turno-efectivo-esperado').textContent   = fmt(r.efectivo_esperado);
 
+  const totalPropinas = r.total_propinas ?? 0;
+  const filaPropinas  = document.getElementById('fila-propinas');
+  if (totalPropinas > 0) {
+    document.getElementById('turno-total-propinas').textContent = fmt(totalPropinas);
+    filaPropinas.style.display = 'flex';
+  } else {
+    filaPropinas.style.display = 'none';
+  }
+
   const medios = [
-    { label: 'Efectivo',       valor: r.ventas_efectivo },
-    { label: 'Débito',         valor: r.ventas_debito },
-    { label: 'Crédito',        valor: r.ventas_credito },
-    { label: 'Transferencia',  valor: r.ventas_transferencia },
-    { label: 'Cuenta corriente', valor: r.ventas_cuenta_corriente },
+    { label: 'Efectivo',          valor: r.ventas_efectivo },
+    { label: 'Débito',            valor: r.ventas_debito },
+    { label: 'Crédito',           valor: r.ventas_credito },
+    { label: 'Transferencia',     valor: r.ventas_transferencia },
+    { label: 'Cuenta corriente',  valor: r.ventas_cuenta_corriente },
+    { label: 'Propinas',          valor: totalPropinas, color: '#a78bfa' },
   ];
 
   document.getElementById('turno-resumen-ventas').innerHTML = medios
@@ -71,7 +81,7 @@ function renderResumen(r) {
     .map(m => `
       <div style="background:var(--surface-2);border-radius:var(--r-in);padding:10px 14px;">
         <div style="font-size:11px;color:var(--text-subtle);margin-bottom:3px;">${esc(m.label)}</div>
-        <div style="font-size:15px;font-weight:600;font-variant-numeric:tabular-nums;">${fmt(m.valor)}</div>
+        <div style="font-size:15px;font-weight:600;font-variant-numeric:tabular-nums;${m.color ? `color:${m.color};` : ''}">${fmt(m.valor)}</div>
       </div>`)
     .join('') || '<div style="color:var(--text-subtle);font-size:13px;">Sin ventas aún en este turno.</div>';
 

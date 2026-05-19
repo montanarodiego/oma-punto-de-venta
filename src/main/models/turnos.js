@@ -35,7 +35,8 @@ function calcularResumen(turnoId) {
       COALESCE(SUM(CASE WHEN forma_pago='tarjeta_credito'   THEN monto_total ELSE 0 END), 0)      AS ventas_credito,
       COALESCE(SUM(CASE WHEN forma_pago='transferencia'     THEN monto_total ELSE 0 END), 0)      AS ventas_transferencia,
       COALESCE(SUM(CASE WHEN forma_pago='cuenta_corriente'  THEN monto_total ELSE 0 END), 0)      AS ventas_cuenta_corriente,
-      COALESCE(SUM(descuento_global), 0)                                                          AS total_descuentos
+      COALESCE(SUM(descuento_global), 0)                                                          AS total_descuentos,
+      COALESCE(SUM(propina), 0)                                                                   AS total_propinas
     FROM transacciones
     WHERE created_at >= ? AND created_at <= ?
       AND (estado IS NULL OR estado != 'cancelada')
@@ -60,6 +61,7 @@ function calcularResumen(turnoId) {
     total_entradas:    mov?.total_entradas ?? 0,
     total_salidas:     mov?.total_salidas  ?? 0,
     efectivo_esperado: efectivoEsperado,
+    total_propinas:    r.total_propinas    ?? 0,
   };
 }
 

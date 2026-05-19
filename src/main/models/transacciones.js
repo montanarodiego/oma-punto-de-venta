@@ -59,15 +59,16 @@ function create({ transaccion, detalle }) {
       .prepare(`
         INSERT INTO transacciones
           (monto_total, subtotal, monto_impuesto, descuento_global, notas,
-           estado, turno_id, forma_pago, cuenta_cliente_id, sync_status, created_at)
+           propina, estado, turno_id, forma_pago, cuenta_cliente_id, sync_status, created_at)
         VALUES
           (@monto_total, @subtotal, @monto_impuesto, @descuento_global, @notas,
-           'vigente', @turno_id, @forma_pago, @cuenta_cliente_id, 'pending', datetime('now'))
+           @propina, 'vigente', @turno_id, @forma_pago, @cuenta_cliente_id, 'pending', datetime('now'))
       `)
       .run({
         descuento_global:  transaccion.descuento_global  ?? 0,
         notas:             transaccion.notas              ?? null,
         turno_id:          transaccion.turno_id           ?? null,
+        propina:           transaccion.propina            ?? 0,
         ...transaccion,
       });
 
