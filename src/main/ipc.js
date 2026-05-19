@@ -13,6 +13,7 @@ const Devoluciones   = require('./models/devoluciones');
 const Departamentos  = require('./models/departamentos');
 const Kits           = require('./models/kits');
 const Inventario     = require('./models/inventario');
+const PedidosCompra  = require('./models/pedidos');
 const Backup         = require('./backup');
 const { getDb }      = require('./database');
 
@@ -57,8 +58,11 @@ function registerHandlers() {
   ipcMain.handle('clientes:update', (_e, id, data) => Clientes.update(id, data));
   ipcMain.handle('clientes:delete', (_e, id) => Clientes.remove(id));
   ipcMain.handle('clientes:search', (_e, query) => Clientes.search(query));
-  ipcMain.handle('clientes:getTransacciones', (_e, id) => Clientes.getTransacciones(id));
-  ipcMain.handle('clientes:registrarPago', (_e, id, monto) => Clientes.registrarPago(id, monto));
+  ipcMain.handle('clientes:getTransacciones', (_e, id)             => Clientes.getTransacciones(id));
+  ipcMain.handle('clientes:listarPagos',     (_e, id)             => Clientes.listarPagos(id));
+  ipcMain.handle('clientes:cancelarPago',    (_e, pagoId)         => Clientes.cancelarPago(pagoId));
+  ipcMain.handle('clientes:liquidarDeuda',   (_e, id, formaPago)  => Clientes.liquidarDeuda(id, formaPago));
+  ipcMain.handle('clientes:registrarPago',   (_e, id, monto, fp)  => Clientes.registrarPago(id, monto, fp));
 
   // ── Transacciones ──────────────────────────────────────────
   ipcMain.handle('transacciones:getAll',      ()              => Transacciones.getAll());
@@ -86,6 +90,7 @@ function registerHandlers() {
   ipcMain.handle('informes:ventasPorHora',        (_e, d)    => Informes.ventasPorHora(d));
   ipcMain.handle('informes:mejorDia',             (_e, d, h) => Informes.mejorDia(d, h));
   ipcMain.handle('informes:resumenRapido',        (_e, d, h) => Informes.resumenRapido(d, h));
+  ipcMain.handle('informes:ventasPorCliente',     (_e, d, h) => Informes.ventasPorCliente(d, h));
 
   // ── Proveedores ────────────────────────────────────────────
   ipcMain.handle('proveedores:getAll',    ()           => Proveedores.getAll());
@@ -101,6 +106,15 @@ function registerHandlers() {
   ipcMain.handle('pedidos:getById',      (_e, id)                          => Proveedores.getPedidoById(id));
   ipcMain.handle('pedidos:crear',        (_e, prvId, prvNombre, items)     => Proveedores.crearPedido(prvId, prvNombre, items));
   ipcMain.handle('pedidos:marcarRecibido', (_e, pedidoId, itemsRecibidos)  => Proveedores.marcarRecibido(pedidoId, itemsRecibidos));
+
+  // ── Pedidos de compra (órdenes) ───────────────────────────────
+  ipcMain.handle('pedidosCompra:listar',        ()                   => PedidosCompra.listar());
+  ipcMain.handle('pedidosCompra:getById',       (_e, id)             => PedidosCompra.getById(id));
+  ipcMain.handle('pedidosCompra:crear',         (_e, data)           => PedidosCompra.crear(data));
+  ipcMain.handle('pedidosCompra:actualizar',    (_e, id, data)       => PedidosCompra.actualizar(id, data));
+  ipcMain.handle('pedidosCompra:marcarEnviado', (_e, id)             => PedidosCompra.marcarEnviado(id));
+  ipcMain.handle('pedidosCompra:recibir',       (_e, id, items)      => PedidosCompra.recibir(id, items));
+  ipcMain.handle('pedidosCompra:cancelar',      (_e, id)             => PedidosCompra.cancelar(id));
 
   // ── Recepciones ────────────────────────────────────────────
   ipcMain.handle('recepciones:crear',   (_e, data) => Recepciones.crear(data));

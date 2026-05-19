@@ -1,9 +1,11 @@
 // Módulo Clientes — ABM y cuenta corriente
 
 // ── Estado ─────────────────────────────────────────────────────
-let clientes       = [];
-let editandoId     = null;
+let clientes        = [];
+let editandoId      = null;
 let cuentaClienteId = null;
+let cancelarAbonoId = null;
+let tabCuenta       = 'pagos';
 
 // ── Refs DOM ───────────────────────────────────────────────────
 const tabla         = document.getElementById('tabla-clientes');
@@ -31,6 +33,28 @@ form.addEventListener('submit', guardar);
 modal.addEventListener('click', e => { if (e.target === modal) cerrarModal(); });
 modalConfirm.addEventListener('click', e => { if (e.target === modalConfirm) cerrarConfirm(); });
 modalCuenta.addEventListener('click', e => { if (e.target === modalCuenta) cerrarCuenta(); });
+
+// Tabs historial cuenta
+document.querySelectorAll('.cuenta-tab').forEach(btn =>
+  btn.addEventListener('click', () => cambiarTabCuenta(btn.dataset.tab))
+);
+
+// Liquidar deuda
+document.getElementById('btn-liquidar-deuda').addEventListener('click', abrirLiquidar);
+document.getElementById('btn-cerrar-liquidar').addEventListener('click', cerrarLiquidar);
+document.getElementById('btn-cancelar-liquidar').addEventListener('click', cerrarLiquidar);
+document.getElementById('btn-confirmar-liquidar').addEventListener('click', confirmarLiquidar);
+document.getElementById('modal-liquidar').addEventListener('click', e => {
+  if (e.target === document.getElementById('modal-liquidar')) cerrarLiquidar();
+});
+
+// Cancelar abono
+document.getElementById('btn-cerrar-cancelar-abono').addEventListener('click', cerrarCancelarAbono);
+document.getElementById('btn-no-cancelar-abono').addEventListener('click', cerrarCancelarAbono);
+document.getElementById('btn-si-cancelar-abono').addEventListener('click', confirmarCancelarAbono);
+document.getElementById('modal-cancelar-abono').addEventListener('click', e => {
+  if (e.target === document.getElementById('modal-cancelar-abono')) cerrarCancelarAbono();
+});
 
 tabla.addEventListener('click', e => {
   const btn = e.target.closest('button[data-action]');
@@ -209,8 +233,12 @@ async function abrirCuenta(id) {
   document.getElementById('cuenta-limite').textContent    = fmt(c.limite_credito);
 
   actualizarSaldoEnModal(c.saldo_vencido);
+  cambiarTabCuenta('pagos');
 
-  await cargarTransaccionesCuenta(id);
+  await Promise.all([
+    cargarPagosCuenta(id),
+    cargarTransaccionesCuenta(id),
+  ]);
 
   document.getElementById('monto-pago').value = '';
   ocultarErrorPago();
@@ -221,9 +249,83 @@ async function abrirCuenta(id) {
 function actualizarSaldoEnModal(saldo) {
   const el  = document.getElementById('cuenta-saldo');
   el.textContent = fmt(saldo);
-  el.className   = Number(saldo) > 0
-    ? 'ml-1 font-bold text-lg text-red-600'
-    : 'ml-1 font-bold text-lg text-green-600';
+  el.style.color = Number(saldo) > 0 ? '#fca5a5' : '#4ade80';
+
+  const btnLiquidar = document.getElementById('btn-liquidar-deuda');
+  if (Number(saldo) > 0) {
+    btnLiquidar.classList.remove('hidden');
+  } else {
+    btnLiquidar.classList.add('hidden');
+  }
+}
+
+function cambiarTabCuenta(tab) {
+  tabCuenta = tab;
+  document.querySelectorAll('.cuenta-tab').forEach(btn => {
+    const activo = btn.dataset.tab === tab;
+    btn.style.color       = activo ? 'var(--accent)' : 'var(--text-subtle)';
+    btn.style.borderBottom = activo ? '2px solid var(--accent)' : '2px solid transparent';
+    btn.classList.toggle('active', activo);
+  });
+  document.getElementById('panel-cuenta-pagos').style.display   = tab === 'pagos'   ? '' : 'none';
+  document.getElementById('panel-cuenta-compras').style.display = tab === 'compras' ? '' : 'none';
+}
+
+async function cargarPagosCuenta(id) {
+  const pagos = await window.api.clientes.listarPagos(id);
+  const tbody = document.getElementById('cuenta-pagos');
+
+  const FORMA_LABEL = {
+    efectivo:        'Efectivo',
+    transferencia:   'Transferencia',
+    tarjeta_debito:  'Tarjeta débito',
+    tarjeta_credito: 'Tarjeta crédito',
+  };
+
+  if (!pagos.length) {
+    tbody.innerHTML = `<tr><td colspan="5" style="text-align:center;padding:24px;color:var(--text-subtle);font-size:13px;">Sin abonos registrados.</td></tr>`;
+    return;
+  }
+
+  tbody.innerHTML = pagos.map(p => {
+    const cancelado   = p.estado === 'cancelado';
+    const esDevAbono  = p.tipo   === 'dev_abono';
+    const rowStyle    = cancelado ? 'opacity:.5;' : (esDevAbono ? 'background:rgba(239,68,68,.05);' : '');
+    const montoColor  = esDevAbono ? '#f87171' : '#4ade80';
+    const signo       = esDevAbono ? '+' : '−';
+    const tipoLabel   = esDevAbono ? 'Reversión' : 'Abono';
+
+    let badge = '';
+    if (cancelado)  badge = `<span style="font-size:10px;font-weight:700;background:rgba(156,163,175,.2);color:#9ca3af;padding:1px 6px;border-radius:999px;margin-left:6px;">CANCELADO</span>`;
+    if (esDevAbono) badge = `<span style="font-size:10px;font-weight:700;background:rgba(239,68,68,.15);color:#f87171;padding:1px 6px;border-radius:999px;margin-left:6px;">REVERSIÓN</span>`;
+
+    const accion = (!cancelado && !esDevAbono)
+      ? `<button data-action="cancelar-abono" data-id="${p.id}" data-monto="${p.monto}"
+           style="font-size:11px;color:#f87171;background:none;border:none;cursor:pointer;padding:2px 6px;border-radius:var(--r-in);"
+           onmouseover="this.style.background='rgba(239,68,68,.1)'" onmouseout="this.style.background='none'">
+           Cancelar
+         </button>`
+      : '';
+
+    return `
+      <tr style="${rowStyle}">
+        <td style="padding:7px 10px;font-size:12px;color:var(--text-subtle);">${formatFecha(p.created_at)}</td>
+        <td style="padding:7px 10px;font-size:12px;">${tipoLabel}${badge}</td>
+        <td style="padding:7px 10px;font-size:12px;color:var(--text-muted);">${FORMA_LABEL[p.forma_pago] || p.forma_pago}</td>
+        <td style="padding:7px 10px;text-align:right;font-weight:600;font-size:13px;font-variant-numeric:tabular-nums;color:${montoColor};">
+          ${signo} ${fmt(p.monto)}
+        </td>
+        <td style="padding:7px 6px;text-align:center;">${accion}</td>
+      </tr>`;
+  }).join('');
+
+  tbody.addEventListener('click', e => {
+    const btn = e.target.closest('button[data-action="cancelar-abono"]');
+    if (!btn) return;
+    const pagoId = parseInt(btn.dataset.id, 10);
+    const monto  = parseFloat(btn.dataset.monto);
+    abrirCancelarAbono(pagoId, monto);
+  }, { once: true });
 }
 
 async function cargarTransaccionesCuenta(id) {
@@ -231,27 +333,22 @@ async function cargarTransaccionesCuenta(id) {
   const tbody = document.getElementById('cuenta-transacciones');
 
   if (txs.length === 0) {
-    tbody.innerHTML = `
-      <tr>
-        <td colspan="6" class="px-2 py-5 text-center text-gray-400 text-sm">
-          Sin transacciones a crédito
-        </td>
-      </tr>`;
+    tbody.innerHTML = `<tr><td colspan="6" style="text-align:center;padding:24px;color:var(--text-subtle);font-size:13px;">Sin transacciones a crédito.</td></tr>`;
     return;
   }
 
   tbody.innerHTML = txs.map(t => `
-    <tr class="hover:bg-gray-50">
-      <td class="px-2 py-2 text-xs text-gray-500 font-mono">#${t.id}</td>
-      <td class="px-2 py-2 text-xs">${formatFecha(t.created_at)}</td>
-      <td class="px-2 py-2 text-right text-xs text-gray-600">${fmt(t.subtotal)}</td>
-      <td class="px-2 py-2 text-right text-xs text-gray-600">${fmt(t.monto_impuesto)}</td>
-      <td class="px-2 py-2 text-right text-sm font-semibold">${fmt(t.monto_total)}</td>
-      <td class="px-2 py-2 text-center">
-        <span class="px-1.5 py-0.5 rounded-full text-xs font-medium
+    <tr>
+      <td style="padding:6px 8px;font-size:12px;font-family:monospace;color:var(--text-muted);">#${t.id}</td>
+      <td style="padding:6px 8px;font-size:12px;">${formatFecha(t.created_at)}</td>
+      <td style="padding:6px 8px;text-align:right;font-size:12px;">${fmt(t.subtotal)}</td>
+      <td style="padding:6px 8px;text-align:right;font-size:12px;">${fmt(t.monto_impuesto)}</td>
+      <td style="padding:6px 8px;text-align:right;font-size:13px;font-weight:600;">${fmt(t.monto_total)}</td>
+      <td style="padding:6px 8px;text-align:center;">
+        <span style="font-size:11px;padding:1px 7px;border-radius:999px;font-weight:600;
           ${t.sync_status === 'synced'
-            ? 'bg-green-100 text-green-700'
-            : 'bg-yellow-100 text-yellow-700'}">
+            ? 'background:rgba(34,197,94,.15);color:#4ade80;'
+            : 'background:rgba(251,191,36,.15);color:#fbbf24;'}">
           ${t.sync_status === 'synced' ? 'Sync' : 'Pendiente'}
         </span>
       </td>
@@ -263,11 +360,13 @@ function cerrarCuenta() {
   cuentaClienteId = null;
 }
 
-// ── Registrar pago ─────────────────────────────────────────────
+// ── Registrar abono ────────────────────────────────────────────
 async function registrarPago() {
   ocultarErrorPago();
 
-  const monto = parseFloat(document.getElementById('monto-pago').value) || 0;
+  const monto     = parseFloat(document.getElementById('monto-pago').value) || 0;
+  const formaPago = document.getElementById('forma-pago-abono').value;
+
   if (monto <= 0)
     return mostrarErrorPago('El monto debe ser mayor a 0.');
 
@@ -282,24 +381,93 @@ async function registrarPago() {
   btnPagar.textContent = 'Registrando...';
 
   try {
-    const actualizado = await window.api.clientes.registrarPago(cuentaClienteId, monto);
+    const actualizado = await window.api.clientes.registrarPago(cuentaClienteId, monto, formaPago);
 
-    // Actualizar cache local
     const idx = clientes.findIndex(c => c.id === cuentaClienteId);
     if (idx !== -1) clientes[idx] = actualizado;
 
-    // Actualizar saldo visible en modal
     actualizarSaldoEnModal(actualizado.saldo_vencido);
-
     document.getElementById('monto-pago').value = '';
 
-    // Refrescar tabla de fondo
+    await cargarPagosCuenta(cuentaClienteId);
     renderTabla(filtrar(inputBusq.value));
+    mostrarToast(`Abono de ${fmt(monto)} registrado.`);
   } catch (err) {
     mostrarErrorPago(err.message || 'Error al registrar el pago.');
   } finally {
     btnPagar.disabled    = false;
-    btnPagar.textContent = 'Registrar pago';
+    btnPagar.textContent = 'Registrar abono';
+  }
+}
+
+// ── Cancelar abono ─────────────────────────────────────────────
+function abrirCancelarAbono(pagoId, monto) {
+  cancelarAbonoId = pagoId;
+  document.getElementById('cancelar-abono-monto').textContent = fmt(monto);
+  document.getElementById('modal-cancelar-abono').classList.remove('hidden');
+}
+
+function cerrarCancelarAbono() {
+  document.getElementById('modal-cancelar-abono').classList.add('hidden');
+  cancelarAbonoId = null;
+}
+
+async function confirmarCancelarAbono() {
+  if (!cancelarAbonoId) return;
+  const pagoId = cancelarAbonoId;
+  cerrarCancelarAbono();
+  try {
+    const actualizado = await window.api.clientes.cancelarPago(pagoId);
+    const idx = clientes.findIndex(c => c.id === cuentaClienteId);
+    if (idx !== -1) clientes[idx] = actualizado;
+
+    actualizarSaldoEnModal(actualizado.saldo_vencido);
+    await cargarPagosCuenta(cuentaClienteId);
+    renderTabla(filtrar(inputBusq.value));
+    mostrarToast('Abono cancelado. Saldo actualizado.');
+  } catch (err) {
+    alert('Error: ' + (err.message || err));
+  }
+}
+
+// ── Liquidar deuda ─────────────────────────────────────────────
+function abrirLiquidar() {
+  const c = clientes.find(x => x.id === cuentaClienteId);
+  if (!c || Number(c.saldo_vencido) <= 0) return;
+
+  document.getElementById('liquidar-nombre').textContent = c.nombre;
+  document.getElementById('liquidar-monto').textContent  = fmt(c.saldo_vencido);
+  document.getElementById('liquidar-forma-pago').value   = 'efectivo';
+  document.getElementById('modal-liquidar').classList.remove('hidden');
+}
+
+function cerrarLiquidar() {
+  document.getElementById('modal-liquidar').classList.add('hidden');
+}
+
+async function confirmarLiquidar() {
+  const formaPago = document.getElementById('liquidar-forma-pago').value;
+  const btn = document.getElementById('btn-confirmar-liquidar');
+  btn.disabled    = true;
+  btn.textContent = 'Procesando...';
+
+  try {
+    const actualizado = await window.api.clientes.liquidarDeuda(cuentaClienteId, formaPago);
+    cerrarLiquidar();
+
+    const idx = clientes.findIndex(c => c.id === cuentaClienteId);
+    const monto = idx !== -1 ? Number(clientes[idx].saldo_vencido) : 0;
+    if (idx !== -1) clientes[idx] = actualizado;
+
+    actualizarSaldoEnModal(actualizado.saldo_vencido);
+    await cargarPagosCuenta(cuentaClienteId);
+    renderTabla(filtrar(inputBusq.value));
+    mostrarToast(`Deuda de ${fmt(monto)} liquidada.`);
+  } catch (err) {
+    alert('Error: ' + (err.message || err));
+  } finally {
+    btn.disabled    = false;
+    btn.textContent = 'Liquidar';
   }
 }
 
@@ -353,4 +521,14 @@ function bloquearFormulario(bloquear) {
   const btn = document.getElementById('btn-guardar');
   btn.disabled    = bloquear;
   btn.textContent = bloquear ? 'Guardando...' : 'Guardar';
+}
+
+function mostrarToast(msg) {
+  const wrap = document.getElementById('toast-wrap');
+  if (!wrap) return;
+  const t = document.createElement('div');
+  t.className   = 'toast';
+  t.textContent = msg;
+  wrap.appendChild(t);
+  setTimeout(() => t.remove(), 3500);
 }

@@ -43,8 +43,11 @@ contextBridge.exposeInMainWorld('api', {
     update:  (id, data)   => ipcRenderer.invoke('clientes:update', id, data),
     delete:           (id)         => ipcRenderer.invoke('clientes:delete', id),
     search:           (query)      => ipcRenderer.invoke('clientes:search', query),
-    getTransacciones: (id)         => ipcRenderer.invoke('clientes:getTransacciones', id),
-    registrarPago:    (id, monto)  => ipcRenderer.invoke('clientes:registrarPago', id, monto),
+    getTransacciones: (id)                  => ipcRenderer.invoke('clientes:getTransacciones', id),
+    listarPagos:      (id)                  => ipcRenderer.invoke('clientes:listarPagos', id),
+    cancelarPago:     (pagoId)              => ipcRenderer.invoke('clientes:cancelarPago', pagoId),
+    liquidarDeuda:    (id, formaPago)       => ipcRenderer.invoke('clientes:liquidarDeuda', id, formaPago),
+    registrarPago:    (id, monto, formaPago) => ipcRenderer.invoke('clientes:registrarPago', id, monto, formaPago),
   },
 
   // Transacciones
@@ -80,6 +83,7 @@ contextBridge.exposeInMainWorld('api', {
     ventasPorHora:        (d)    => ipcRenderer.invoke('informes:ventasPorHora',        d),
     mejorDia:             (d, h) => ipcRenderer.invoke('informes:mejorDia',             d, h),
     resumenRapido:        (d, h) => ipcRenderer.invoke('informes:resumenRapido',        d, h),
+    ventasPorCliente:     (d, h) => ipcRenderer.invoke('informes:ventasPorCliente',     d, h),
   },
 
   // Proveedores
@@ -99,6 +103,17 @@ contextBridge.exposeInMainWorld('api', {
     getById:        (id)                          => ipcRenderer.invoke('pedidos:getById', id),
     crear:          (prvId, prvNombre, items)     => ipcRenderer.invoke('pedidos:crear', prvId, prvNombre, items),
     marcarRecibido: (pedidoId, itemsRecibidos)    => ipcRenderer.invoke('pedidos:marcarRecibido', pedidoId, itemsRecibidos),
+  },
+
+  // Pedidos de compra (órdenes)
+  pedidosCompra: {
+    listar:        ()           => ipcRenderer.invoke('pedidosCompra:listar'),
+    getById:       (id)         => ipcRenderer.invoke('pedidosCompra:getById', id),
+    crear:         (data)       => ipcRenderer.invoke('pedidosCompra:crear', data),
+    actualizar:    (id, data)   => ipcRenderer.invoke('pedidosCompra:actualizar', id, data),
+    marcarEnviado: (id)         => ipcRenderer.invoke('pedidosCompra:marcarEnviado', id),
+    recibir:       (id, items)  => ipcRenderer.invoke('pedidosCompra:recibir', id, items),
+    cancelar:      (id)         => ipcRenderer.invoke('pedidosCompra:cancelar', id),
   },
 
   // Recepciones

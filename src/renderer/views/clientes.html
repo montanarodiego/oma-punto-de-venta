@@ -178,7 +178,7 @@
 
   <!-- ── Modal: detalle de cuenta corriente ─────────────────── -->
   <div id="modal-cuenta" class="modal-overlay hidden">
-    <div class="modal-box" style="max-width:640px;max-height:82vh;display:flex;flex-direction:column;">
+    <div class="modal-box" style="max-width:680px;max-height:88vh;display:flex;flex-direction:column;">
 
       <div class="modal-header">
         <h3 class="modal-title">
@@ -189,18 +189,67 @@
       </div>
 
       <!-- Info del cliente -->
-      <div style="padding:14px 20px;background:rgba(51,65,85,.3);border-bottom:1px solid var(--border);flex-shrink:0;">
-        <div style="display:grid;grid-template-columns:1fr 1fr;gap:6px 32px;font-size:13px;">
+      <div style="padding:12px 20px;background:rgba(51,65,85,.3);border-bottom:1px solid var(--border);flex-shrink:0;">
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:4px 32px;font-size:13px;">
           <div style="color:var(--text-muted);">Teléfono: <span id="cuenta-telefono" style="color:var(--text);"></span></div>
           <div style="color:var(--text-muted);">Límite de crédito: <span id="cuenta-limite" style="color:var(--text);font-weight:500;"></span></div>
           <div style="color:var(--text-muted);">Dirección: <span id="cuenta-direccion" style="color:var(--text);"></span></div>
-          <div style="color:var(--text-muted);">Saldo vencido: <span id="cuenta-saldo" style="color:#fca5a5;font-weight:700;font-size:15px;"></span></div>
+          <div style="color:var(--text-muted);">Saldo vencido:
+            <span id="cuenta-saldo" style="font-weight:700;font-size:15px;"></span>
+            <button id="btn-liquidar-deuda" class="hidden"
+              style="margin-left:10px;font-size:11px;padding:2px 10px;border-radius:999px;border:1px solid #22c55e;color:#22c55e;background:rgba(34,197,94,.12);cursor:pointer;font-weight:600;">
+              Liquidar deuda
+            </button>
+          </div>
         </div>
       </div>
 
-      <!-- Historial -->
-      <div style="flex:1;min-height:0;overflow-y:auto;padding:14px 20px;">
-        <div class="section-title">Historial de compras a crédito</div>
+      <!-- Registrar pago -->
+      <div style="padding:10px 20px;border-bottom:1px solid var(--border);background:rgba(51,65,85,.15);flex-shrink:0;">
+        <div style="display:flex;gap:8px;align-items:flex-start;flex-wrap:wrap;">
+          <input id="monto-pago" type="number" step="0.01" min="0.01"
+            placeholder="Monto recibido..." class="inp" style="flex:1;min-width:120px;" />
+          <select id="forma-pago-abono" class="inp" style="flex:0 0 auto;width:auto;">
+            <option value="efectivo">Efectivo</option>
+            <option value="transferencia">Transferencia</option>
+            <option value="tarjeta_debito">Tarjeta débito</option>
+            <option value="tarjeta_credito">Tarjeta crédito</option>
+          </select>
+          <button id="btn-pagar" class="btn btn-success" style="flex-shrink:0;">Registrar abono</button>
+        </div>
+        <div id="error-pago" class="hidden" style="margin-top:5px;font-size:12px;color:#fca5a5;"></div>
+      </div>
+
+      <!-- Tabs historial -->
+      <div style="display:flex;gap:0;flex-shrink:0;border-bottom:1px solid var(--border);">
+        <button class="cuenta-tab active" data-tab="pagos"
+          style="padding:8px 18px;font-size:12px;font-weight:600;border:none;background:none;color:var(--accent);border-bottom:2px solid var(--accent);cursor:pointer;">
+          Abonos
+        </button>
+        <button class="cuenta-tab" data-tab="compras"
+          style="padding:8px 18px;font-size:12px;font-weight:600;border:none;background:none;color:var(--text-subtle);border-bottom:2px solid transparent;cursor:pointer;">
+          Compras a crédito
+        </button>
+      </div>
+
+      <!-- Panel: Abonos (pagos) -->
+      <div id="panel-cuenta-pagos" style="flex:1;min-height:0;overflow-y:auto;padding:12px 20px;">
+        <table class="tbl">
+          <thead>
+            <tr>
+              <th>Fecha</th>
+              <th>Tipo</th>
+              <th>Forma de pago</th>
+              <th style="text-align:right;">Monto</th>
+              <th style="text-align:center;width:90px;"></th>
+            </tr>
+          </thead>
+          <tbody id="cuenta-pagos"></tbody>
+        </table>
+      </div>
+
+      <!-- Panel: Compras a crédito -->
+      <div id="panel-cuenta-compras" style="display:none;flex:1;min-height:0;overflow-y:auto;padding:12px 20px;">
         <table class="tbl">
           <thead>
             <tr>
@@ -209,34 +258,67 @@
               <th style="text-align:right;">Subtotal</th>
               <th style="text-align:right;">IVA</th>
               <th style="text-align:right;">Total</th>
-              <th style="text-align:center;">Sync</th>
+              <th style="text-align:center;">Estado</th>
             </tr>
           </thead>
           <tbody id="cuenta-transacciones"></tbody>
         </table>
       </div>
 
-      <!-- Registrar pago -->
-      <div style="padding:14px 20px;border-top:1px solid var(--border);background:rgba(51,65,85,.2);flex-shrink:0;">
-        <div class="section-title">Registrar pago</div>
-        <div style="display:flex;gap:10px;align-items:flex-start;">
-          <div style="flex:1;">
-            <input
-              id="monto-pago"
-              type="number"
-              step="0.01"
-              min="0.01"
-              placeholder="Monto recibido..."
-              class="inp"
-            />
-            <div id="error-pago" class="hidden" style="margin-top:5px;font-size:12px;color:#fca5a5;"></div>
-          </div>
-          <button id="btn-pagar" class="btn btn-success" style="flex-shrink:0;">
-            Registrar pago
-          </button>
+    </div>
+  </div>
+
+  <!-- ── Modal: liquidar deuda ───────────────────────────────── -->
+  <div id="modal-liquidar" class="modal-overlay hidden">
+    <div class="modal-box" style="max-width:400px;">
+      <div class="modal-header">
+        <h3 class="modal-title">Liquidar deuda total</h3>
+        <button id="btn-cerrar-liquidar" class="modal-close">×</button>
+      </div>
+      <div class="modal-body" style="display:flex;flex-direction:column;gap:16px;">
+        <p style="font-size:13px;color:var(--text-muted);line-height:1.6;">
+          Registrar pago total de la deuda de
+          <strong id="liquidar-nombre" style="color:var(--text);"></strong>.
+        </p>
+        <div style="text-align:center;padding:12px;background:rgba(239,68,68,.1);border-radius:var(--r-in);border:1px solid rgba(239,68,68,.2);">
+          <div style="font-size:11px;color:var(--text-subtle);margin-bottom:4px;text-transform:uppercase;letter-spacing:.05em;">Monto a cobrar</div>
+          <div id="liquidar-monto" style="font-size:26px;font-weight:700;color:#fca5a5;font-variant-numeric:tabular-nums;"></div>
+        </div>
+        <div class="field">
+          <label class="field-label">Forma de pago</label>
+          <select id="liquidar-forma-pago" class="inp">
+            <option value="efectivo">Efectivo</option>
+            <option value="transferencia">Transferencia</option>
+            <option value="tarjeta_debito">Tarjeta débito</option>
+            <option value="tarjeta_credito">Tarjeta crédito</option>
+          </select>
         </div>
       </div>
+      <div class="modal-footer">
+        <button id="btn-cancelar-liquidar" class="btn btn-ghost">Cancelar</button>
+        <button id="btn-confirmar-liquidar" class="btn btn-success">Liquidar</button>
+      </div>
+    </div>
+  </div>
 
+  <!-- ── Modal: confirmar cancelar abono ────────────────────── -->
+  <div id="modal-cancelar-abono" class="modal-overlay hidden">
+    <div class="modal-box" style="max-width:380px;">
+      <div class="modal-header">
+        <h3 class="modal-title">Cancelar abono</h3>
+        <button id="btn-cerrar-cancelar-abono" class="modal-close">×</button>
+      </div>
+      <div class="modal-body">
+        <p style="font-size:13px;color:var(--text-muted);line-height:1.6;">
+          ¿Cancelar el abono de
+          <strong id="cancelar-abono-monto" style="color:var(--text);"></strong>?
+          El monto se volverá a sumar al saldo del cliente.
+        </p>
+      </div>
+      <div class="modal-footer">
+        <button id="btn-no-cancelar-abono" class="btn btn-ghost">Mantener</button>
+        <button id="btn-si-cancelar-abono" class="btn btn-danger">Cancelar abono</button>
+      </div>
     </div>
   </div>
 

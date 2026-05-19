@@ -198,7 +198,37 @@ function resumenRapido(desde, hasta) {
   return { cantidad: row.cantidad, total: row.total, ganancia_bruta: gan.ganancia_bruta };
 }
 
+function ventasPorCliente(desde, hasta) {
+  const d = desde + ' 00:00:00';
+  const h = hasta  + ' 23:59:59';
+
+  return getDb().prepare(`
+    SELECT
+      c.id,
+      c.nombre,
+      c.telefono,
+      COUNT(*) AS cantidad_transacciones,
+      COALESCE(SUM(t.monto_total), 0)  AS total_comprado,
+      COALESCE(SUM(gan.ganancia),  0)  AS ganancia_generada
+    FROM clientes c
+    JOIN transacciones t ON t.cuenta_cliente_id = c.id
+    LEFT JOIN (
+      SELECT dt.transaccion_id,
+        SUM(CASE WHEN dt.articulo_id IS NOT NULL
+              THEN dt.cantidad * (dt.precio_al_momento - a.costo_unitario)
+              ELSE 0 END) AS ganancia
+      FROM detalle_transaccion dt
+      LEFT JOIN articulos a ON a.id = dt.articulo_id
+      GROUP BY dt.transaccion_id
+    ) gan ON gan.transaccion_id = t.id
+    WHERE t.created_at BETWEEN ? AND ?
+      AND t.estado = 'vigente'
+    GROUP BY c.id, c.nombre, c.telefono
+    ORDER BY total_comprado DESC
+  `).all(d, h);
+}
+
 module.exports = {
   ventasPorPeriodo, articulosMasVendidos, utilidadBruta, saldosClientes,
-  ventasPorDia, ventasPorHora, mejorDia, resumenRapido,
+  ventasPorDia, ventasPorHora, mejorDia, resumenRapido, ventasPorCliente,
 };

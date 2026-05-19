@@ -41,6 +41,33 @@ document.addEventListener('DOMContentLoaded', async () => {
 
   document.getElementById('btn-aplicar-rango').addEventListener('click', actualizarDashboard);
 
+  // ── Tabs de sección principal (Ventas / Clientes) ──────────
+  document.querySelectorAll('.informe-tab').forEach(btn =>
+    btn.addEventListener('click', () => cambiarSeccion(btn.dataset.section))
+  );
+
+  // ── Período para sección Clientes ──────────────────────────
+  document.querySelectorAll('[data-periodo-cli]').forEach(btn =>
+    btn.addEventListener('click', () => seleccionarPeriodoCli(btn.dataset.periodoCli))
+  );
+  document.getElementById('btn-aplicar-rango-cli').addEventListener('click', () => {
+    const desde = document.getElementById('cli-fecha-desde').value;
+    const hasta = document.getElementById('cli-fecha-hasta').value;
+    if (desde && hasta) cargarVentasPorCliente(desde, hasta);
+  });
+  document.getElementById('btn-exportar-cli').addEventListener('click', exportarVentasPorCliente);
+
+  // Inicializar fecha de clientes
+  document.getElementById('cli-fecha-hasta').value = fmtDateInput(new Date());
+  document.getElementById('cli-fecha-desde').value = fmtDateInput(
+    new Date(new Date().getFullYear(), new Date().getMonth(), 1)
+  );
+
+  // Sort de tabla clientes
+  document.querySelectorAll('th[data-sort]').forEach(th =>
+    th.addEventListener('click', () => sortClientes(th.dataset.sort))
+  );
+
   document.getElementById('btn-toggle-detalle').addEventListener('click', () => {
     detalleAbierto = !detalleAbierto;
     document.getElementById('detalle-tabla').style.display = detalleAbierto ? 'block' : 'none';
@@ -564,4 +591,160 @@ function esc(str) {
     .replace(/&/g, '&amp;')
     .replace(/</g, '&lt;')
     .replace(/>/g, '&gt;');
+}
+
+// ═══════════════════════════════════════════════════════════════
+// VENTAS POR CLIENTE (C.3)
+// ═══════════════════════════════════════════════════════════════
+
+let datosClientes   = [];
+let sortColCli      = 'total_comprado';
+let sortDirCli      = 'desc';
+let periodoCli      = 'mes';
+let desdeCli        = '';
+let hastaCli        = '';
+
+// ── Switcher de sección ────────────────────────────────────────
+function cambiarSeccion(section) {
+  document.querySelectorAll('.informe-tab').forEach(btn => {
+    const activo = btn.dataset.section === section;
+    btn.style.color        = activo ? 'var(--accent)' : 'var(--text-subtle)';
+    btn.style.borderBottom = activo ? '2px solid var(--accent)' : '2px solid transparent';
+    btn.classList.toggle('active', activo);
+  });
+  document.getElementById('section-ventas').style.display   = section === 'ventas'   ? 'flex' : 'none';
+  document.getElementById('section-clientes').style.display = section === 'clientes' ? 'flex' : 'none';
+
+  if (section === 'clientes' && !datosClientes.length) {
+    seleccionarPeriodoCli('mes');
+  }
+}
+
+// ── Período clientes ───────────────────────────────────────────
+function seleccionarPeriodoCli(periodo) {
+  periodoCli = periodo;
+  document.querySelectorAll('[data-periodo-cli]').forEach(btn =>
+    btn.classList.toggle('active', btn.dataset.periodoCli === periodo)
+  );
+  const rangoEl = document.getElementById('rango-personalizado-cli');
+  rangoEl.style.display = periodo === 'personalizado' ? 'flex' : 'none';
+
+  if (periodo === 'personalizado') return;
+
+  const { desde, hasta } = calcularFechas(periodo);
+  desdeCli = desde;
+  hastaCli = hasta;
+  cargarVentasPorCliente(desde, hasta);
+}
+
+// ── Carga de datos ─────────────────────────────────────────────
+async function cargarVentasPorCliente(desde, hasta) {
+  desdeCli = desde;
+  hastaCli = hasta;
+
+  const tbody = document.getElementById('tabla-ventas-clientes');
+  tbody.innerHTML = `<tr><td colspan="4" style="text-align:center;padding:24px;color:var(--text-subtle);">Cargando...</td></tr>`;
+
+  try {
+    datosClientes = await window.api.informes.ventasPorCliente(desde, hasta);
+    renderResumenCli();
+    renderTablaCli();
+  } catch (err) {
+    tbody.innerHTML = `<tr><td colspan="4" style="text-align:center;padding:24px;color:#f87171;">Error: ${esc(err.message)}</td></tr>`;
+  }
+}
+
+// ── Resumen rápido clientes ────────────────────────────────────
+function renderResumenCli() {
+  const resEl = document.getElementById('cli-resumen');
+  if (!resEl) return;
+
+  const totalClientes = datosClientes.length;
+  const totalComprado = datosClientes.reduce((s, c) => s + Number(c.total_comprado), 0);
+  const totalGanancia = datosClientes.reduce((s, c) => s + Number(c.ganancia_generada), 0);
+
+  resEl.innerHTML = [
+    { label: 'Clientes con compras', value: String(totalClientes), color: 'var(--text)' },
+    { label: 'Total vendido',        value: fmt(totalComprado),    color: '#60a5fa'      },
+    { label: 'Ganancia generada',    value: fmt(totalGanancia),    color: '#4ade80'      },
+  ].map(k => `
+    <div style="background:var(--surface);border:1px solid var(--border);border-radius:10px;padding:14px 18px;">
+      <div style="font-size:11px;font-weight:600;text-transform:uppercase;letter-spacing:.05em;color:var(--text-muted);">${k.label}</div>
+      <div style="font-size:19px;font-weight:700;font-family:monospace;margin-top:5px;color:${k.color};">${k.value}</div>
+    </div>`).join('');
+}
+
+// ── Render tabla con sort ──────────────────────────────────────
+function renderTablaCli() {
+  const tbody = document.getElementById('tabla-ventas-clientes');
+  if (!datosClientes.length) {
+    tbody.innerHTML = `<tr><td colspan="4" style="text-align:center;padding:32px;color:var(--text-subtle);">Sin clientes con compras en el período.</td></tr>`;
+    return;
+  }
+
+  // Actualizar iconos sort
+  document.querySelectorAll('.sort-icon').forEach(el => {
+    const col = el.dataset.col;
+    el.textContent = col === sortColCli ? (sortDirCli === 'asc' ? '↑' : '↓') : '↕';
+    el.style.color = col === sortColCli ? 'var(--accent)' : 'var(--text-muted)';
+  });
+
+  const sorted = [...datosClientes].sort((a, b) => {
+    const va = sortColCli === 'nombre' ? a.nombre : Number(a[sortColCli]);
+    const vb = sortColCli === 'nombre' ? b.nombre : Number(b[sortColCli]);
+    if (sortColCli === 'nombre') return sortDirCli === 'asc' ? va.localeCompare(vb) : vb.localeCompare(va);
+    return sortDirCli === 'asc' ? va - vb : vb - va;
+  });
+
+  const maxTotal = Math.max(...sorted.map(c => Number(c.total_comprado)), 1);
+
+  tbody.innerHTML = sorted.map((c, i) => {
+    const pct = ((Number(c.total_comprado) / maxTotal) * 100).toFixed(1);
+    return `
+      <tr style="${i % 2 === 0 ? '' : 'background:rgba(255,255,255,.02);'}">
+        <td style="padding:9px 14px;">
+          <div style="font-weight:500;font-size:13px;">${esc(c.nombre)}</div>
+          ${c.telefono ? `<div style="font-size:11px;color:var(--text-subtle);">${esc(c.telefono)}</div>` : ''}
+          <div style="margin-top:4px;height:2px;background:var(--border);border-radius:1px;width:120px;">
+            <div style="height:2px;background:var(--accent);border-radius:1px;width:${pct}%;"></div>
+          </div>
+        </td>
+        <td style="padding:9px 14px;text-align:right;font-size:13px;font-variant-numeric:tabular-nums;">
+          ${c.cantidad_transacciones}
+        </td>
+        <td style="padding:9px 14px;text-align:right;font-size:13px;font-weight:600;font-family:monospace;">
+          ${fmt(c.total_comprado)}
+        </td>
+        <td style="padding:9px 14px;text-align:right;font-size:13px;font-family:monospace;color:#4ade80;">
+          ${fmt(c.ganancia_generada)}
+        </td>
+      </tr>`;
+  }).join('');
+}
+
+function sortClientes(col) {
+  if (sortColCli === col) {
+    sortDirCli = sortDirCli === 'asc' ? 'desc' : 'asc';
+  } else {
+    sortColCli = col;
+    sortDirCli = col === 'nombre' ? 'asc' : 'desc';
+  }
+  renderTablaCli();
+}
+
+// ── Exportar CSV clientes ──────────────────────────────────────
+function exportarVentasPorCliente() {
+  if (!datosClientes.length) return;
+  const rango = `${desdeCli || 'na'}_${hastaCli || 'na'}`;
+  exportarCSV(
+    `ventas_por_cliente_${rango}.csv`,
+    ['Nombre', 'Teléfono', 'Transacciones', 'Total comprado', 'Ganancia generada'],
+    datosClientes.map(c => [
+      c.nombre,
+      c.telefono || '',
+      String(c.cantidad_transacciones),
+      fmtCSV(c.total_comprado),
+      fmtCSV(c.ganancia_generada),
+    ])
+  );
 }

@@ -434,6 +434,45 @@ function runMigrations(db) {
       db.exec('ALTER TABLE detalle_transaccion ADD COLUMN descripcion_libre TEXT');
     }
   }
+
+  // ── Feature: pagos_clientes (historial de abonos) ─────────────
+  db.exec(`
+    CREATE TABLE IF NOT EXISTS pagos_clientes (
+      id           INTEGER PRIMARY KEY AUTOINCREMENT,
+      cliente_id   INTEGER NOT NULL REFERENCES clientes(id),
+      monto        REAL    NOT NULL,
+      tipo         TEXT    NOT NULL DEFAULT 'abono' CHECK(tipo IN ('abono','dev_abono')),
+      forma_pago   TEXT    NOT NULL DEFAULT 'efectivo',
+      estado       TEXT    NOT NULL DEFAULT 'activo' CHECK(estado IN ('activo','cancelado')),
+      pago_orig_id INTEGER REFERENCES pagos_clientes(id),
+      notas        TEXT,
+      created_at   TEXT    NOT NULL DEFAULT (datetime('now'))
+    )
+  `);
+
+  // ── Feature: pedidos_compra (órdenes de compra a proveedores) ──
+  db.exec(`
+    CREATE TABLE IF NOT EXISTS pedidos_compra (
+      id               INTEGER PRIMARY KEY AUTOINCREMENT,
+      proveedor_id     INTEGER REFERENCES proveedores(id),
+      proveedor_nombre TEXT,
+      estado           TEXT NOT NULL DEFAULT 'borrador' CHECK(estado IN ('borrador','enviado','recibido','cancelado')),
+      notas            TEXT,
+      usuario_id       INTEGER REFERENCES usuarios(id),
+      fecha_creacion   TEXT NOT NULL DEFAULT (datetime('now')),
+      fecha_envio      TEXT,
+      fecha_recepcion  TEXT
+    );
+    CREATE TABLE IF NOT EXISTS pedidos_compra_items (
+      id                INTEGER PRIMARY KEY AUTOINCREMENT,
+      pedido_id         INTEGER NOT NULL REFERENCES pedidos_compra(id),
+      articulo_id       INTEGER REFERENCES articulos(id),
+      descripcion_libre TEXT,
+      cantidad_pedida   REAL NOT NULL DEFAULT 0,
+      cantidad_recibida REAL DEFAULT 0,
+      costo_unitario    REAL DEFAULT 0
+    )
+  `);
 }
 
 module.exports = { initDatabase, getDb };
