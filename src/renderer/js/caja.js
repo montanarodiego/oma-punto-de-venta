@@ -88,6 +88,9 @@ let ultimosClientes = [];
 let timerBusqueda   = null;
 let timerCliente    = null;
 
+// ── Promo state ─────────────────────────────────────────────────
+const promoCache = new Map(); // articuloId → promos[]
+
 // ── Anular modal state ──────────────────────────────────────────
 let anularTransaccionSeleccionada = null;
 let anularPasoActual              = 1;
@@ -387,7 +390,7 @@ async function buscarYAgregar(q) {
   ultimosBuscados  = resultados;
   if (resultados.length === 0) { renderResultados(resultados); return; }
   const exacto = resultados.find(a => a.codigo.toLowerCase() === q.toLowerCase());
-  agregarAlCarrito(exacto ?? resultados[0]);
+  await agregarAlCarrito(exacto ?? resultados[0]);
   elBusqueda.value       = '';
   ultimosBuscados        = [];
   elResultados.innerHTML = '<div class="empty-state">Escribí para buscar artículos</div>';
@@ -429,19 +432,45 @@ elResultados.addEventListener('click', e => {
 });
 elResultados.addEventListener('mousedown', e => { e.preventDefault(); });
 
+// ── Promo helpers ───────────────────────────────────────────────
+function evaluarPromo(item) {
+  if (item.esLibre || !item.promos || item.promos.length === 0) {
+    item.promoAplicada = null;
+    return;
+  }
+  const qty     = item.cantidad;
+  const activas = item.promos.filter(p => p.activa);
+  item.promoAplicada = activas.find(p =>
+    qty >= p.cantidad_desde &&
+    (p.cantidad_hasta == null || qty <= p.cantidad_hasta)
+  ) ?? null;
+}
+
 // ── Carrito ─────────────────────────────────────────────────────
-function agregarAlCarrito(articulo) {
-  const carrito  = ticketActivo().carrito;
+async function agregarAlCarrito(articulo) {
+  const carrito   = ticketActivo().carrito;
   const existente = carrito.find(i => i.id === articulo.id);
+
+  let promos = promoCache.get(articulo.id);
+  if (promos === undefined) {
+    promos = await window.api.promociones.listarPorArticulo(articulo.id);
+    promoCache.set(articulo.id, promos);
+  }
+
   if (existente) {
     existente.cantidad++;
+    evaluarPromo(existente);
   } else {
-    carrito.push({
+    const item = {
       ...articulo,
-      cantidad:            1,
+      cantidad:             1,
       descuento_porcentaje: 0,
       usarMayoreo:          false,
-    });
+      promos,
+      promoAplicada:        null,
+    };
+    evaluarPromo(item);
+    carrito.push(item);
   }
   renderCarrito();
   actualizarTotales();
@@ -451,6 +480,9 @@ function agregarAlCarrito(articulo) {
 function getPrecioBase(item) {
   if (item.usarMayoreo && parseFloat(item.precio_mayoreo) > 0) {
     return parseFloat(item.precio_mayoreo);
+  }
+  if (item.promoAplicada) {
+    return parseFloat(item.promoAplicada.precio_promocional);
   }
   return parseFloat(item.precio_unitario);
 }
@@ -481,6 +513,7 @@ function renderCarrito() {
     const precioDisplay   = precioEfectivo * factorDisplay;
     const tieneMayoreo    = parseFloat(item.precio_mayoreo) > 0;
     const tieneDescuento  = (item.descuento_porcentaje || 0) > 0;
+    const tienePromo      = !!item.promoAplicada;
     const rowClass        = item.usarMayoreo ? 'carrito-item-mayoreo' : '';
 
     return `
@@ -492,6 +525,7 @@ function renderCarrito() {
             ${fmt(precioDisplay)} / ${esc(unidad)}
             ${tieneDescuento ? `<span class="item-desc-badge">${fmtNum(item.descuento_porcentaje)}% desc</span>` : ''}
             ${item.usarMayoreo ? `<span class="item-mayoreo-badge">mayoreo</span>` : ''}
+            ${tienePromo && !item.usarMayoreo ? `<span class="item-promo-badge">PROMO</span>` : ''}
           </div>
         </div>
         <div style="display:flex;align-items:center;gap:3px;flex-shrink:0;">
@@ -523,6 +557,10 @@ function renderCarrito() {
           style="color:var(--text-subtle);font-size:18px;line-height:1;background:none;border:none;cursor:pointer;padding:0 2px;flex-shrink:0;transition:color .12s;"
           onmouseenter="this.style.color='#ef4444'" onmouseleave="this.style.color='var(--text-subtle)'">×</button>
       </div>
+      ${tienePromo && !item.usarMayoreo ? `
+        <div style="font-size:11px;color:#4ade80;padding-left:2px;margin-top:2px;">
+          ${esc(item.promoAplicada.nombre || 'Promo')} — precio normal: <span style="text-decoration:line-through;">${fmt(parseFloat(item.precio_unitario) * factorDisplay)}</span> → ${fmt(precioBase * factorDisplay)}
+        </div>` : ''}
       ${tieneDescuento ? `
         <div style="font-size:11px;color:#ca8a04;padding-left:2px;margin-top:2px;">
           Precio original: ${fmt(precioBase * factorDisplay)} → ${fmt(precioEfectivo * factorDisplay)} (−${fmtNum(item.descuento_porcentaje)}%)
@@ -540,12 +578,17 @@ elCarrito.addEventListener('click', e => {
 
   if (action === 'inc') {
     carrito[idx].cantidad++;
+    evaluarPromo(carrito[idx]);
     renderCarrito();
     actualizarTotales();
   } else if (action === 'dec') {
     const next = carrito[idx].cantidad - 1;
-    if (next <= 0) carrito.splice(idx, 1);
-    else carrito[idx].cantidad = next;
+    if (next <= 0) {
+      carrito.splice(idx, 1);
+    } else {
+      carrito[idx].cantidad = next;
+      evaluarPromo(carrito[idx]);
+    }
     renderCarrito();
     actualizarTotales();
   } else if (action === 'del') {
@@ -573,6 +616,7 @@ elCarrito.addEventListener('change', e => {
     carrito[idx].cantidad = continua
       ? Math.round(val * 1000) / 1000
       : Math.max(1, Math.round(val));
+    evaluarPromo(carrito[idx]);
   }
   renderCarrito();
   actualizarTotales();

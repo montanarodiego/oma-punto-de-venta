@@ -14,6 +14,7 @@ const Departamentos  = require('./models/departamentos');
 const Kits           = require('./models/kits');
 const Inventario     = require('./models/inventario');
 const PedidosCompra  = require('./models/pedidos');
+const Promociones    = require('./models/promociones');
 const Backup         = require('./backup');
 const { getDb }      = require('./database');
 
@@ -106,6 +107,12 @@ function registerHandlers() {
   ipcMain.handle('pedidos:getById',      (_e, id)                          => Proveedores.getPedidoById(id));
   ipcMain.handle('pedidos:crear',        (_e, prvId, prvNombre, items)     => Proveedores.crearPedido(prvId, prvNombre, items));
   ipcMain.handle('pedidos:marcarRecibido', (_e, pedidoId, itemsRecibidos)  => Proveedores.marcarRecibido(pedidoId, itemsRecibidos));
+
+  // ── Promociones por volumen ───────────────────────────────────
+  ipcMain.handle('promociones:listarPorArticulo', (_e, articuloId) => Promociones.listarPorArticulo(articuloId));
+  ipcMain.handle('promociones:listarActivas',     (_e, ids)        => Promociones.listarActivasPorArticulos(ids));
+  ipcMain.handle('promociones:crear',             (_e, data)       => Promociones.crear(data));
+  ipcMain.handle('promociones:eliminar',          (_e, id)         => Promociones.eliminar(id));
 
   // ── Pedidos de compra (órdenes) ───────────────────────────────
   ipcMain.handle('pedidosCompra:listar',        ()                   => PedidosCompra.listar());

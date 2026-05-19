@@ -330,6 +330,44 @@
             </div>
           </div>
 
+          <!-- Sección: Promociones por volumen -->
+          <div id="seccion-promos" style="grid-column:1/-1;border-top:1px solid var(--border);padding-top:12px;margin-top:2px;">
+            <button type="button" id="btn-toggle-promos"
+              style="display:flex;align-items:center;gap:6px;width:100%;font-size:11px;font-weight:700;color:var(--text-muted);text-transform:uppercase;letter-spacing:.05em;background:none;border:none;cursor:pointer;padding:0 0 2px;text-align:left;">
+              <svg id="promos-chevron" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" style="transition:transform .15s;flex-shrink:0;"><polyline points="9 18 15 12 9 6"></polyline></svg>
+              Promociones por volumen
+            </button>
+            <div id="promos-body" style="display:none;margin-top:10px;">
+              <!-- artículo nuevo: no tiene ID aún -->
+              <div id="promos-sin-id" style="display:none;font-size:12px;color:var(--text-subtle);padding:6px 0;">
+                Guardá el artículo primero para agregar promociones.
+              </div>
+              <!-- lista de reglas existentes -->
+              <div id="promos-lista" style="margin-bottom:10px;"></div>
+              <!-- formulario agregar -->
+              <div id="promos-form-wrap" style="display:grid;grid-template-columns:1fr 68px 68px 88px auto;gap:6px;align-items:end;">
+                <div>
+                  <label style="font-size:10px;color:var(--text-subtle);display:block;margin-bottom:3px;">Nombre</label>
+                  <input id="promo-nombre" type="text" class="inp" style="font-size:12px;" placeholder="Ej: Pack 6 unidades" autocomplete="off" />
+                </div>
+                <div>
+                  <label style="font-size:10px;color:var(--text-subtle);display:block;margin-bottom:3px;">Desde</label>
+                  <input id="promo-desde" type="number" class="inp" style="font-size:12px;" placeholder="6" min="1" step="1" />
+                </div>
+                <div>
+                  <label style="font-size:10px;color:var(--text-subtle);display:block;margin-bottom:3px;">Hasta (vacío=∞)</label>
+                  <input id="promo-hasta" type="number" class="inp" style="font-size:12px;" placeholder="∞" min="1" step="1" />
+                </div>
+                <div>
+                  <label style="font-size:10px;color:var(--text-subtle);display:block;margin-bottom:3px;">Precio unit.</label>
+                  <input id="promo-precio" type="number" class="inp" style="font-size:12px;" placeholder="0.00" min="0.01" step="0.01" />
+                </div>
+                <button type="button" id="btn-agregar-promo" class="btn btn-ghost" style="font-size:12px;white-space:nowrap;padding:6px 10px;">+ Agregar</button>
+              </div>
+              <div id="error-promo" class="hidden" style="font-size:11px;color:#fca5a5;margin-top:5px;"></div>
+            </div>
+          </div>
+
         </form>
       </div>
       <div class="modal-footer">

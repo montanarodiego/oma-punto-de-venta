@@ -13,6 +13,8 @@ let kitComponentes  = [];    // { componente_id, nombre, cantidad }
 let kitCompSeleccionado = null; // { id, nombre }
 let ajustandoId     = null;
 let ajustandoStock  = 0;
+let promosActuales  = [];    // reglas de promo del artículo que se está editando
+let promosBodyOpen  = false;
 
 const MODOS_IVA_PRODUCTO = new Set(['responsable_inscripto', 'farmacia']);
 
@@ -143,6 +145,10 @@ function bindEventos() {
   document.getElementById('modal-ajuste').addEventListener('click', e => {
     if (e.target === document.getElementById('modal-ajuste')) cerrarModalAjuste();
   });
+
+  // Promociones
+  document.getElementById('btn-toggle-promos').addEventListener('click', togglePromosBody);
+  document.getElementById('btn-agregar-promo').addEventListener('click', agregarPromo);
 
   // Delegación tabla artículos
   document.getElementById('tabla-articulos').addEventListener('click', e => {
@@ -399,6 +405,7 @@ function bulkEliminar() {
 function abrirModalNuevo() {
   editandoId    = null;
   kitComponentes = [];
+  promosActuales = [];
   document.getElementById('modal-titulo').textContent = 'Nuevo artículo';
   const form = document.getElementById('form-articulo');
   form.reset();
@@ -414,6 +421,7 @@ function abrirModalNuevo() {
   document.getElementById('campo-tasa-iva').style.display = MODOS_IVA_PRODUCTO.has(modoNegocio) ? '' : 'none';
   poblarSelectDepartamento();
   renderKitComponentes();
+  resetPromosUI(false);
   ocultarError();
   document.getElementById('modal').classList.remove('hidden');
   form.codigo.focus();
@@ -432,6 +440,7 @@ async function abrirModalEdicion(id) {
 
   editandoId     = id;
   kitComponentes = [];
+  promosActuales = [];
   document.getElementById('modal-titulo').textContent = 'Editar artículo';
   ocultarError();
 
@@ -468,6 +477,9 @@ async function abrirModalEdicion(id) {
     document.getElementById('seccion-kit').style.display = 'none';
   }
 
+  promosActuales = await window.api.promociones.listarPorArticulo(id);
+  resetPromosUI(true);
+
   document.getElementById('modal').classList.remove('hidden');
   form.nombre.focus();
 }
@@ -479,7 +491,9 @@ function cerrarModal() {
   editandoId     = null;
   kitComponentes = [];
   kitCompSeleccionado = null;
+  promosActuales = [];
   cerrarKitDropdown();
+  resetPromosUI(false);
 }
 
 async function guardar(e) {
@@ -1126,4 +1140,122 @@ function toast(msg, tipo = 'success') {
   el.textContent = msg;
   document.getElementById('toast-wrap').appendChild(el);
   setTimeout(() => el.remove(), 3200);
+}
+
+// ── Promociones por volumen ───────────────────────────────────
+
+function togglePromosBody() {
+  promosBodyOpen = !promosBodyOpen;
+  document.getElementById('promos-body').style.display    = promosBodyOpen ? '' : 'none';
+  document.getElementById('promos-chevron').style.transform = promosBodyOpen ? 'rotate(90deg)' : '';
+}
+
+function resetPromosUI(tieneId) {
+  promosBodyOpen = false;
+  document.getElementById('promos-body').style.display      = 'none';
+  document.getElementById('promos-chevron').style.transform = '';
+  document.getElementById('promos-sin-id').style.display    = tieneId ? 'none' : '';
+  document.getElementById('promos-form-wrap').style.display = tieneId ? '' : 'none';
+  document.getElementById('error-promo').classList.add('hidden');
+  document.getElementById('promo-nombre').value = '';
+  document.getElementById('promo-desde').value  = '';
+  document.getElementById('promo-hasta').value  = '';
+  document.getElementById('promo-precio').value = '';
+  renderPromos();
+}
+
+function renderPromos() {
+  const lista = document.getElementById('promos-lista');
+  if (promosActuales.length === 0) {
+    lista.innerHTML = '<div style="font-size:12px;color:var(--text-subtle);padding:4px 0 8px;">Sin promociones configuradas.</div>';
+    return;
+  }
+  lista.innerHTML = `
+    <table style="width:100%;font-size:12px;border-collapse:collapse;margin-bottom:6px;">
+      <thead>
+        <tr style="color:var(--text-subtle);">
+          <th style="text-align:left;padding:3px 6px;font-weight:500;">Nombre</th>
+          <th style="text-align:center;padding:3px 6px;font-weight:500;">Desde</th>
+          <th style="text-align:center;padding:3px 6px;font-weight:500;">Hasta</th>
+          <th style="text-align:right;padding:3px 6px;font-weight:500;">Precio unit.</th>
+          <th style="padding:3px 6px;"></th>
+        </tr>
+      </thead>
+      <tbody>
+        ${promosActuales.map(p => `
+          <tr style="border-top:1px solid var(--border);">
+            <td style="padding:5px 6px;">${esc(p.nombre || '—')}</td>
+            <td style="padding:5px 6px;text-align:center;">${p.cantidad_desde}</td>
+            <td style="padding:5px 6px;text-align:center;color:var(--text-subtle);">${p.cantidad_hasta ?? '∞'}</td>
+            <td style="padding:5px 6px;text-align:right;font-weight:600;color:#4ade80;">${fmt(p.precio_promocional)}</td>
+            <td style="padding:5px 6px;text-align:right;">
+              <button type="button" data-promo-id="${p.id}"
+                style="color:var(--danger);font-size:15px;line-height:1;background:none;border:none;cursor:pointer;padding:0 3px;"
+                title="Eliminar promoción">×</button>
+            </td>
+          </tr>`).join('')}
+      </tbody>
+    </table>`;
+
+  lista.querySelectorAll('[data-promo-id]').forEach(btn => {
+    btn.addEventListener('click', () => eliminarPromo(parseInt(btn.dataset.promoId)));
+  });
+}
+
+async function agregarPromo() {
+  const errEl   = document.getElementById('error-promo');
+  errEl.classList.add('hidden');
+
+  const nombre  = document.getElementById('promo-nombre').value.trim();
+  const desde   = parseFloat(document.getElementById('promo-desde').value);
+  const hastaRaw = document.getElementById('promo-hasta').value.trim();
+  const hasta   = hastaRaw === '' ? null : parseFloat(hastaRaw);
+  const precio  = parseFloat(document.getElementById('promo-precio').value);
+
+  if (isNaN(desde) || desde < 1) {
+    errEl.textContent = 'La cantidad "Desde" debe ser mayor o igual a 1.';
+    errEl.classList.remove('hidden');
+    return;
+  }
+  if (hasta !== null && hasta < desde) {
+    errEl.textContent = 'La cantidad "Hasta" debe ser mayor o igual a "Desde".';
+    errEl.classList.remove('hidden');
+    return;
+  }
+  if (isNaN(precio) || precio <= 0) {
+    errEl.textContent = 'El precio promocional debe ser mayor a 0.';
+    errEl.classList.remove('hidden');
+    return;
+  }
+  if (!editandoId) return;
+
+  try {
+    const nueva = await window.api.promociones.crear({
+      articulo_id:        editandoId,
+      nombre,
+      cantidad_desde:     desde,
+      cantidad_hasta:     hasta,
+      precio_promocional: precio,
+    });
+    promosActuales.push(nueva);
+    promosActuales.sort((a, b) => a.cantidad_desde - b.cantidad_desde);
+    document.getElementById('promo-nombre').value = '';
+    document.getElementById('promo-desde').value  = '';
+    document.getElementById('promo-hasta').value  = '';
+    document.getElementById('promo-precio').value = '';
+    renderPromos();
+  } catch (err) {
+    errEl.textContent = 'Error: ' + (err.message || err);
+    errEl.classList.remove('hidden');
+  }
+}
+
+async function eliminarPromo(id) {
+  try {
+    await window.api.promociones.eliminar(id);
+    promosActuales = promosActuales.filter(p => p.id !== id);
+    renderPromos();
+  } catch (err) {
+    toast('Error al eliminar: ' + (err.message || err), 'error');
+  }
 }

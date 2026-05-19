@@ -105,6 +105,14 @@ contextBridge.exposeInMainWorld('api', {
     marcarRecibido: (pedidoId, itemsRecibidos)    => ipcRenderer.invoke('pedidos:marcarRecibido', pedidoId, itemsRecibidos),
   },
 
+  // Promociones por volumen
+  promociones: {
+    listarPorArticulo: (articuloId) => ipcRenderer.invoke('promociones:listarPorArticulo', articuloId),
+    listarActivas:     (ids)        => ipcRenderer.invoke('promociones:listarActivas', ids),
+    crear:             (data)       => ipcRenderer.invoke('promociones:crear', data),
+    eliminar:          (id)         => ipcRenderer.invoke('promociones:eliminar', id),
+  },
+
   // Pedidos de compra (órdenes)
   pedidosCompra: {
     listar:        ()           => ipcRenderer.invoke('pedidosCompra:listar'),

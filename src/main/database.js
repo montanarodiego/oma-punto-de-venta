@@ -450,6 +450,19 @@ function runMigrations(db) {
     )
   `);
 
+  // ── Feature: promociones por volumen ─────────────────────────
+  db.exec(`
+    CREATE TABLE IF NOT EXISTS promociones (
+      id                 INTEGER PRIMARY KEY AUTOINCREMENT,
+      articulo_id        INTEGER NOT NULL REFERENCES articulos(id) ON DELETE CASCADE,
+      nombre             TEXT    NOT NULL DEFAULT '',
+      cantidad_desde     REAL    NOT NULL DEFAULT 1,
+      cantidad_hasta     REAL,
+      precio_promocional REAL    NOT NULL,
+      activa             INTEGER NOT NULL DEFAULT 1
+    )
+  `);
+
   // ── Feature: pedidos_compra (órdenes de compra a proveedores) ──
   db.exec(`
     CREATE TABLE IF NOT EXISTS pedidos_compra (
