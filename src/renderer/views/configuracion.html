@@ -297,6 +297,20 @@
           </button>
 
         </form>
+
+        <!-- Gestión de usuarios — solo admin -->
+        <div class="card" id="card-usuarios" style="display:none;">
+          <div class="card-header" style="display:flex;align-items:center;justify-content:space-between;">
+            <span>Usuarios del sistema</span>
+            <button type="button" id="btn-nuevo-usuario" class="btn btn-primary" style="padding:5px 12px;font-size:12px;">
+              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+              Nuevo usuario
+            </button>
+          </div>
+          <div class="card-body" style="padding:0;">
+            <div id="lista-usuarios" style="display:flex;flex-direction:column;"></div>
+          </div>
+        </div>
       </div>
     </main>
   </div>
@@ -317,7 +331,41 @@
     </div>
   </div>
 
+  <!-- ── Modal: Usuario ───────────────────────────────────────── -->
+  <div id="modal-usuario" style="display:none;position:fixed;inset:0;z-index:9999;background:rgba(15,23,42,.85);display:none;align-items:center;justify-content:center;padding:20px;">
+    <div style="width:100%;max-width:400px;background:#1e293b;border:1px solid #334155;border-radius:14px;padding:28px;display:flex;flex-direction:column;gap:18px;">
+      <div style="font-size:16px;font-weight:700;color:var(--text);" id="modal-usuario-titulo">Nuevo usuario</div>
+      <form id="form-usuario" style="display:flex;flex-direction:column;gap:14px;" novalidate>
+        <div class="field">
+          <label class="field-label">Nombre completo</label>
+          <input id="u-nombre" type="text" class="inp" placeholder="Ej: María García" autocomplete="off" />
+        </div>
+        <div class="field">
+          <label class="field-label">Usuario (para login)</label>
+          <input id="u-usuario" type="text" class="inp" placeholder="Ej: maria" autocomplete="off" />
+        </div>
+        <div class="field">
+          <label class="field-label">Contraseña</label>
+          <input id="u-password" type="password" class="inp" placeholder="Dejar vacío para no cambiar" autocomplete="new-password" />
+        </div>
+        <div class="field">
+          <label class="field-label">Rol</label>
+          <select id="u-rol" class="inp">
+            <option value="cajero">Cajero</option>
+            <option value="admin">Administrador</option>
+          </select>
+        </div>
+        <div id="u-error" class="hidden" style="font-size:12px;color:#fca5a5;padding:8px 12px;background:rgba(239,68,68,.1);border-radius:var(--r-in);border:1px solid rgba(239,68,68,.25);"></div>
+        <div style="display:flex;gap:10px;justify-content:flex-end;margin-top:4px;">
+          <button type="button" id="btn-cancelar-usuario" class="btn btn-ghost">Cancelar</button>
+          <button type="submit" id="btn-guardar-usuario" class="btn btn-primary">Guardar</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
   <div class="toast-wrap" id="toast-wrap"></div>
+  <script src="../js/auth-guard.js"></script>
   <script src="../js/hotkeys.js"></script>
   <script src="../js/configuracion.js"></script>
   <script src="../js/nav-badge.js"></script>

@@ -224,21 +224,11 @@ app.whenReady().then(async () => {
     );
   });
 
-  const token = verificarTokenLocal();
-  if (token.activa) {
-    negocioIdActivo = token.negocioId;
-    await reautenticarDesdeToken(auth, token);  // restaura auth.currentUser antes del sync
-    createWindow();
-    iniciarSyncInterval();
-  } else {
-    createLoginWindow();
-  }
+  // auth-guard.js en cada vista redirige a login.html si no hay sesión local
+  createWindow();
 
   app.on('activate', () => {
-    if (BrowserWindow.getAllWindows().length === 0) {
-      if (negocioIdActivo) createWindow();
-      else createLoginWindow();
-    }
+    if (BrowserWindow.getAllWindows().length === 0) createWindow();
   });
 });
 

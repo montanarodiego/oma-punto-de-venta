@@ -1,6 +1,15 @@
 const { contextBridge, ipcRenderer } = require('electron');
 
 contextBridge.exposeInMainWorld('api', {
+  // Usuarios
+  usuarios: {
+    login:        (usuario, password) => ipcRenderer.invoke('usuarios:login', usuario, password),
+    listar:       ()                  => ipcRenderer.invoke('usuarios:listar'),
+    crear:        (data)              => ipcRenderer.invoke('usuarios:crear', data),
+    actualizar:   (id, data)          => ipcRenderer.invoke('usuarios:actualizar', id, data),
+    toggleActivo: (id)                => ipcRenderer.invoke('usuarios:toggleActivo', id),
+  },
+
   // Departamentos
   departamentos: {
     getAll:  ()           => ipcRenderer.invoke('departamentos:getAll'),

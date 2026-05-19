@@ -1,5 +1,6 @@
 const { ipcMain, shell } = require('electron');
 const path           = require('path');
+const Usuarios       = require('./models/usuarios');
 const Articulos      = require('./models/articulos');
 const Transacciones  = require('./models/transacciones');
 const Clientes       = require('./models/clientes');
@@ -16,6 +17,20 @@ const Backup         = require('./backup');
 const { getDb }      = require('./database');
 
 function registerHandlers() {
+  // ── Usuarios ───────────────────────────────────────────────
+  ipcMain.handle('usuarios:login', (_e, usuario, password) => {
+    try {
+      const user = Usuarios.login(usuario, password);
+      return { ok: true, user };
+    } catch (err) {
+      return { ok: false, error: err.message };
+    }
+  });
+  ipcMain.handle('usuarios:listar',       ()              => Usuarios.listar());
+  ipcMain.handle('usuarios:crear',        (_e, data)      => Usuarios.crear(data));
+  ipcMain.handle('usuarios:actualizar',   (_e, id, data)  => Usuarios.actualizar(id, data));
+  ipcMain.handle('usuarios:toggleActivo', (_e, id)        => Usuarios.toggleActivo(id));
+
   // ── Departamentos ──────────────────────────────────────────
   ipcMain.handle('departamentos:getAll',   ()               => Departamentos.getAll());
   ipcMain.handle('departamentos:create',   (_e, data)       => Departamentos.create(data));

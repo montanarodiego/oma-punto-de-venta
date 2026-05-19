@@ -370,6 +370,28 @@ function runMigrations(db) {
     )
   `);
 
+  // ── Feature: usuarios (autenticación local) ──────────────────
+  {
+    db.exec(`
+      CREATE TABLE IF NOT EXISTS usuarios (
+        id            INTEGER PRIMARY KEY AUTOINCREMENT,
+        nombre        TEXT NOT NULL,
+        usuario       TEXT NOT NULL UNIQUE,
+        password_hash TEXT NOT NULL,
+        rol           TEXT NOT NULL DEFAULT 'cajero' CHECK(rol IN ('admin','cajero')),
+        activo        INTEGER NOT NULL DEFAULT 1
+      )
+    `);
+    const count = db.prepare('SELECT COUNT(*) as n FROM usuarios').get().n;
+    if (count === 0) {
+      const bcrypt = require('bcryptjs');
+      const hash   = bcrypt.hashSync('1234', 10);
+      db.prepare(
+        "INSERT INTO usuarios (nombre, usuario, password_hash, rol) VALUES ('Administrador', 'admin', ?, 'admin')"
+      ).run(hash);
+    }
+  }
+
   // ── Feature: articulo_id nullable + descripcion_libre en detalle_transaccion
   // SQLite no soporta ALTER COLUMN, así que si articulo_id es NOT NULL hay que recrear la tabla
   {

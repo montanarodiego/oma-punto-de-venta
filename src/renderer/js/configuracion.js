@@ -337,3 +337,112 @@ function esc(str) {
     .replace(/>/g, '&gt;')
     .replace(/"/g, '&quot;');
 }
+
+// ── Gestión de usuarios (solo admin) ──────────────────────────
+let editandoUsuarioId = null;
+
+document.addEventListener('DOMContentLoaded', () => {
+  if (window.SESSION && window.SESSION.rol === 'admin') {
+    document.getElementById('card-usuarios').style.display = '';
+    cargarUsuarios();
+  }
+  document.getElementById('btn-nuevo-usuario').addEventListener('click', abrirModalUsuario);
+  document.getElementById('btn-cancelar-usuario').addEventListener('click', cerrarModalUsuario);
+  document.getElementById('form-usuario').addEventListener('submit', guardarUsuario);
+});
+
+async function cargarUsuarios() {
+  const usuarios = await window.api.usuarios.listar();
+  const lista    = document.getElementById('lista-usuarios');
+
+  lista.innerHTML = usuarios.map(u => {
+    const rolLabel  = u.rol === 'admin' ? 'Administrador' : 'Cajero';
+    const activoBg  = u.activo ? 'rgba(74,222,128,.1)' : 'rgba(100,116,139,.08)';
+    const activoCol = u.activo ? '#4ade80' : 'var(--text-subtle)';
+    const esSelf    = window.SESSION && window.SESSION.id === u.id;
+    return `
+    <div style="display:flex;align-items:center;gap:10px;padding:10px 16px;border-bottom:1px solid var(--border);">
+      <div style="width:34px;height:34px;border-radius:50%;background:var(--accent);display:flex;align-items:center;justify-content:center;font-size:14px;font-weight:700;color:#fff;flex-shrink:0;">
+        ${esc(u.nombre[0].toUpperCase())}
+      </div>
+      <div style="flex:1;min-width:0;">
+        <div style="font-size:13px;font-weight:600;color:var(--text);">${esc(u.nombre)} ${esSelf ? '<span style="font-size:10px;color:var(--text-subtle);">(vos)</span>' : ''}</div>
+        <div style="font-size:11px;color:var(--text-muted);">@${esc(u.usuario)} · ${esc(rolLabel)}</div>
+      </div>
+      <span style="font-size:10px;padding:2px 8px;border-radius:20px;font-weight:600;background:${activoBg};color:${activoCol};">
+        ${u.activo ? 'Activo' : 'Inactivo'}
+      </span>
+      <button class="btn btn-ghost" style="padding:4px 8px;font-size:11px;" onclick="editarUsuario(${u.id})">Editar</button>
+      ${!esSelf ? `<button class="btn btn-ghost" style="padding:4px 8px;font-size:11px;color:${u.activo ? 'var(--danger)' : 'var(--success)'};" onclick="toggleUsuario(${u.id})">${u.activo ? 'Desactivar' : 'Activar'}</button>` : ''}
+    </div>`;
+  }).join('');
+}
+
+function abrirModalUsuario(id, datos) {
+  editandoUsuarioId = id || null;
+  document.getElementById('modal-usuario-titulo').textContent = id ? 'Editar usuario' : 'Nuevo usuario';
+  document.getElementById('u-nombre').value   = datos?.nombre   || '';
+  document.getElementById('u-usuario').value  = datos?.usuario  || '';
+  document.getElementById('u-password').value = '';
+  document.getElementById('u-password').placeholder = id ? 'Dejar vacío para no cambiar' : '••••••••';
+  document.getElementById('u-rol').value      = datos?.rol || 'cajero';
+  document.getElementById('u-error').classList.add('hidden');
+  document.getElementById('modal-usuario').style.display = 'flex';
+  setTimeout(() => document.getElementById('u-nombre').focus(), 50);
+}
+
+function cerrarModalUsuario() {
+  document.getElementById('modal-usuario').style.display = 'none';
+  editandoUsuarioId = null;
+}
+
+async function editarUsuario(id) {
+  const usuarios = await window.api.usuarios.listar();
+  const u = usuarios.find(x => x.id === id);
+  if (u) abrirModalUsuario(id, u);
+}
+
+async function toggleUsuario(id) {
+  await window.api.usuarios.toggleActivo(id);
+  cargarUsuarios();
+}
+
+async function guardarUsuario(e) {
+  e.preventDefault();
+  const errEl  = document.getElementById('u-error');
+  errEl.classList.add('hidden');
+
+  const nombre   = document.getElementById('u-nombre').value.trim();
+  const usuario  = document.getElementById('u-usuario').value.trim();
+  const password = document.getElementById('u-password').value;
+  const rol      = document.getElementById('u-rol').value;
+
+  if (!nombre || !usuario) {
+    errEl.textContent = 'Nombre y usuario son obligatorios.';
+    errEl.classList.remove('hidden');
+    return;
+  }
+  if (!editandoUsuarioId && !password) {
+    errEl.textContent = 'La contraseña es obligatoria para nuevos usuarios.';
+    errEl.classList.remove('hidden');
+    return;
+  }
+
+  const btn = document.getElementById('btn-guardar-usuario');
+  btn.disabled = true;
+
+  try {
+    if (editandoUsuarioId) {
+      await window.api.usuarios.actualizar(editandoUsuarioId, { nombre, usuario, password: password || undefined, rol });
+    } else {
+      await window.api.usuarios.crear({ nombre, usuario, password, rol });
+    }
+    cerrarModalUsuario();
+    cargarUsuarios();
+  } catch (err) {
+    errEl.textContent = err.message || 'Error al guardar usuario.';
+    errEl.classList.remove('hidden');
+  } finally {
+    btn.disabled = false;
+  }
+}
