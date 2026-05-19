@@ -51,9 +51,6 @@ document.getElementById('btn-cancelar-modal').addEventListener('click', cerrarMo
 document.getElementById('btn-cancelar-confirm').addEventListener('click', cerrarConfirm);
 form.addEventListener('submit', guardar);
 
-modal.addEventListener('click', e => { if (e.target === modal) cerrarModal(); });
-modalConfirm.addEventListener('click', e => { if (e.target === modalConfirm) cerrarConfirm(); });
-modalRecibido.addEventListener('click', e => { if (e.target === modalRecibido) cerrarRecibido(); });
 document.getElementById('btn-cerrar-recibido').addEventListener('click', cerrarRecibido);
 document.getElementById('btn-cancelar-recibido').addEventListener('click', cerrarRecibido);
 
@@ -911,10 +908,6 @@ document.getElementById('historial-recepciones').addEventListener('click', e => 
     document.getElementById('modal-recv-detalle').classList.add('hidden');
   });
 });
-document.getElementById('modal-recv-detalle').addEventListener('click', e => {
-  if (e.target === document.getElementById('modal-recv-detalle'))
-    document.getElementById('modal-recv-detalle').classList.add('hidden');
-});
 
 // ═══════════════════════════════════════════════════════════════
 // ÓRDENES DE COMPRA
@@ -1069,9 +1062,6 @@ function cerrarModalOrden() {
 
 document.getElementById('btn-cerrar-modal-orden').addEventListener('click', cerrarModalOrden);
 document.getElementById('btn-cancelar-modal-orden').addEventListener('click', cerrarModalOrden);
-document.getElementById('modal-orden').addEventListener('click', e => {
-  if (e.target === document.getElementById('modal-orden')) cerrarModalOrden();
-});
 
 // ── Ítems del modal orden ──────────────────────────────────────
 function renderOrdenItems() {
@@ -1333,9 +1323,6 @@ function cerrarRecibirOrden() {
 document.getElementById('btn-cerrar-recibir-orden').addEventListener('click', cerrarRecibirOrden);
 document.getElementById('btn-cancelar-recibir-orden').addEventListener('click', cerrarRecibirOrden);
 document.getElementById('btn-confirmar-recibir-orden').addEventListener('click', confirmarRecibirOrden);
-document.getElementById('modal-recibir-orden').addEventListener('click', e => {
-  if (e.target === document.getElementById('modal-recibir-orden')) cerrarRecibirOrden();
-});
 
 // ── Modal cancelar orden ───────────────────────────────────────
 function abrirCancelarOrden(id) {
@@ -1351,9 +1338,6 @@ function cerrarCancelarOrden() {
 
 document.getElementById('btn-cerrar-cancelar-orden').addEventListener('click', cerrarCancelarOrden);
 document.getElementById('btn-no-cancelar-orden').addEventListener('click', cerrarCancelarOrden);
-document.getElementById('modal-cancelar-orden').addEventListener('click', e => {
-  if (e.target === document.getElementById('modal-cancelar-orden')) cerrarCancelarOrden();
-});
 document.getElementById('btn-si-cancelar-orden').addEventListener('click', async () => {
   if (!ordenCancelarId) return;
   const id = ordenCancelarId;

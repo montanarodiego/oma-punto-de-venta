@@ -774,10 +774,6 @@ document.getElementById('btn-quitar-descuento-item').addEventListener('click', (
   });
 });
 
-document.getElementById('modal-descuento').addEventListener('click', e => {
-  if (e.target === document.getElementById('modal-descuento'))
-    document.getElementById('modal-descuento').classList.add('hidden');
-});
 
 // ── Descuento global ────────────────────────────────────────────
 document.getElementById('btn-toggle-desc').addEventListener('click', () => {
@@ -1144,9 +1140,6 @@ document.getElementById('btn-producto-libre').addEventListener('click', () => {
 ['btn-cerrar-libre', 'btn-cancelar-libre'].forEach(id => {
   document.getElementById(id).addEventListener('click', () => elModalLibre.classList.add('hidden'));
 });
-elModalLibre.addEventListener('click', e => {
-  if (e.target === elModalLibre) elModalLibre.classList.add('hidden');
-});
 
 elFormLibre.addEventListener('submit', e => {
   e.preventDefault();
@@ -1202,10 +1195,6 @@ document.getElementById('btn-movimiento').addEventListener('click', () => {
   document.getElementById(id).addEventListener('click', () =>
     document.getElementById('modal-movimiento').classList.add('hidden')
   );
-});
-document.getElementById('modal-movimiento').addEventListener('click', e => {
-  if (e.target === document.getElementById('modal-movimiento'))
-    document.getElementById('modal-movimiento').classList.add('hidden');
 });
 
 document.getElementById('form-movimiento').addEventListener('submit', async e => {
@@ -1430,10 +1419,6 @@ document.getElementById('btn-confirmar-anular').addEventListener('click', async 
   document.getElementById(id).addEventListener('click', () =>
     document.getElementById('modal-anular').classList.add('hidden')
   );
-});
-document.getElementById('modal-anular').addEventListener('click', e => {
-  if (e.target === document.getElementById('modal-anular'))
-    document.getElementById('modal-anular').classList.add('hidden');
 });
 
 // ── Bindear eventos de modo (propina, etc.) ──────────────────────

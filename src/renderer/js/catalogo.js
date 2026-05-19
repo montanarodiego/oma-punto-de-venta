@@ -63,18 +63,11 @@ function bindEventos() {
   // Modal artículo
   document.getElementById('btn-cancelar-modal').addEventListener('click', cerrarModal);
   document.getElementById('form-articulo').addEventListener('submit', guardar);
-  document.getElementById('modal').addEventListener('click', e => {
-    if (e.target === document.getElementById('modal')) cerrarModal();
-  });
 
   // Modal confirmar
   document.getElementById('btn-cancelar-confirm').addEventListener('click', () =>
     document.getElementById('modal-confirm').classList.add('hidden')
   );
-  document.getElementById('modal-confirm').addEventListener('click', e => {
-    if (e.target === document.getElementById('modal-confirm'))
-      document.getElementById('modal-confirm').classList.add('hidden');
-  });
 
   // Modal confirm bulk
   document.getElementById('btn-cancelar-bulk-confirm').addEventListener('click', () =>
@@ -112,9 +105,6 @@ function bindEventos() {
   document.getElementById('btn-cancelar-import').addEventListener('click', cerrarModalImport);
   document.getElementById('btn-close-import').addEventListener('click', cerrarModalImport);
   document.getElementById('btn-ejecutar-import').addEventListener('click', ejecutarImport);
-  document.getElementById('modal-import').addEventListener('click', e => {
-    if (e.target === document.getElementById('modal-import')) cerrarModalImport();
-  });
   ['map-codigo','map-nombre','map-precio','map-costo','map-mayoreo','map-stock','map-stock-min','map-departamento'].forEach(id => {
     document.getElementById(id).addEventListener('change', renderPreview);
   });
@@ -143,9 +133,6 @@ function bindEventos() {
   document.getElementById('ajuste-cat-tipo').addEventListener('change', actualizarPreviewAjuste);
   document.getElementById('ajuste-cat-cantidad').addEventListener('input', actualizarPreviewAjuste);
   document.getElementById('btn-confirmar-ajuste').addEventListener('click', confirmarAjuste);
-  document.getElementById('modal-ajuste').addEventListener('click', e => {
-    if (e.target === document.getElementById('modal-ajuste')) cerrarModalAjuste();
-  });
 
   // Promociones
   document.getElementById('btn-toggle-promos').addEventListener('click', togglePromosBody);

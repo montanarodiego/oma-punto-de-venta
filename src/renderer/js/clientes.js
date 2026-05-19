@@ -30,9 +30,6 @@ document.getElementById('btn-cerrar-cuenta').addEventListener('click', cerrarCue
 document.getElementById('btn-pagar').addEventListener('click', registrarPago);
 form.addEventListener('submit', guardar);
 
-modal.addEventListener('click', e => { if (e.target === modal) cerrarModal(); });
-modalConfirm.addEventListener('click', e => { if (e.target === modalConfirm) cerrarConfirm(); });
-modalCuenta.addEventListener('click', e => { if (e.target === modalCuenta) cerrarCuenta(); });
 
 // Tabs historial cuenta
 document.querySelectorAll('.cuenta-tab').forEach(btn =>
@@ -44,17 +41,11 @@ document.getElementById('btn-liquidar-deuda').addEventListener('click', abrirLiq
 document.getElementById('btn-cerrar-liquidar').addEventListener('click', cerrarLiquidar);
 document.getElementById('btn-cancelar-liquidar').addEventListener('click', cerrarLiquidar);
 document.getElementById('btn-confirmar-liquidar').addEventListener('click', confirmarLiquidar);
-document.getElementById('modal-liquidar').addEventListener('click', e => {
-  if (e.target === document.getElementById('modal-liquidar')) cerrarLiquidar();
-});
 
 // Cancelar abono
 document.getElementById('btn-cerrar-cancelar-abono').addEventListener('click', cerrarCancelarAbono);
 document.getElementById('btn-no-cancelar-abono').addEventListener('click', cerrarCancelarAbono);
 document.getElementById('btn-si-cancelar-abono').addEventListener('click', confirmarCancelarAbono);
-document.getElementById('modal-cancelar-abono').addEventListener('click', e => {
-  if (e.target === document.getElementById('modal-cancelar-abono')) cerrarCancelarAbono();
-});
 
 tabla.addEventListener('click', e => {
   const btn = e.target.closest('button[data-action]');
