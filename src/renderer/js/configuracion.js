@@ -87,8 +87,9 @@ async function cargarConfig() {
   form.telefono.value       = config.telefono        ?? '';
   form.cuit.value           = config.cuit            ?? '';
   // tasa_iva tiene prioridad; impuesto_porcentaje es el nombre legacy
-  form.tasa_iva.value       = config.tasa_iva ?? config.impuesto_porcentaje ?? '21';
-  form.moneda.value         = config.moneda          ?? '$';
+  form.tasa_iva.value        = config.tasa_iva ?? config.impuesto_porcentaje ?? '21';
+  form.moneda.value          = config.moneda          ?? '$';
+  form.mensaje_ticket.value  = config.mensaje_ticket  ?? '';
   // toggle IVA: si no existe la clave se trata como ON (comportamiento previo)
   document.getElementById('toggle-iva').checked = config.mostrar_iva_desglosado !== '0';
 }
@@ -112,6 +113,7 @@ async function guardar(e) {
     impuesto_porcentaje:   String(tasa),   // alias que usan caja.js e informes.js
     moneda:                form.moneda.value.trim() || '$',
     mostrar_iva_desglosado: document.getElementById('toggle-iva').checked ? '1' : '0',
+    mensaje_ticket:        form.mensaje_ticket.value.trim(),
   };
 
   const btn = document.getElementById('btn-guardar');

@@ -41,6 +41,19 @@ document.addEventListener('DOMContentLoaded', async () => {
   document.getElementById('ticket-num').textContent     = `Ticket #${transaccion.id}`;
   document.title = `Comprobante #${transaccion.id}`;
 
+  // Datos del negocio (solo líneas con valor)
+  const lineasNegocio = [
+    config.direccion?.trim(),
+    config.telefono?.trim()  ? `Tel: ${config.telefono.trim()}`  : null,
+    config.cuit?.trim()      ? `CUIT: ${config.cuit.trim()}`     : null,
+  ].filter(Boolean);
+  document.getElementById('info-negocio').innerHTML =
+    lineasNegocio.map(l => `<div>${esc(l)}</div>`).join('');
+
+  // Pie del ticket
+  const msgTicket = config.mensaje_ticket?.trim() || 'Gracias por su compra';
+  document.getElementById('ticket-footer').textContent = `— ${msgTicket} —`;
+
   // Items — mostrar descuento por ítem si existe
   document.getElementById('items-table').innerHTML = transaccion.detalle.map(item => {
     const tieneDesc = (item.descuento_porcentaje || 0) > 0;

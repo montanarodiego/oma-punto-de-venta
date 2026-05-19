@@ -221,7 +221,8 @@ function initDatabase() {
       ('impuesto_porcentaje','21'),
       ('sync_enabled',       'false'),
       ('modo_negocio',       ''),
-      ('tamano_hud',         'normal');
+      ('tamano_hud',         'normal'),
+      ('mensaje_ticket',     '');
   `);
 
   // Migraciones para bases existentes
@@ -258,6 +259,13 @@ function runMigrations(db) {
   {
     try {
       db.prepare("INSERT OR IGNORE INTO configuracion (clave, valor) VALUES ('tamano_hud', 'normal')").run();
+    } catch { /* tabla puede no existir aún en flujos muy viejos */ }
+  }
+
+  // ── Feature: mensaje_ticket en configuracion ──────────────────
+  {
+    try {
+      db.prepare("INSERT OR IGNORE INTO configuracion (clave, valor) VALUES ('mensaje_ticket', '')").run();
     } catch { /* tabla puede no existir aún en flujos muy viejos */ }
   }
 
