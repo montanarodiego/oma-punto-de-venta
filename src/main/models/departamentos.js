@@ -26,8 +26,10 @@ function update(id, data) {
 }
 
 function remove(id) {
-  const db = getDb();
-  db.prepare('UPDATE articulos SET departamento_id = NULL WHERE departamento_id = ?').run(id);
+  const db    = getDb();
+  const count = db.prepare('SELECT COUNT(*) AS n FROM articulos WHERE departamento_id = ?').get(id).n;
+  if (count > 0)
+    throw new Error(`No se puede eliminar: hay ${count} artículo${count !== 1 ? 's' : ''} asignado${count !== 1 ? 's' : ''} a este departamento.`);
   return db.prepare('DELETE FROM departamentos WHERE id = ?').run(id);
 }
 

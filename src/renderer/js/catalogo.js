@@ -116,6 +116,9 @@ function bindEventos() {
     document.getElementById(id).addEventListener('change', renderPreview);
   });
 
+  // Botón Gestionar departamentos
+  document.getElementById('btn-gestionar-deptos').addEventListener('click', () => switchTab('departamentos'));
+
   // Departamento color preview
   document.getElementById('depto-color').addEventListener('input', e => {
     document.getElementById('depto-color-hex').textContent = e.target.value;
@@ -682,6 +685,12 @@ async function guardarDepto(e) {
 }
 
 function confirmarEliminarDepto2(id, nombre) {
+  const cnt = articulos.filter(a => a.departamento_id === id).length;
+  if (cnt > 0) {
+    toast(`No se puede eliminar "${nombre}": tiene ${cnt} artículo${cnt !== 1 ? 's' : ''} asignado${cnt !== 1 ? 's' : ''}. Reasignalos o eliminalos primero.`, 'error');
+    return;
+  }
+
   document.getElementById('confirm-titulo').textContent = 'Eliminar departamento';
   document.getElementById('confirm-nombre').textContent = nombre;
   document.getElementById('modal-confirm').classList.remove('hidden');
@@ -691,13 +700,17 @@ function confirmarEliminarDepto2(id, nombre) {
   btn.parentNode.replaceChild(clone, btn);
   clone.addEventListener('click', async () => {
     document.getElementById('modal-confirm').classList.add('hidden');
-    await window.api.departamentos.delete(id);
-    departamentos = await window.api.departamentos.getAll();
-    articulos     = await window.api.articulos.getAll();
-    renderDepartamentos();
-    renderChipsDepto();
-    poblarSelectDepartamento();
-    toast('Departamento eliminado.');
+    try {
+      await window.api.departamentos.delete(id);
+      departamentos = await window.api.departamentos.getAll();
+      articulos     = await window.api.articulos.getAll();
+      renderDepartamentos();
+      renderChipsDepto();
+      poblarSelectDepartamento();
+      toast('Departamento eliminado.');
+    } catch (err) {
+      toast('Error: ' + (err.message || err), 'error');
+    }
   });
 }
 
