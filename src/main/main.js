@@ -45,6 +45,7 @@ function createWindow() {
     height: 768,
     minWidth: 800,
     minHeight: 600,
+    icon: path.join(__dirname, '..', '..', 'assets', 'icon.ico'),
     webPreferences: {
       preload: path.join(__dirname, 'preload.js'),
       contextIsolation: true,
@@ -66,6 +67,7 @@ function createLoginWindow() {
     width: 420,
     height: 500,
     resizable: false,
+    icon: path.join(__dirname, '..', '..', 'assets', 'icon.ico'),
     webPreferences: {
       preload: path.join(__dirname, 'preload.js'),
       contextIsolation: true,

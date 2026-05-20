@@ -27,6 +27,13 @@
   var nav = document.createElement('nav');
   nav.id = 'app-nav';
 
+  var logo = document.createElement('img');
+  logo.src = '../../../assets/icon.png';
+  logo.width = 24;
+  logo.height = 24;
+  logo.style.cssText = 'margin:0 6px 0 10px;flex-shrink:0;border-radius:4px;';
+  nav.appendChild(logo);
+
   tabs.forEach(function (tab) {
     var btn = document.createElement('button');
     btn.className = 'nav-tab' + (tab.file === currentFile ? ' active' : '');
