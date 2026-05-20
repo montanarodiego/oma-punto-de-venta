@@ -540,6 +540,23 @@ body {
   pointer-events: none;
 }
 
+.toast {
+  padding: 10px 16px;
+  border-radius: var(--r);
+  font-size: 13px;
+  font-weight: 500;
+  color: #fff;
+  pointer-events: auto;
+  box-shadow: var(--shadow-lg);
+  animation: fadeIn .15s ease;
+  max-width: 340px;
+  word-break: break-word;
+}
+.toast-success { background: var(--success); }
+.toast-error   { background: var(--danger); }
+.toast-warning { background: var(--warning); color: #1c1917; }
+.toast-info    { background: var(--accent); }
+
 /* ── Empty state ──────────────────────────────────────────── */
 .empty-state {
   padding: 48px 0;
