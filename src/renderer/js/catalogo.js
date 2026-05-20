@@ -1239,6 +1239,7 @@ async function agregarPromo() {
 }
 
 async function eliminarPromo(id) {
+  if (!confirm('¿Eliminar esta promoción?')) return;
   try {
     await window.api.promociones.eliminar(id);
     promosActuales = promosActuales.filter(p => p.id !== id);
