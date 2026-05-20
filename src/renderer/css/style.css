@@ -36,12 +36,14 @@
 
 * { box-sizing: border-box; margin: 0; padding: 0; }
 
+html { font-size: 16px; }
+
 body {
   font-family: 'Inter', system-ui, -apple-system, sans-serif;
   -webkit-font-smoothing: antialiased;
   background: var(--bg);
   color: var(--text);
-  font-size: 14px;
+  font-size: 1rem;
 }
 
 /* ── App shell ────────────────────────────────────────────── */
@@ -91,7 +93,7 @@ body {
 }
 
 .sidebar-logo-name {
-  font-size: 13px;
+  font-size: 0.8125rem;
   font-weight: 700;
   color: var(--text);
   letter-spacing: -.01em;
@@ -99,7 +101,7 @@ body {
 }
 
 .sidebar-logo-sub {
-  font-size: 10px;
+  font-size: 0.625rem;
   color: var(--text-muted);
   margin-top: 1px;
 }
@@ -111,7 +113,7 @@ body {
 }
 
 .nav-section {
-  font-size: 10px;
+  font-size: 0.625rem;
   font-weight: 600;
   letter-spacing: .08em;
   text-transform: uppercase;
@@ -126,7 +128,7 @@ body {
   padding: 9px 10px;
   border-radius: var(--r);
   color: var(--text-muted);
-  font-size: 13px;
+  font-size: 0.8125rem;
   font-weight: 500;
   text-decoration: none;
   transition: all var(--ease);
@@ -144,7 +146,7 @@ body {
   margin-left: auto;
   background: var(--warning);
   color: #1c1917;
-  font-size: 10px;
+  font-size: 0.625rem;
   font-weight: 700;
   padding: 0 6px;
   border-radius: 20px;
@@ -175,14 +177,14 @@ body {
   display: flex;
   align-items: center;
   justify-content: center;
-  font-size: 11px;
+  font-size: 0.6875rem;
   font-weight: 700;
   color: #fff;
   flex-shrink: 0;
 }
 
 .sidebar-user-name {
-  font-size: 12px;
+  font-size: 0.75rem;
   font-weight: 600;
   color: var(--text);
   white-space: nowrap;
@@ -190,7 +192,7 @@ body {
   text-overflow: ellipsis;
 }
 
-.sidebar-user-role { font-size: 10px; color: var(--text-muted); }
+.sidebar-user-role { font-size: 0.625rem; color: var(--text-muted); }
 
 .btn-logout {
   width: 100%;
@@ -200,7 +202,7 @@ body {
   padding: 7px 10px;
   border-radius: var(--r);
   color: var(--text-subtle);
-  font-size: 12px;
+  font-size: 0.75rem;
   font-weight: 500;
   cursor: pointer;
   background: none;
@@ -224,7 +226,7 @@ body {
 }
 
 .page-title {
-  font-size: 15px;
+  font-size: 0.9375rem;
   font-weight: 600;
   color: var(--text);
 }
@@ -236,7 +238,7 @@ body {
   border-radius: var(--r-in);
   color: var(--text);
   padding: 8px 12px;
-  font-size: 13px;
+  font-size: 0.8125rem;
   font-family: inherit;
   transition: border-color var(--ease), box-shadow var(--ease);
   width: 100%;
@@ -251,7 +253,7 @@ body {
 
 .inp-lg {
   padding: 10px 14px;
-  font-size: 14px;
+  font-size: 0.875rem;
   border-radius: var(--r);
 }
 
@@ -263,7 +265,7 @@ body {
   gap: 6px;
   padding: 8px 16px;
   border-radius: var(--r);
-  font-size: 13px;
+  font-size: 0.8125rem;
   font-weight: 500;
   font-family: inherit;
   cursor: pointer;
@@ -316,7 +318,7 @@ body {
 .card-header {
   padding: 14px 18px;
   border-bottom: 1px solid var(--border);
-  font-size: 11px;
+  font-size: 0.6875rem;
   font-weight: 600;
   letter-spacing: .07em;
   text-transform: uppercase;
@@ -329,14 +331,14 @@ body {
 .tbl {
   width: 100%;
   border-collapse: collapse;
-  font-size: 13px;
+  font-size: 0.8125rem;
 }
 
 .tbl thead th {
   background: var(--surface);
   color: var(--text-subtle);
   font-weight: 500;
-  font-size: 11px;
+  font-size: 0.6875rem;
   letter-spacing: .05em;
   text-transform: uppercase;
   padding: 10px 14px;
@@ -373,7 +375,7 @@ body {
   gap: 4px;
   padding: 2px 8px;
   border-radius: 20px;
-  font-size: 11px;
+  font-size: 0.6875rem;
   font-weight: 600;
   white-space: nowrap;
 }
@@ -417,7 +419,7 @@ body {
 }
 
 .modal-title {
-  font-size: 15px;
+  font-size: 0.9375rem;
   font-weight: 600;
   color: var(--text);
 }
@@ -427,7 +429,7 @@ body {
   border: none;
   color: var(--text-subtle);
   cursor: pointer;
-  font-size: 20px;
+  font-size: 1.25rem;
   line-height: 1;
   padding: 2px 6px;
   border-radius: var(--r-in);
@@ -451,13 +453,13 @@ body {
 
 /* ── Form labels ──────────────────────────────────────────── */
 .field { display: flex; flex-direction: column; gap: 5px; }
-.field-label { font-size: 12px; font-weight: 500; color: var(--text-muted); }
-.field-hint  { font-size: 11px; color: var(--text-subtle); }
+.field-label { font-size: 0.75rem; font-weight: 500; color: var(--text-muted); }
+.field-hint  { font-size: 0.6875rem; color: var(--text-subtle); }
 .required    { color: var(--danger); margin-left: 2px; }
 
 /* ── Section divider ──────────────────────────────────────── */
 .section-title {
-  font-size: 11px;
+  font-size: 0.6875rem;
   font-weight: 600;
   letter-spacing: .07em;
   text-transform: uppercase;
@@ -476,7 +478,7 @@ body {
 }
 
 .kpi-label {
-  font-size: 11px;
+  font-size: 0.6875rem;
   font-weight: 500;
   color: var(--text-muted);
   text-transform: uppercase;
@@ -485,7 +487,7 @@ body {
 }
 
 .kpi-value {
-  font-size: 24px;
+  font-size: 1.5rem;
   font-weight: 700;
   color: var(--text);
   letter-spacing: -.02em;
@@ -493,7 +495,7 @@ body {
 }
 
 .kpi-sub {
-  font-size: 12px;
+  font-size: 0.75rem;
   color: var(--text-subtle);
   margin-top: 4px;
 }
@@ -512,7 +514,7 @@ body {
   flex: 1;
   padding: 7px 12px;
   border-radius: 4px;
-  font-size: 12px;
+  font-size: 0.75rem;
   font-weight: 500;
   font-family: inherit;
   cursor: pointer;
@@ -543,7 +545,7 @@ body {
 .toast {
   padding: 10px 16px;
   border-radius: var(--r);
-  font-size: 13px;
+  font-size: 0.8125rem;
   font-weight: 500;
   color: #fff;
   pointer-events: auto;
@@ -562,7 +564,7 @@ body {
   padding: 48px 0;
   text-align: center;
   color: var(--text-subtle);
-  font-size: 13px;
+  font-size: 0.8125rem;
 }
 
 /* ── Scrollbar ────────────────────────────────────────────── */
@@ -658,9 +660,8 @@ body {
   -webkit-app-region: no-drag;
 }
 
-#app-nav ~ .app-layout {
-  margin-top: 40px;
-  height: calc(100vh - 40px);
+body.app-layout {
+  padding-top: 40px;
 }
 
 .nav-tab {
@@ -672,7 +673,7 @@ body {
   border: none;
   border-bottom: 2px solid transparent;
   color: var(--text-muted);
-  font-size: 12.5px;
+  font-size: 0.78125rem;
   font-weight: 500;
   font-family: inherit;
   cursor: pointer;
@@ -691,7 +692,7 @@ body {
 }
 
 .nav-key {
-  font-size: 10px;
+  font-size: 0.625rem;
   font-weight: 600;
   color: var(--text-subtle);
   background: var(--bg);
@@ -709,7 +710,7 @@ body {
 /* ── Nav F-key hint ───────────────────────────────────────────── */
 .nav-fkey {
   margin-left: auto;
-  font-size: 10px;
+  font-size: 0.625rem;
   font-weight: 500;
   color: var(--text-subtle);
   background: var(--bg);
@@ -722,23 +723,13 @@ body {
 }
 .nav-item.active .nav-fkey { background: rgba(255,255,255,.12); border-color: rgba(255,255,255,.2); color: #fff; opacity: .85; }
 
-/* ── HUD Sizes — caja ─────────────────────────────────────────── */
-body.hud-compacto    { font-size: 12px; }
-body.hud-normal      { font-size: 14px; }
-body.hud-grande      { font-size: 16px; }
-body.hud-extra_grande{ font-size: 19px; }
+/* ── HUD Sizes — escala global de tamaño de letra ─────────────── */
+html.hud-compacto { font-size: 14px; }
+html.hud-normal   { font-size: 16px; }
+html.hud-grande   { font-size: 18px; }
+html.hud-gigante  { font-size: 21px; }
 
-body.hud-compacto     #total  { font-size: 24px; }
-body.hud-normal       #total  { font-size: 32px; }
-body.hud-grande       #total  { font-size: 42px; }
-body.hud-extra_grande #total  { font-size: 56px; }
-
-body.hud-compacto     .pago-btn { min-height: 40px; }
-body.hud-normal       .pago-btn { min-height: 48px; }
-body.hud-grande       .pago-btn { min-height: 56px; }
-body.hud-extra_grande .pago-btn { min-height: 68px; }
-
-body.hud-compacto     #btn-cobrar { min-height: 48px; font-size: 14px; }
-body.hud-normal       #btn-cobrar { min-height: 56px; font-size: 16px; }
-body.hud-grande       #btn-cobrar { min-height: 68px; font-size: 18px; }
-body.hud-extra_grande #btn-cobrar { min-height: 80px; font-size: 21px; }
+/* Caja: elementos de gran tamaño proporcionales al HUD */
+#total      { font-size: 2rem; }
+.pago-btn   { min-height: 3rem; }
+#btn-cobrar { min-height: 3.5rem; }

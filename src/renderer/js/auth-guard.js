@@ -56,6 +56,10 @@
     }
   });
 
+  // Aplicar tamaño HUD al html inmediatamente (evita flash al navegar entre vistas)
+  const _hud = localStorage.getItem('oma_hud') || 'normal';
+  document.documentElement.classList.add('hud-' + _hud);
+
   // Exponer sesión para otros scripts que la necesiten
   window.SESSION = session;
 })();

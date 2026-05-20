@@ -10,7 +10,7 @@ const HUD_OPCIONES = [
   { id: 'compacto',     label: 'Compacto',     desc: 'Texto pequeño, más info en pantalla', muestra: 'A' },
   { id: 'normal',      label: 'Normal',        desc: 'Tamaño estándar (recomendado)',        muestra: 'A' },
   { id: 'grande',      label: 'Grande',        desc: 'Para uso a 1-2 metros de distancia',  muestra: 'A' },
-  { id: 'extra_grande',label: 'Extra Grande',  desc: 'Máximo tamaño, lectura a distancia',  muestra: 'A' },
+  { id: 'gigante',     label: 'Gigante',        desc: 'Máximo tamaño, lectura a distancia',  muestra: 'A' },
 ];
 
 // ── Definición de modos (misma que caja.js) ────────────────────
@@ -300,11 +300,19 @@ function cerrarWizard() {
 async function cargarTamanoHud() {
   const valor = await window.api.config.get('tamano_hud');
   tamanoHudActual = valor || 'normal';
+  aplicarHudAlDocumento(tamanoHudActual);
   renderTamanoHud();
 }
 
+function aplicarHudAlDocumento(id) {
+  const html = document.documentElement;
+  html.classList.remove('hud-compacto', 'hud-normal', 'hud-grande', 'hud-gigante');
+  html.classList.add('hud-' + id);
+  localStorage.setItem('oma_hud', id);
+}
+
 function renderTamanoHud() {
-  const FONT_SIZES = { compacto: '11px', normal: '15px', grande: '20px', extra_grande: '27px' };
+  const FONT_SIZES = { compacto: '11px', normal: '15px', grande: '20px', gigante: '27px' };
   const container = document.getElementById('hud-size-cards');
   container.innerHTML = HUD_OPCIONES.map(op => {
     const activo = op.id === tamanoHudActual;
@@ -327,8 +335,9 @@ function renderTamanoHud() {
     if (!btn) return;
     tamanoHudActual = btn.dataset.hud;
     await window.api.config.set('tamano_hud', tamanoHudActual);
+    aplicarHudAlDocumento(tamanoHudActual);
     renderTamanoHud();
-    mostrarMensaje('Tamaño actualizado. El cambio se aplica al abrir la Caja.', 'ok');
+    mostrarMensaje('Tamaño de letra actualizado.', 'ok');
   };
 }
 

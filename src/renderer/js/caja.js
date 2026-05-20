@@ -102,6 +102,9 @@ document.addEventListener('DOMContentLoaded', async () => {
   modoNegocio          = modo || '';
   turnoActivo          = turno;
   _tamanoHud           = tamanoHud || 'normal';
+  localStorage.setItem('oma_hud', _tamanoHud);
+  document.documentElement.classList.remove('hud-compacto', 'hud-normal', 'hud-grande', 'hud-gigante');
+  document.documentElement.classList.add('hud-' + _tamanoHud);
 
   if (!modoNegocio) {
     renderizarWizard();
@@ -118,7 +121,6 @@ function inicializarCaja() {
 
   aplicarModoNegocio(modoNegocio);
   elPieTasa.textContent = tasaIva;
-  document.body.classList.add('hud-' + _tamanoHud);
 
   renderTabs();
   restaurarEstadoUI();
