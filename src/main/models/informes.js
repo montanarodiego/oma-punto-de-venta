@@ -13,6 +13,7 @@ function ventasPorPeriodo(desde, hasta) {
       COALESCE(SUM(subtotal),       0)  AS total_sin_iva
     FROM transacciones
     WHERE created_at BETWEEN ? AND ?
+      AND estado != 'cancelada'
   `).get(d, h);
 
   // Ganancia bruta: (precio_al_momento - costo_unitario) * cantidad
@@ -27,6 +28,7 @@ function ventasPorPeriodo(desde, hasta) {
     LEFT JOIN articulos a ON a.id = dt.articulo_id
     JOIN transacciones t ON t.id = dt.transaccion_id
     WHERE t.created_at BETWEEN ? AND ?
+      AND t.estado != 'cancelada'
   `).get(d, h);
 
   resumen.ganancia_bruta = gananciaBruta.ganancia_bruta;
@@ -38,6 +40,7 @@ function ventasPorPeriodo(desde, hasta) {
       COALESCE(SUM(monto_total), 0)    AS total
     FROM transacciones
     WHERE created_at BETWEEN ? AND ?
+      AND estado != 'cancelada'
     GROUP BY forma_pago
     ORDER BY total DESC
   `).all(d, h);
@@ -46,6 +49,7 @@ function ventasPorPeriodo(desde, hasta) {
     SELECT id, created_at, forma_pago, subtotal, monto_impuesto, monto_total
     FROM transacciones
     WHERE created_at BETWEEN ? AND ?
+      AND estado != 'cancelada'
     ORDER BY created_at DESC
   `).all(d, h);
 
@@ -68,6 +72,7 @@ function articulosMasVendidos(desde, hasta) {
     JOIN articulos    a ON a.id = dt.articulo_id
     JOIN transacciones t ON t.id = dt.transaccion_id
     WHERE t.created_at BETWEEN ? AND ?
+      AND t.estado != 'cancelada'
     GROUP BY dt.articulo_id
     ORDER BY cantidad_total DESC
   `).all(d, h);
@@ -90,6 +95,7 @@ function utilidadBruta(desde, hasta) {
     JOIN articulos    a ON a.id = dt.articulo_id
     JOIN transacciones t ON t.id = dt.transaccion_id
     WHERE t.created_at BETWEEN ? AND ?
+      AND t.estado != 'cancelada'
     GROUP BY dt.articulo_id
     ORDER BY utilidad_total DESC
   `).all(d, h);
@@ -133,6 +139,7 @@ function ventasPorDia(desde, hasta) {
     FROM transacciones t
     LEFT JOIN g ON g.transaccion_id = t.id
     WHERE t.created_at BETWEEN ? AND ?
+      AND t.estado != 'cancelada'
     GROUP BY DATE(t.created_at)
     ORDER BY fecha ASC
   `).all(d, h);
@@ -150,6 +157,7 @@ function ventasPorHora(fecha) {
       COALESCE(SUM(monto_total), 0)               AS total
     FROM transacciones
     WHERE created_at BETWEEN ? AND ?
+      AND estado != 'cancelada'
     GROUP BY strftime('%H', created_at)
     ORDER BY hora ASC
   `).all(d, h);
@@ -167,6 +175,7 @@ function mejorDia(desde, hasta) {
       COALESCE(SUM(monto_total), 0) AS total
     FROM transacciones
     WHERE created_at BETWEEN ? AND ?
+      AND estado != 'cancelada'
     GROUP BY DATE(created_at)
     ORDER BY total DESC
     LIMIT 1
@@ -181,6 +190,7 @@ function resumenRapido(desde, hasta) {
   const row = db.prepare(`
     SELECT COUNT(*) AS cantidad, COALESCE(SUM(monto_total), 0) AS total
     FROM transacciones WHERE created_at BETWEEN ? AND ?
+      AND estado != 'cancelada'
   `).get(d, h);
 
   const gan = db.prepare(`
@@ -193,6 +203,7 @@ function resumenRapido(desde, hasta) {
     LEFT JOIN articulos a ON a.id = dt.articulo_id
     JOIN transacciones t ON t.id = dt.transaccion_id
     WHERE t.created_at BETWEEN ? AND ?
+      AND t.estado != 'cancelada'
   `).get(d, h);
 
   return { cantidad: row.cantidad, total: row.total, ganancia_bruta: gan.ganancia_bruta };

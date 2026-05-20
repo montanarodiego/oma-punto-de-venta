@@ -11,7 +11,8 @@ function obtenerActivo() {
 }
 
 function abrir(efectivoInicial) {
-  const db   = getDb();
+  const db = getDb();
+  if (obtenerActivo()) throw new Error('Ya hay un turno activo. Cerrá el turno actual antes de abrir uno nuevo.');
   const info = db
     .prepare("INSERT INTO turnos (efectivo_inicial, estado) VALUES (?, 'abierto')")
     .run(efectivoInicial ?? 0);
@@ -22,9 +23,6 @@ function calcularResumen(turnoId) {
   const db    = getDb();
   const turno = db.prepare('SELECT * FROM turnos WHERE id = ?').get(turnoId);
   if (!turno) throw new Error('Turno no encontrado');
-
-  const desde = turno.fecha_apertura;
-  const hasta = turno.fecha_cierre || nowIso();
 
   const r = db.prepare(`
     SELECT
@@ -38,9 +36,9 @@ function calcularResumen(turnoId) {
       COALESCE(SUM(descuento_global), 0)                                                          AS total_descuentos,
       COALESCE(SUM(propina), 0)                                                                   AS total_propinas
     FROM transacciones
-    WHERE created_at >= ? AND created_at <= ?
+    WHERE turno_id = ?
       AND (estado IS NULL OR estado != 'cancelada')
-  `).get(desde, hasta);
+  `).get(turnoId);
 
   const mov = db.prepare(`
     SELECT
@@ -118,14 +116,11 @@ function detalle(id) {
   const turno = db.prepare('SELECT * FROM turnos WHERE id = ?').get(id);
   if (!turno) return null;
 
-  const desde = turno.fecha_apertura;
-  const hasta = turno.fecha_cierre || nowIso();
-
   const transacciones = db.prepare(`
     SELECT * FROM transacciones
-    WHERE created_at >= ? AND created_at <= ?
+    WHERE turno_id = ?
     ORDER BY id DESC
-  `).all(desde, hasta);
+  `).all(id);
 
   return { turno, transacciones };
 }

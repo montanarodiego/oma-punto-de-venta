@@ -199,7 +199,7 @@ function fmt(n) {
 
 function fmtFecha(iso) {
   if (!iso) return '—';
-  const d = new Date(iso.replace(' ', 'T'));
+  const d = new Date(iso.replace(' ', 'T') + 'Z');
   return d.toLocaleDateString('es-AR', { day: '2-digit', month: '2-digit', year: 'numeric' }) +
     ' ' + d.toLocaleTimeString('es-AR', { hour: '2-digit', minute: '2-digit' });
 }

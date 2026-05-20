@@ -18,38 +18,51 @@ const Promociones    = require('./models/promociones');
 const Backup         = require('./backup');
 const { getDb }      = require('./database');
 
+// Rol del usuario activo — se actualiza en login y en cada carga de página
+let currentUserRole = null;
+
+function onlyAdmin() {
+  if (currentUserRole !== 'admin') throw new Error('Acción restringida a administradores');
+}
+
 function registerHandlers() {
+  // ── Sesión (renderer sincroniza rol en cada carga de página) ──
+  ipcMain.handle('auth:setSession', (_e, session) => {
+    currentUserRole = session?.rol ?? null;
+  });
+
   // ── Usuarios ───────────────────────────────────────────────
   ipcMain.handle('usuarios:login', (_e, usuario, password) => {
     try {
       const user = Usuarios.login(usuario, password);
+      currentUserRole = user.rol;
       return { ok: true, user };
     } catch (err) {
       return { ok: false, error: err.message };
     }
   });
   ipcMain.handle('usuarios:listar',       ()              => Usuarios.listar());
-  ipcMain.handle('usuarios:crear',        (_e, data)      => Usuarios.crear(data));
-  ipcMain.handle('usuarios:actualizar',   (_e, id, data)  => Usuarios.actualizar(id, data));
-  ipcMain.handle('usuarios:toggleActivo', (_e, id)        => Usuarios.toggleActivo(id));
+  ipcMain.handle('usuarios:crear',        (_e, data)      => { onlyAdmin(); return Usuarios.crear(data); });
+  ipcMain.handle('usuarios:actualizar',   (_e, id, data)  => { onlyAdmin(); return Usuarios.actualizar(id, data); });
+  ipcMain.handle('usuarios:toggleActivo', (_e, id)        => { onlyAdmin(); return Usuarios.toggleActivo(id); });
 
   // ── Departamentos ──────────────────────────────────────────
   ipcMain.handle('departamentos:getAll',   ()               => Departamentos.getAll());
-  ipcMain.handle('departamentos:create',   (_e, data)       => Departamentos.create(data));
-  ipcMain.handle('departamentos:update',   (_e, id, data)   => Departamentos.update(id, data));
-  ipcMain.handle('departamentos:delete',   (_e, id)         => Departamentos.remove(id));
+  ipcMain.handle('departamentos:create',   (_e, data)       => { onlyAdmin(); return Departamentos.create(data); });
+  ipcMain.handle('departamentos:update',   (_e, id, data)   => { onlyAdmin(); return Departamentos.update(id, data); });
+  ipcMain.handle('departamentos:delete',   (_e, id)         => { onlyAdmin(); return Departamentos.remove(id); });
 
   // ── Kits ───────────────────────────────────────────────────
   ipcMain.handle('kits:getComponentes', (_e, kitId)          => Kits.getComponentes(kitId));
-  ipcMain.handle('kits:setComponentes', (_e, kitId, comps)   => Kits.setComponentes(kitId, comps));
+  ipcMain.handle('kits:setComponentes', (_e, kitId, comps)   => { onlyAdmin(); return Kits.setComponentes(kitId, comps); });
 
   // ── Artículos ──────────────────────────────────────────────
   ipcMain.handle('articulos:getAll', () => Articulos.getAll());
   ipcMain.handle('articulos:getById', (_e, id) => Articulos.getById(id));
   ipcMain.handle('articulos:getByCodigo', (_e, codigo) => Articulos.getByCodigo(codigo));
-  ipcMain.handle('articulos:create', (_e, data) => Articulos.create(data));
-  ipcMain.handle('articulos:update', (_e, id, data) => Articulos.update(id, data));
-  ipcMain.handle('articulos:delete', (_e, id) => Articulos.remove(id));
+  ipcMain.handle('articulos:create', (_e, data) => { onlyAdmin(); return Articulos.create(data); });
+  ipcMain.handle('articulos:update', (_e, id, data) => { onlyAdmin(); return Articulos.update(id, data); });
+  ipcMain.handle('articulos:delete', (_e, id) => { onlyAdmin(); return Articulos.remove(id); });
   ipcMain.handle('articulos:search', (_e, query) => Articulos.search(query));
 
   // ── Clientes ───────────────────────────────────────────────
@@ -105,26 +118,26 @@ function registerHandlers() {
   // ── Pedidos ────────────────────────────────────────────────
   ipcMain.handle('pedidos:getAll',       ()                                => Proveedores.getPedidos());
   ipcMain.handle('pedidos:getById',      (_e, id)                          => Proveedores.getPedidoById(id));
-  ipcMain.handle('pedidos:crear',        (_e, prvId, prvNombre, items)     => Proveedores.crearPedido(prvId, prvNombre, items));
-  ipcMain.handle('pedidos:marcarRecibido', (_e, pedidoId, itemsRecibidos)  => Proveedores.marcarRecibido(pedidoId, itemsRecibidos));
+  ipcMain.handle('pedidos:crear',        (_e, prvId, prvNombre, items)     => { onlyAdmin(); return Proveedores.crearPedido(prvId, prvNombre, items); });
+  ipcMain.handle('pedidos:marcarRecibido', (_e, pedidoId, itemsRecibidos)  => { onlyAdmin(); return Proveedores.marcarRecibido(pedidoId, itemsRecibidos); });
 
   // ── Promociones por volumen ───────────────────────────────────
   ipcMain.handle('promociones:listarPorArticulo', (_e, articuloId) => Promociones.listarPorArticulo(articuloId));
   ipcMain.handle('promociones:listarActivas',     (_e, ids)        => Promociones.listarActivasPorArticulos(ids));
-  ipcMain.handle('promociones:crear',             (_e, data)       => Promociones.crear(data));
-  ipcMain.handle('promociones:eliminar',          (_e, id)         => Promociones.eliminar(id));
+  ipcMain.handle('promociones:crear',             (_e, data)       => { onlyAdmin(); return Promociones.crear(data); });
+  ipcMain.handle('promociones:eliminar',          (_e, id)         => { onlyAdmin(); return Promociones.eliminar(id); });
 
   // ── Pedidos de compra (órdenes) ───────────────────────────────
   ipcMain.handle('pedidosCompra:listar',        ()                   => PedidosCompra.listar());
   ipcMain.handle('pedidosCompra:getById',       (_e, id)             => PedidosCompra.getById(id));
-  ipcMain.handle('pedidosCompra:crear',         (_e, data)           => PedidosCompra.crear(data));
-  ipcMain.handle('pedidosCompra:actualizar',    (_e, id, data)       => PedidosCompra.actualizar(id, data));
-  ipcMain.handle('pedidosCompra:marcarEnviado', (_e, id)             => PedidosCompra.marcarEnviado(id));
-  ipcMain.handle('pedidosCompra:recibir',       (_e, id, items)      => PedidosCompra.recibir(id, items));
-  ipcMain.handle('pedidosCompra:cancelar',      (_e, id)             => PedidosCompra.cancelar(id));
+  ipcMain.handle('pedidosCompra:crear',         (_e, data)           => { onlyAdmin(); return PedidosCompra.crear(data); });
+  ipcMain.handle('pedidosCompra:actualizar',    (_e, id, data)       => { onlyAdmin(); return PedidosCompra.actualizar(id, data); });
+  ipcMain.handle('pedidosCompra:marcarEnviado', (_e, id)             => { onlyAdmin(); return PedidosCompra.marcarEnviado(id); });
+  ipcMain.handle('pedidosCompra:recibir',       (_e, id, items)      => { onlyAdmin(); return PedidosCompra.recibir(id, items); });
+  ipcMain.handle('pedidosCompra:cancelar',      (_e, id)             => { onlyAdmin(); return PedidosCompra.cancelar(id); });
 
   // ── Recepciones ────────────────────────────────────────────
-  ipcMain.handle('recepciones:crear',   (_e, data) => Recepciones.crear(data));
+  ipcMain.handle('recepciones:crear',   (_e, data) => { onlyAdmin(); return Recepciones.crear(data); });
   ipcMain.handle('recepciones:listar',  ()         => Recepciones.listar());
   ipcMain.handle('recepciones:getById', (_e, id)   => Recepciones.getById(id));
 
@@ -137,7 +150,7 @@ function registerHandlers() {
   ipcMain.handle('turnos:detalle',          (_e, id)                     => Turnos.detalle(id));
 
   // ── Inventario ─────────────────────────────────────────────
-  ipcMain.handle('inventario:ajustar',          (_e, data)    => Inventario.ajustar(data));
+  ipcMain.handle('inventario:ajustar',          (_e, data)    => { onlyAdmin(); return Inventario.ajustar(data); });
   ipcMain.handle('inventario:listarMovimientos',(_e, filtros) => Inventario.listarMovimientos(filtros));
   ipcMain.handle('inventario:kardex',           (_e, artId)   => Inventario.kardex(artId));
   ipcMain.handle('inventario:stockBajo',        ()            => Inventario.stockBajo());

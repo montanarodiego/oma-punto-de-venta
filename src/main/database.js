@@ -494,6 +494,24 @@ function runMigrations(db) {
       costo_unitario    REAL DEFAULT 0
     )
   `);
+
+  // ── Índices para performance ──────────────────────────────────
+  db.exec(`
+    CREATE INDEX IF NOT EXISTS idx_articulos_codigo      ON articulos(codigo);
+    CREATE INDEX IF NOT EXISTS idx_articulos_sync        ON articulos(sync_status);
+    CREATE INDEX IF NOT EXISTS idx_transacciones_created ON transacciones(created_at);
+    CREATE INDEX IF NOT EXISTS idx_transacciones_estado  ON transacciones(estado);
+    CREATE INDEX IF NOT EXISTS idx_transacciones_turno   ON transacciones(turno_id);
+    CREATE INDEX IF NOT EXISTS idx_transacciones_cliente ON transacciones(cuenta_cliente_id);
+    CREATE INDEX IF NOT EXISTS idx_detalle_transaccion   ON detalle_transaccion(transaccion_id);
+    CREATE INDEX IF NOT EXISTS idx_detalle_articulo      ON detalle_transaccion(articulo_id);
+    CREATE INDEX IF NOT EXISTS idx_mov_inv_articulo      ON movimientos_inventario(articulo_id);
+    CREATE INDEX IF NOT EXISTS idx_mov_inv_fecha         ON movimientos_inventario(fecha);
+    CREATE INDEX IF NOT EXISTS idx_mov_caja_turno        ON movimientos_caja(turno_id);
+    CREATE INDEX IF NOT EXISTS idx_turnos_estado         ON turnos(estado);
+    CREATE INDEX IF NOT EXISTS idx_pagos_cliente         ON pagos_clientes(cliente_id);
+    CREATE INDEX IF NOT EXISTS idx_promociones_articulo  ON promociones(articulo_id);
+  `);
 }
 
 module.exports = { initDatabase, getDb };

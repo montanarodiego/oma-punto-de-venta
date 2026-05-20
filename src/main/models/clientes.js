@@ -23,6 +23,7 @@ function getTransacciones(clienteId) {
       SELECT id, monto_total, subtotal, monto_impuesto, forma_pago, sync_status, created_at
       FROM transacciones
       WHERE cuenta_cliente_id = ?
+        AND estado != 'cancelada'
       ORDER BY created_at DESC
     `)
     .all(clienteId);

@@ -409,7 +409,7 @@ function tipoBadge(tipo) {
 
 function fmtFecha(s) {
   if (!s) return '—';
-  const d = new Date(s.replace(' ', 'T'));
+  const d = new Date(s.replace(' ', 'T') + 'Z');
   return d.toLocaleDateString('es-AR') + ' ' + d.toLocaleTimeString('es-AR', { hour: '2-digit', minute: '2-digit' });
 }
 

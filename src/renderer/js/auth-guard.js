@@ -60,6 +60,9 @@
   const _hud = localStorage.getItem('oma_hud') || 'normal';
   document.documentElement.classList.add('hud-' + _hud);
 
+  // Sincronizar rol con proceso principal (protege handlers IPC)
+  window.api.auth.setSession(session);
+
   // Exponer sesión para otros scripts que la necesiten
   window.SESSION = session;
 })();
