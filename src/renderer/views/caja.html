@@ -1,13 +1,13 @@
-<!DOCTYPE html>
+﻿<!DOCTYPE html>
 <html lang="es">
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Oma POS — Caja</title>
+  <title>Oma POS â€” Caja</title>
   <script src="https://cdn.tailwindcss.com"></script>
   <link rel="stylesheet" href="../css/style.css" />
   <style>
-    /* ── Tabs de tickets ── */
+    /* â”€â”€ Tabs de tickets â”€â”€ */
     .tabs-bar {
       display:flex; align-items:center; gap:4px;
       padding:6px 10px 0;
@@ -44,7 +44,7 @@
     .tab-new-btn:hover { background:var(--surface-2); color:var(--text); border-style:solid; }
     .tab-new-btn:disabled { opacity:.35; cursor:not-allowed; }
 
-    /* ── Barra de herramientas ── */
+    /* â”€â”€ Barra de herramientas â”€â”€ */
     .toolbar {
       display:flex; align-items:center; gap:6px;
       padding:7px 14px;
@@ -69,7 +69,7 @@
     }
     .toolbar-sep { width:1px; height:20px; background:var(--border); flex-shrink:0; }
 
-    /* ── Campo de código ── */
+    /* â”€â”€ Campo de cÃ³digo â”€â”€ */
     .codigo-bar {
       display:flex; align-items:center; gap:12px;
       padding:10px 14px;
@@ -91,7 +91,7 @@
     #campo-codigo:focus { box-shadow: 0 0 0 3px rgba(59,130,246,.2); }
     #campo-codigo::placeholder { color:var(--text-subtle); font-weight:400; font-size:14px; }
 
-    /* ── Tabla del carrito ── */
+    /* â”€â”€ Tabla del carrito â”€â”€ */
     .carrito-tabla {
       width:100%; border-collapse:collapse; font-size:13px;
     }
@@ -124,7 +124,7 @@
     .badge-mayoreo  { background:rgba(139,92,246,.18); color:#a78bfa; }
     .badge-promo    { background:rgba(34,197,94,.18); color:#4ade80; font-weight:700; }
 
-    /* ── Pie fijo ── */
+    /* â”€â”€ Pie fijo â”€â”€ */
     .pie-caja {
       display:flex; align-items:center; gap:0;
       padding:0;
@@ -163,7 +163,7 @@
       font-variant-numeric:tabular-nums; font-family:monospace; line-height:1.1;
     }
 
-    /* ── Buscador F10 ── */
+    /* â”€â”€ Buscador F10 â”€â”€ */
     #buscador-overlay {
       position:fixed; inset:0; z-index:100;
       background:rgba(0,0,0,.7); backdrop-filter:blur(3px);
@@ -196,7 +196,7 @@
     .buscador-item-info { flex:1; min-width:0; }
     .buscador-empty { padding:24px 18px; text-align:center; color:var(--text-subtle); font-size:13px; }
 
-    /* ── Modal de cobro ── */
+    /* â”€â”€ Modal de cobro â”€â”€ */
     #modal-cobro {
       position:fixed; inset:0; z-index:200;
       background:rgba(0,0,0,.75); backdrop-filter:blur(4px);
@@ -273,7 +273,7 @@
     }
     .btn-cobro-esc:hover { background:rgba(239,68,68,.08); }
 
-    /* ── Modales clásicos (producto libre, descuento, movimiento, anular, renombrar) ── */
+    /* â”€â”€ Modales clÃ¡sicos (producto libre, descuento, movimiento, anular, renombrar) â”€â”€ */
     .trans-row {
       display:flex; align-items:flex-start; gap:10px;
       padding:8px 12px; border-radius:var(--r-in);
@@ -289,7 +289,7 @@
     .estado-cancelada     { background:rgba(239,68,68,.15);  color:#f87171; }
     .estado-dev-parcial   { background:rgba(234,179,8,.15);  color:#facc15; }
 
-    /* ── Desc global ── */
+    /* â”€â”€ Desc global â”€â”€ */
     .desc-global-wrap {
       display:flex; align-items:center; gap:6px;
       padding:6px 10px; background:rgba(234,179,8,.07);
@@ -302,7 +302,7 @@
     }
     .desc-type-btn.active { background:#ca8a04; color:#fff; border-color:#ca8a04; }
 
-    /* ── Wizard ── */
+    /* â”€â”€ Wizard â”€â”€ */
     .wizard-overlay {
       position:fixed; inset:0; z-index:9999;
       background:rgba(15,23,42,.97);
@@ -351,68 +351,7 @@
 </head>
 <body class="app-layout">
 
-  <!-- ── Sidebar ─────────────────────────────────────────────────── -->
-  <aside class="sidebar">
-    <div class="sidebar-logo">
-      <div class="sidebar-logo-icon">
-        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><rect x="1" y="4" width="22" height="16" rx="2"/><line x1="1" y1="10" x2="23" y2="10"/></svg>
-      </div>
-      <div>
-        <div class="sidebar-logo-name">OmaTech POS</div>
-        <div class="sidebar-logo-sub">Punto de Venta</div>
-      </div>
-    </div>
-    <nav class="sidebar-nav">
-      <a href="caja.html" class="nav-item active">
-        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="7" width="20" height="13" rx="2"/><path d="M16 7V5a2 2 0 0 0-4 0v2"/><line x1="12" y1="12" x2="12" y2="16"/><line x1="10" y1="14" x2="14" y2="14"/></svg>
-        Caja <span class="nav-fkey">F1</span>
-      </a>
-      <a href="catalogo.html" class="nav-item">
-        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"/></svg>
-        Catálogo <span class="nav-fkey">F2</span>
-      </a>
-      <a href="inventario.html" class="nav-item">
-        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="12 2 2 7 12 12 22 7 12 2"/><polyline points="2 17 12 22 22 17"/><polyline points="2 12 12 17 22 12"/></svg>
-        Inventario <span class="nav-fkey">F3</span>
-      </a>
-      <a href="clientes.html" class="nav-item">
-        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
-        Clientes <span class="nav-fkey">F4</span>
-      </a>
-      <a href="proveedores.html" class="nav-item">
-        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="1" y="3" width="15" height="13"/><polygon points="16 8 20 8 23 11 23 16 16 16 16 8"/><circle cx="5.5" cy="18.5" r="2.5"/><circle cx="18.5" cy="18.5" r="2.5"/></svg>
-        Proveedores <span class="nav-fkey">F5</span>
-      </a>
-      <a href="informes.html" class="nav-item">
-        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="20" x2="18" y2="10"/><line x1="12" y1="20" x2="12" y2="4"/><line x1="6" y1="20" x2="6" y2="14"/><line x1="2" y1="20" x2="22" y2="20"/></svg>
-        Informes <span class="nav-fkey">F6</span>
-      </a>
-      <a href="turno.html" class="nav-item">
-        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
-        Turno <span class="nav-fkey">F7</span>
-      </a>
-      <a href="configuracion.html" class="nav-item">
-        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>
-        Configuración <span class="nav-fkey">F8</span>
-        <span id="badge-sync" class="nav-badge hidden"></span>
-      </a>
-    </nav>
-    <div class="sidebar-footer">
-      <div class="sidebar-user">
-        <div class="sidebar-user-avatar" id="nav-avatar">U</div>
-        <div style="overflow:hidden;">
-          <div class="sidebar-user-name" id="nav-username">Usuario</div>
-          <div class="sidebar-user-role">Administrador</div>
-        </div>
-      </div>
-      <button class="btn-logout" id="btn-logout">
-        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/></svg>
-        Cerrar sesión
-      </button>
-    </div>
-  </aside>
-
-  <!-- ── Contenido principal ─────────────────────────────────────── -->
+  <!-- â”€â”€ Contenido principal â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ -->
   <div class="page-content">
 
     <!-- Tabs de tickets -->
@@ -420,8 +359,8 @@
 
     <!-- Barra de herramientas -->
     <div class="toolbar">
-      <button class="toolbar-btn" id="btn-producto-libre" title="Ítem libre (Ins)">
-        <span class="kbd">Ins</span> Ítem libre
+      <button class="toolbar-btn" id="btn-producto-libre" title="Ãtem libre (Ins)">
+        <span class="kbd">Ins</span> Ãtem libre
       </button>
       <button class="toolbar-btn" id="btn-abrir-buscador" title="Buscar por nombre (F10)">
         <span class="kbd">F10</span> Buscar
@@ -433,9 +372,9 @@
         <span class="kbd">F7</span> Entrada-Salida
       </button>
       <div class="toolbar-sep"></div>
-      <button class="toolbar-btn" id="btn-borrar-item" title="Borrar ítem seleccionado (Del)"
+      <button class="toolbar-btn" id="btn-borrar-item" title="Borrar Ã­tem seleccionado (Del)"
         style="color:var(--danger);border-color:rgba(239,68,68,.35);">
-        <span class="kbd" style="color:var(--danger);">Del</span> Borrar ítem
+        <span class="kbd" style="color:var(--danger);">Del</span> Borrar Ã­tem
       </button>
       <div class="toolbar-sep"></div>
       <button class="toolbar-btn" id="btn-cobrar-toolbar"
@@ -471,13 +410,13 @@
       <span id="ticket-nombre-label" style="font-size:12px;font-weight:600;color:var(--text-subtle);cursor:pointer;padding:4px 6px;" title="Doble clic para renombrar"></span>
     </div>
 
-    <!-- Campo de código -->
+    <!-- Campo de cÃ³digo -->
     <div class="codigo-bar">
-      <label class="codigo-label" for="campo-codigo">Código del producto:</label>
+      <label class="codigo-label" for="campo-codigo">CÃ³digo del producto:</label>
       <input
         id="campo-codigo"
         type="text"
-        placeholder="Escaneá o escribí el código..."
+        placeholder="EscaneÃ¡ o escribÃ­ el cÃ³digo..."
         autocomplete="off"
         spellcheck="false"
       />
@@ -488,14 +427,14 @@
           <input id="desc-global-input" type="number" min="0" step="0.01" placeholder="0"
             class="inp" style="width:80px;padding:4px 8px;font-size:12px;" />
           <button id="btn-aplicar-desc" class="btn btn-sm btn-primary" style="font-size:11px;padding:4px 10px;white-space:nowrap;">Aplicar</button>
-          <button id="btn-quitar-desc"  class="btn btn-sm btn-ghost"   style="font-size:11px;padding:4px 8px;">✕</button>
+          <button id="btn-quitar-desc"  class="btn btn-sm btn-ghost"   style="font-size:11px;padding:4px 8px;">âœ•</button>
         </div>
       </div>
     </div>
 
     <!-- Notas inline -->
     <div id="seccion-notas" style="display:none;padding:7px 14px;border-bottom:1px solid var(--border);background:rgba(59,130,246,.04);flex-shrink:0;">
-      <textarea id="notas-input" rows="2" placeholder="Nota para este ticket (ej: dirección, instrucciones especiales...)"
+      <textarea id="notas-input" rows="2" placeholder="Nota para este ticket (ej: direcciÃ³n, instrucciones especiales...)"
         class="inp" style="width:100%;resize:none;font-size:12px;line-height:1.5;"></textarea>
     </div>
 
@@ -504,8 +443,8 @@
       <table class="carrito-tabla" id="carrito-tabla">
         <thead>
           <tr>
-            <th style="width:90px;">Código</th>
-            <th>Descripción</th>
+            <th style="width:90px;">CÃ³digo</th>
+            <th>DescripciÃ³n</th>
             <th class="num" style="width:90px;">Precio venta</th>
             <th class="num" style="width:100px;">Cant.</th>
             <th class="num" style="width:90px;">Importe</th>
@@ -516,7 +455,7 @@
         <tbody id="carrito-tbody">
           <tr id="carrito-empty-row">
             <td colspan="7" style="text-align:center;padding:48px 0;color:var(--text-subtle);font-size:13px;">
-              El carrito está vacío
+              El carrito estÃ¡ vacÃ­o
             </td>
           </tr>
         </tbody>
@@ -534,7 +473,7 @@
     <!-- Pie de caja -->
     <div class="pie-caja">
       <div class="pie-izq">
-        <div style="font-size:11px;color:var(--text-subtle);">Ítems en carrito</div>
+        <div style="font-size:11px;color:var(--text-subtle);">Ãtems en carrito</div>
         <div id="pie-item-count" style="font-size:18px;font-weight:700;">0</div>
       </div>
       <div class="pie-centro">
@@ -566,25 +505,25 @@
 
   </div><!-- fin page-content -->
 
-  <!-- ── Buscador F10 ─────────────────────────────────────────────── -->
+  <!-- â”€â”€ Buscador F10 â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ -->
   <div id="buscador-overlay">
     <div id="buscador-box">
-      <input id="buscador-input" type="text" placeholder="Buscá por nombre, código o descripción..." autocomplete="off" spellcheck="false" />
+      <input id="buscador-input" type="text" placeholder="BuscÃ¡ por nombre, cÃ³digo o descripciÃ³n..." autocomplete="off" spellcheck="false" />
       <div id="buscador-resultados">
-        <div class="buscador-empty">Escribí para buscar artículos</div>
+        <div class="buscador-empty">EscribÃ­ para buscar artÃ­culos</div>
       </div>
       <div style="padding:8px 18px;border-top:1px solid var(--border);font-size:11px;color:var(--text-subtle);">
-        ↑↓ navegar · Enter seleccionar · Esc cerrar
+        â†‘â†“ navegar Â· Enter seleccionar Â· Esc cerrar
       </div>
     </div>
   </div>
 
-  <!-- ── Modal de cobro (F12) ─────────────────────────────────────── -->
+  <!-- â”€â”€ Modal de cobro (F12) â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ -->
   <div id="modal-cobro">
     <div id="cobro-box">
       <div class="cobro-header">
         <span class="cobro-title">Cobrar</span>
-        <span style="font-size:11px;color:var(--text-subtle);">F1 imprimir · F2 sin imprimir · Esc cancelar</span>
+        <span style="font-size:11px;color:var(--text-subtle);">F1 imprimir Â· F2 sin imprimir Â· Esc cancelar</span>
       </div>
       <div class="cobro-total-display" id="cobro-total-display">$0,00</div>
       <div class="cobro-body">
@@ -597,12 +536,12 @@
           </button>
           <button class="forma-pago-opt" data-value="tarjeta_debito" tabindex="-1">
             <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="1" y="4" width="22" height="16" rx="2"/><circle cx="5" cy="15" r="1.5" fill="currentColor" stroke="none"/></svg>
-            Débito
+            DÃ©bito
             <span class="fkey">2</span>
           </button>
           <button class="forma-pago-opt" data-value="tarjeta_credito" tabindex="-1">
             <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="1" y="4" width="22" height="16" rx="2"/><polyline points="5 15 7 15 9 15" stroke-width="2.5"/></svg>
-            Crédito
+            CrÃ©dito
             <span class="fkey">3</span>
           </button>
           <button class="forma-pago-opt" data-value="transferencia" tabindex="-1">
@@ -612,34 +551,34 @@
           </button>
           <button class="forma-pago-opt" data-value="cuenta_corriente" tabindex="-1">
             <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
-            Crédito cliente
+            CrÃ©dito cliente
             <span class="fkey">5</span>
           </button>
         </div>
 
-        <!-- Sección efectivo -->
+        <!-- SecciÃ³n efectivo -->
         <div id="cobro-seccion-efectivo" class="efectivo-row">
           <div style="display:flex;gap:12px;align-items:flex-start;">
             <div style="flex:1;">
               <div style="font-size:11px;color:var(--text-muted);margin-bottom:5px;">Monto recibido (opcional)</div>
               <input id="cobro-monto-recibido" type="number" min="0" step="0.01"
-                placeholder="Dejar vacío = monto exacto" class="inp" />
+                placeholder="Dejar vacÃ­o = monto exacto" class="inp" />
             </div>
             <div style="flex:1;text-align:right;">
               <div style="font-size:11px;color:var(--text-muted);margin-bottom:5px;">Vuelto</div>
-              <div id="cobro-vuelto-display" style="font-size:20px;font-weight:700;color:var(--text-subtle);font-variant-numeric:tabular-nums;font-family:monospace;">—</div>
+              <div id="cobro-vuelto-display" style="font-size:20px;font-weight:700;color:var(--text-subtle);font-variant-numeric:tabular-nums;font-family:monospace;">â€”</div>
             </div>
           </div>
         </div>
 
-        <!-- Sección crédito cliente -->
+        <!-- SecciÃ³n crÃ©dito cliente -->
         <div id="cobro-seccion-cliente" style="display:none;flex-direction:column;gap:8px;">
           <div style="font-size:11px;color:var(--text-muted);">Buscar cliente</div>
-          <input id="cobro-buscar-cliente" type="text" placeholder="Nombre o teléfono..." autocomplete="off" class="inp" />
+          <input id="cobro-buscar-cliente" type="text" placeholder="Nombre o telÃ©fono..." autocomplete="off" class="inp" />
           <div id="cobro-resultados-cliente" style="display:none;background:var(--surface-2);border:1px solid var(--border);border-radius:var(--r-in);max-height:140px;overflow-y:auto;"></div>
           <div id="cobro-cliente-badge" style="display:none;align-items:center;justify-content:space-between;background:rgba(59,130,246,.12);border:1px solid rgba(59,130,246,.3);border-radius:var(--r-in);padding:8px 12px;gap:8px;">
             <span id="cobro-cliente-nombre" style="font-size:13px;font-weight:500;color:#93c5fd;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;"></span>
-            <button id="cobro-btn-quitar-cliente" style="background:none;border:none;color:#60a5fa;cursor:pointer;font-size:16px;line-height:1;flex-shrink:0;padding:0;">✕</button>
+            <button id="cobro-btn-quitar-cliente" style="background:none;border:none;color:#60a5fa;cursor:pointer;font-size:16px;line-height:1;flex-shrink:0;padding:0;">âœ•</button>
           </div>
         </div>
 
@@ -649,30 +588,30 @@
         <div class="cobro-acciones">
           <button class="btn-cobro-confirm imprimir" id="btn-cobro-imprimir">
             <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 6 2 18 2 18 9"/><path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2"/><rect x="6" y="14" width="12" height="8"/></svg>
-            F1 — Cobrar e imprimir
+            F1 â€” Cobrar e imprimir
           </button>
           <button class="btn-cobro-confirm sin-impr" id="btn-cobro-sin-imprimir">
-            F2 — Sin comprobante
+            F2 â€” Sin comprobante
           </button>
         </div>
-        <button class="btn-cobro-esc" id="btn-cobro-cancelar">Esc — Cancelar</button>
+        <button class="btn-cobro-esc" id="btn-cobro-cancelar">Esc â€” Cancelar</button>
       </div>
     </div>
   </div>
 
-  <!-- ── Modal: Producto Libre (Ins) ──────────────────────────────── -->
+  <!-- â”€â”€ Modal: Producto Libre (Ins) â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ -->
   <div id="modal-libre" class="modal-overlay hidden">
     <div class="modal-box" style="max-width:400px;">
       <div class="modal-header">
-        <h3 class="modal-title">Ítem libre</h3>
-        <button class="modal-close" id="btn-cerrar-libre">×</button>
+        <h3 class="modal-title">Ãtem libre</h3>
+        <button class="modal-close" id="btn-cerrar-libre">Ã—</button>
       </div>
       <div class="modal-body">
         <div id="error-libre" class="hidden"
           style="margin-bottom:12px;padding:8px 12px;background:rgba(239,68,68,.1);border:1px solid rgba(239,68,68,.25);border-radius:var(--r-in);color:#fca5a5;font-size:13px;"></div>
         <form id="form-libre" style="display:flex;flex-direction:column;gap:14px;" novalidate>
           <div class="field">
-            <label class="field-label">Descripción <span style="color:var(--danger)">*</span></label>
+            <label class="field-label">DescripciÃ³n <span style="color:var(--danger)">*</span></label>
             <input id="libre-desc" type="text" autocomplete="off" placeholder="Ej: Coca Cola 500ml" class="inp" />
           </div>
           <div style="display:grid;grid-template-columns:1fr 1fr;gap:14px;">
@@ -694,12 +633,12 @@
     </div>
   </div>
 
-  <!-- ── Modal: Descuento por ítem ────────────────────────────────── -->
+  <!-- â”€â”€ Modal: Descuento por Ã­tem â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ -->
   <div id="modal-descuento" class="modal-overlay hidden">
     <div class="modal-box" style="max-width:360px;">
       <div class="modal-header">
         <h3 class="modal-title">Aplicar descuento</h3>
-        <button class="modal-close" id="btn-cerrar-descuento">×</button>
+        <button class="modal-close" id="btn-cerrar-descuento">Ã—</button>
       </div>
       <div class="modal-body" style="display:flex;flex-direction:column;gap:14px;">
         <div id="desc-item-nombre" style="font-size:13px;color:var(--text-muted);"></div>
@@ -723,12 +662,12 @@
     </div>
   </div>
 
-  <!-- ── Modal: Movimiento de caja ─────────────────────────────────── -->
+  <!-- â”€â”€ Modal: Movimiento de caja â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ -->
   <div id="modal-movimiento" class="modal-overlay hidden">
     <div class="modal-box" style="max-width:400px;">
       <div class="modal-header">
         <h3 class="modal-title">Movimiento de caja</h3>
-        <button class="modal-close" id="btn-cerrar-movimiento">×</button>
+        <button class="modal-close" id="btn-cerrar-movimiento">Ã—</button>
       </div>
       <div class="modal-body">
         <div id="error-movimiento" class="hidden"
@@ -739,11 +678,11 @@
             <div style="display:flex;gap:8px;">
               <label style="flex:1;display:flex;align-items:center;gap:8px;padding:10px 12px;border-radius:var(--r-in);border:1px solid var(--border);cursor:pointer;background:var(--surface-2);">
                 <input type="radio" name="mov-tipo" value="entrada" checked style="accent-color:#22c55e;" />
-                <span style="font-size:13px;color:#4ade80;font-weight:500;">↓ Entrada</span>
+                <span style="font-size:13px;color:#4ade80;font-weight:500;">â†“ Entrada</span>
               </label>
               <label style="flex:1;display:flex;align-items:center;gap:8px;padding:10px 12px;border-radius:var(--r-in);border:1px solid var(--border);cursor:pointer;background:var(--surface-2);">
                 <input type="radio" name="mov-tipo" value="salida" style="accent-color:#ef4444;" />
-                <span style="font-size:13px;color:#f87171;font-weight:500;">↑ Salida</span>
+                <span style="font-size:13px;color:#f87171;font-weight:500;">â†‘ Salida</span>
               </label>
             </div>
           </div>
@@ -752,7 +691,7 @@
             <input id="mov-monto" type="number" step="0.01" min="0.01" placeholder="0,00" class="inp" />
           </div>
           <div class="field">
-            <label class="field-label">Descripción / Motivo <span style="color:var(--danger)">*</span></label>
+            <label class="field-label">DescripciÃ³n / Motivo <span style="color:var(--danger)">*</span></label>
             <input id="mov-descripcion" type="text" placeholder="Ej: Fondo inicial, pago proveedor..." class="inp" />
           </div>
         </form>
@@ -764,16 +703,16 @@
     </div>
   </div>
 
-  <!-- ── Modal: Anular / Devolver venta ───────────────────────────── -->
+  <!-- â”€â”€ Modal: Anular / Devolver venta â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ -->
   <div id="modal-anular" class="modal-overlay hidden">
     <div class="modal-box" style="max-width:640px;max-height:90vh;display:flex;flex-direction:column;">
       <div class="modal-header">
         <h3 class="modal-title" id="anular-modal-titulo">Anular / Devolver venta</h3>
-        <button class="modal-close" id="btn-cerrar-anular">×</button>
+        <button class="modal-close" id="btn-cerrar-anular">Ã—</button>
       </div>
       <div class="modal-body" style="flex:1;overflow-y:auto;display:flex;flex-direction:column;gap:12px;">
         <div id="anular-paso-1">
-          <div style="font-size:12px;color:var(--text-muted);margin-bottom:8px;">Ventas del día de hoy:</div>
+          <div style="font-size:12px;color:var(--text-muted);margin-bottom:8px;">Ventas del dÃ­a de hoy:</div>
           <div id="lista-transacciones" style="display:flex;flex-direction:column;gap:4px;max-height:300px;overflow-y:auto;"></div>
           <div id="anular-sin-trans" class="hidden" style="text-align:center;color:var(--text-subtle);font-size:13px;padding:20px 0;">No hay ventas registradas hoy.</div>
         </div>
@@ -781,41 +720,41 @@
           <div id="anular-trans-resumen" style="padding:10px 12px;background:var(--surface-2);border-radius:var(--r-in);font-size:12px;"></div>
           <div style="display:flex;gap:8px;">
             <button id="btn-hacer-cancelacion" class="btn btn-ghost" style="flex:1;color:var(--danger);border-color:rgba(239,68,68,.4);">Cancelar venta completa</button>
-            <button id="btn-hacer-devolucion" class="btn btn-ghost" style="flex:1;">Devolución parcial</button>
+            <button id="btn-hacer-devolucion" class="btn btn-ghost" style="flex:1;">DevoluciÃ³n parcial</button>
           </div>
         </div>
         <div id="anular-paso-3a" style="display:none;flex-direction:column;gap:12px;">
-          <div style="font-size:13px;color:var(--text);font-weight:500;">Cancelar venta — se revertirá el inventario</div>
+          <div style="font-size:13px;color:var(--text);font-weight:500;">Cancelar venta â€” se revertirÃ¡ el inventario</div>
           <div class="field">
-            <label class="field-label">Motivo de cancelación <span style="color:var(--danger)">*</span></label>
+            <label class="field-label">Motivo de cancelaciÃ³n <span style="color:var(--danger)">*</span></label>
             <input id="cancelacion-motivo" type="text" placeholder="Ej: error de carga, duplicado..." class="inp" />
           </div>
         </div>
         <div id="anular-paso-3b" style="display:none;flex-direction:column;gap:12px;">
-          <div style="font-size:13px;color:var(--text);font-weight:500;">Seleccioná los ítems a devolver:</div>
+          <div style="font-size:13px;color:var(--text);font-weight:500;">SeleccionÃ¡ los Ã­tems a devolver:</div>
           <div id="devolucion-items" style="display:flex;flex-direction:column;gap:6px;"></div>
           <div class="field">
-            <label class="field-label">Motivo de devolución <span style="color:var(--danger)">*</span></label>
-            <input id="devolucion-motivo" type="text" placeholder="Ej: producto dañado, cliente arrepentido..." class="inp" />
+            <label class="field-label">Motivo de devoluciÃ³n <span style="color:var(--danger)">*</span></label>
+            <input id="devolucion-motivo" type="text" placeholder="Ej: producto daÃ±ado, cliente arrepentido..." class="inp" />
           </div>
         </div>
         <div id="error-anular" class="hidden"
           style="padding:8px 12px;background:rgba(239,68,68,.1);border:1px solid rgba(239,68,68,.25);border-radius:var(--r-in);color:#fca5a5;font-size:12px;"></div>
       </div>
       <div class="modal-footer" id="anular-footer">
-        <button type="button" id="btn-anular-volver" class="btn btn-ghost" style="display:none;">← Volver</button>
+        <button type="button" id="btn-anular-volver" class="btn btn-ghost" style="display:none;">â† Volver</button>
         <button type="button" id="btn-cerrar-anular-2" class="btn btn-ghost">Cerrar</button>
         <button type="button" id="btn-confirmar-anular" class="btn btn-danger" style="display:none;">Confirmar</button>
       </div>
     </div>
   </div>
 
-  <!-- ── Modal: Renombrar ticket ──────────────────────────────────── -->
+  <!-- â”€â”€ Modal: Renombrar ticket â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ -->
   <div id="modal-renombrar" class="modal-overlay hidden">
     <div class="modal-box" style="max-width:340px;">
       <div class="modal-header">
         <h3 class="modal-title">Nombre del ticket</h3>
-        <button class="modal-close" id="btn-cerrar-renombrar">×</button>
+        <button class="modal-close" id="btn-cerrar-renombrar">Ã—</button>
       </div>
       <div class="modal-body">
         <input id="renombrar-input" type="text" placeholder="Ej: Mesa 3, Juan..." class="inp" maxlength="30" />
@@ -827,12 +766,12 @@
     </div>
   </div>
 
-  <!-- ── Modal: Wizard Modo Negocio ──────────────────────────────── -->
+  <!-- â”€â”€ Modal: Wizard Modo Negocio â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ -->
   <div id="modal-wizard" class="wizard-overlay" style="display:none;">
     <div class="wizard-box">
       <div style="text-align:center;">
-        <div style="font-size:22px;font-weight:700;color:#f1f5f9;margin-bottom:8px;">¿Qué tipo de negocio es?</div>
-        <div style="font-size:13px;color:#94a3b8;line-height:1.5;">Elegí el modo que mejor describe tu comercio.<br>Podés cambiarlo después desde <strong style="color:#93c5fd;">Configuración → Modo Negocio</strong>.</div>
+        <div style="font-size:22px;font-weight:700;color:#f1f5f9;margin-bottom:8px;">Â¿QuÃ© tipo de negocio es?</div>
+        <div style="font-size:13px;color:#94a3b8;line-height:1.5;">ElegÃ­ el modo que mejor describe tu comercio.<br>PodÃ©s cambiarlo despuÃ©s desde <strong style="color:#93c5fd;">ConfiguraciÃ³n â†’ Modo Negocio</strong>.</div>
       </div>
       <div class="wizard-cards" id="wizard-cards"></div>
     </div>
@@ -843,5 +782,6 @@
   <script src="../js/hotkeys.js"></script>
   <script src="../js/caja.js"></script>
   <script src="../js/nav-badge.js"></script>
+  <script src="../js/modal-tracker.js"></script>
 </body>
 </html>

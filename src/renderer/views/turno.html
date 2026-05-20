@@ -1,76 +1,15 @@
-<!DOCTYPE html>
+﻿<!DOCTYPE html>
 <html lang="es">
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Oma POS — Turno</title>
+  <title>Oma POS â€” Turno</title>
   <script src="https://cdn.tailwindcss.com"></script>
   <link rel="stylesheet" href="../css/style.css" />
 </head>
 <body class="app-layout">
 
-  <!-- ── Sidebar ─────────────────────────────────────────────── -->
-  <aside class="sidebar">
-    <div class="sidebar-logo">
-      <div class="sidebar-logo-icon">
-        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><rect x="1" y="4" width="22" height="16" rx="2"/><line x1="1" y1="10" x2="23" y2="10"/></svg>
-      </div>
-      <div>
-        <div class="sidebar-logo-name">OmaTech POS</div>
-        <div class="sidebar-logo-sub">Punto de Venta</div>
-      </div>
-    </div>
-    <nav class="sidebar-nav">
-      <a href="caja.html" class="nav-item">
-        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="7" width="20" height="13" rx="2"/><path d="M16 7V5a2 2 0 0 0-4 0v2"/><line x1="12" y1="12" x2="12" y2="16"/><line x1="10" y1="14" x2="14" y2="14"/></svg>
-        Caja <span class="nav-fkey">F1</span>
-      </a>
-      <a href="catalogo.html" class="nav-item">
-        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"/></svg>
-        Catálogo <span class="nav-fkey">F2</span>
-      </a>
-      <a href="inventario.html" class="nav-item">
-        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="12 2 2 7 12 12 22 7 12 2"/><polyline points="2 17 12 22 22 17"/><polyline points="2 12 12 17 22 12"/></svg>
-        Inventario <span class="nav-fkey">F3</span>
-      </a>
-      <a href="clientes.html" class="nav-item">
-        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
-        Clientes <span class="nav-fkey">F4</span>
-      </a>
-      <a href="proveedores.html" class="nav-item">
-        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="1" y="3" width="15" height="13"/><polygon points="16 8 20 8 23 11 23 16 16 16 16 8"/><circle cx="5.5" cy="18.5" r="2.5"/><circle cx="18.5" cy="18.5" r="2.5"/></svg>
-        Proveedores <span class="nav-fkey">F5</span>
-      </a>
-      <a href="informes.html" class="nav-item">
-        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="20" x2="18" y2="10"/><line x1="12" y1="20" x2="12" y2="4"/><line x1="6" y1="20" x2="6" y2="14"/><line x1="2" y1="20" x2="22" y2="20"/></svg>
-        Informes <span class="nav-fkey">F6</span>
-      </a>
-      <a href="turno.html" class="nav-item active">
-        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
-        Turno <span class="nav-fkey">F7</span>
-      </a>
-      <a href="configuracion.html" class="nav-item">
-        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>
-        Configuración <span class="nav-fkey">F8</span>
-        <span id="badge-sync" class="nav-badge hidden"></span>
-      </a>
-    </nav>
-    <div class="sidebar-footer">
-      <div class="sidebar-user">
-        <div class="sidebar-user-avatar" id="nav-avatar">U</div>
-        <div style="overflow:hidden;">
-          <div class="sidebar-user-name" id="nav-username">Usuario</div>
-          <div class="sidebar-user-role">Administrador</div>
-        </div>
-      </div>
-      <button class="btn-logout" id="btn-logout">
-        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/></svg>
-        Cerrar sesión
-      </button>
-    </div>
-  </aside>
-
-  <!-- ── Contenido principal ────────────────────────────────── -->
+  <!-- â”€â”€ Contenido principal â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ -->
   <div class="page-content">
 
     <div class="page-header">
@@ -80,11 +19,11 @@
     <main style="flex:1;overflow-y:auto;padding:24px;">
       <div style="max-width:680px;margin:0 auto;display:flex;flex-direction:column;gap:20px;">
 
-        <!-- ── Panel turno activo / abrir turno ── -->
+        <!-- â”€â”€ Panel turno activo / abrir turno â”€â”€ -->
         <div id="panel-sin-turno" class="card hidden">
           <div class="card-header">Sin turno activo</div>
           <div class="card-body" style="display:flex;flex-direction:column;gap:16px;">
-            <p style="font-size:13px;color:var(--text-muted);">No hay ningún turno abierto. Ingresá el efectivo inicial en caja para comenzar.</p>
+            <p style="font-size:13px;color:var(--text-muted);">No hay ningÃºn turno abierto. IngresÃ¡ el efectivo inicial en caja para comenzar.</p>
             <form id="form-abrir" style="display:flex;gap:12px;align-items:flex-end;" novalidate>
               <div class="field" style="flex:1;">
                 <label class="field-label">Efectivo inicial en caja</label>
@@ -99,7 +38,7 @@
           </div>
         </div>
 
-        <!-- ── Panel turno en curso ── -->
+        <!-- â”€â”€ Panel turno en curso â”€â”€ -->
         <div id="panel-turno-activo" class="card hidden">
           <div class="card-header" style="display:flex;justify-content:space-between;align-items:center;">
             <span>Turno en curso</span>
@@ -154,7 +93,7 @@
               </div>
             </div>
 
-            <!-- Botón actualizar -->
+            <!-- BotÃ³n actualizar -->
             <div style="display:flex;justify-content:flex-end;">
               <button id="btn-actualizar-resumen" class="btn btn-ghost" style="font-size:12px;">
                 <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="1 4 1 10 7 10"/><path d="M3.51 15a9 9 0 1 0 .49-3"/></svg>
@@ -174,7 +113,7 @@
                   </div>
                   <div id="diferencia-display" style="display:flex;flex-direction:column;justify-content:flex-end;">
                     <div style="font-size:11px;color:var(--text-subtle);margin-bottom:5px;">Diferencia</div>
-                    <div id="diferencia-valor" style="font-size:18px;font-weight:700;font-variant-numeric:tabular-nums;">—</div>
+                    <div id="diferencia-valor" style="font-size:18px;font-weight:700;font-variant-numeric:tabular-nums;">â€”</div>
                   </div>
                 </div>
                 <div class="field">
@@ -194,7 +133,7 @@
           </div>
         </div>
 
-        <!-- ── Historial de turnos ── -->
+        <!-- â”€â”€ Historial de turnos â”€â”€ -->
         <div class="card">
           <div class="card-header">Historial de turnos</div>
           <div class="card-body" style="padding:0;">
@@ -231,5 +170,6 @@
   <script src="../js/hotkeys.js"></script>
   <script src="../js/turno.js"></script>
   <script src="../js/nav-badge.js"></script>
+  <script src="../js/modal-tracker.js"></script>
 </body>
 </html>

@@ -182,4 +182,7 @@ contextBridge.exposeInMainWorld('api', {
 
   // Navegación (main process loadFile — funciona aunque location.href falle en Electron)
   navegar: (file) => ipcRenderer.invoke('navegar', file),
+
+  // Estado de modales — bloquea F1-F8 en el proceso principal
+  modalState: (open) => ipcRenderer.send('modal-state', open),
 });

@@ -17,6 +17,7 @@ let mainWindow      = null;
 let loginWindow     = null;
 let negocioIdActivo = null;
 let syncInterval    = null;
+let modalAbierto    = false;
 
 // ── Menú de navegación ─────────────────────────────────────────
 function createMenu(win) {
@@ -35,6 +36,8 @@ function createMenu(win) {
     label:       v.label,
     accelerator: v.accelerator,
     click() {
+      if (modalAbierto) return;
+      modalAbierto = false;
       win.loadFile(path.join(__dirname, '..', 'renderer', 'views', v.file));
     },
   }));
@@ -132,6 +135,8 @@ function iniciarSyncInterval() {
 
 // ── Handlers de autenticación y sync ──────────────────────────
 function registerAuthHandlers() {
+  ipcMain.on('modal-state', (_e, open) => { modalAbierto = !!open; });
+
   ipcMain.handle('sync:manual', async () => {
     if (!negocioIdActivo) return { ok: false, error: 'Sin sesión activa.' };
     try {
