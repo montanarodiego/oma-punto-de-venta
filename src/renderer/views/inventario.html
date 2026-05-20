@@ -1,15 +1,15 @@
-﻿<!DOCTYPE html>
+<!DOCTYPE html>
 <html lang="es">
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Oma POS â€” Inventario</title>
+  <title>Oma POS — Inventario</title>
   <script src="https://cdn.tailwindcss.com"></script>
   <link rel="stylesheet" href="../css/style.css" />
 </head>
 <body class="app-layout">
 
-  <!-- â”€â”€ Contenido principal â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ -->
+  <!-- ── Contenido principal ────────────────────────────────── -->
   <div class="page-content">
 
     <div class="page-header" style="flex-shrink:0;">
@@ -26,14 +26,14 @@
       </button>
     </div>
 
-    <!-- â”€â”€ TAB: MOVIMIENTOS â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ -->
+    <!-- ── TAB: MOVIMIENTOS ──────────────────────────────────── -->
     <div id="tab-movimientos" class="tab-content" style="flex:1;overflow:hidden;display:flex;flex-direction:column;padding:14px 18px;gap:10px;">
 
       <!-- Filtros -->
       <div style="display:flex;flex-wrap:wrap;gap:8px;align-items:flex-end;flex-shrink:0;">
         <div style="position:relative;flex:1;min-width:160px;">
           <svg style="position:absolute;left:10px;top:50%;transform:translateY(-50%);color:var(--text-subtle);pointer-events:none;" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
-          <input id="mov-busqueda" type="text" placeholder="Filtrar por artÃ­culo..." class="inp" style="padding-left:32px;" />
+          <input id="mov-busqueda" type="text" placeholder="Filtrar por artículo..." class="inp" style="padding-left:32px;" />
         </div>
         <div class="field" style="margin:0;">
           <label class="field-label" style="font-size:11px;">Desde</label>
@@ -48,9 +48,9 @@
           <select id="mov-tipo" class="inp" style="font-size:12px;">
             <option value="">Todos</option>
             <option value="venta">Venta</option>
-            <option value="devolucion">DevoluciÃ³n</option>
+            <option value="devolucion">Devolución</option>
             <option value="ajuste">Ajuste</option>
-            <option value="recepcion">RecepciÃ³n</option>
+            <option value="recepcion">Recepción</option>
             <option value="entrada_compra">Entrada compra</option>
           </select>
         </div>
@@ -67,7 +67,7 @@
           <thead>
             <tr>
               <th>Fecha</th>
-              <th>ArtÃ­culo</th>
+              <th>Artículo</th>
               <th>Tipo</th>
               <th>Motivo</th>
               <th style="text-align:right;">Anterior</th>
@@ -83,19 +83,19 @@
       </div>
     </div>
 
-    <!-- â”€â”€ TAB: KARDEX â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ -->
+    <!-- ── TAB: KARDEX ───────────────────────────────────────── -->
     <div id="tab-kardex" class="tab-content" style="display:none;flex:1;overflow:hidden;flex-direction:column;padding:14px 18px;gap:12px;">
 
-      <!-- BÃºsqueda artÃ­culo -->
+      <!-- Búsqueda artículo -->
       <div style="flex-shrink:0;position:relative;max-width:420px;">
         <svg style="position:absolute;left:10px;top:50%;transform:translateY(-50%);color:var(--text-subtle);pointer-events:none;" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
-        <input id="kardex-busqueda" type="text" placeholder="Buscar artÃ­culo por nombre o cÃ³digo..." class="inp" style="padding-left:32px;" autocomplete="off" />
+        <input id="kardex-busqueda" type="text" placeholder="Buscar artículo por nombre o código..." class="inp" style="padding-left:32px;" autocomplete="off" />
         <div id="kardex-dropdown" style="display:none;position:absolute;top:100%;left:0;right:0;z-index:200;background:var(--surface);border:1px solid var(--border);border-radius:var(--r-in);box-shadow:0 8px 24px rgba(0,0,0,.4);max-height:200px;overflow-y:auto;margin-top:3px;"></div>
       </div>
 
       <!-- Estado inicial -->
       <div id="kardex-vacio" style="flex:1;display:flex;align-items:center;justify-content:center;color:var(--text-subtle);font-size:13px;">
-        BuscÃ¡ un artÃ­culo para ver su kardex completo.
+        Buscá un artículo para ver su kardex completo.
       </div>
       <div id="kardex-loading" style="display:none;flex:1;display:none;align-items:center;justify-content:center;color:var(--text-subtle);font-size:13px;">
         Cargando...
@@ -124,22 +124,22 @@
       </div>
     </div>
 
-    <!-- â”€â”€ TAB: AJUSTES â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ -->
+    <!-- ── TAB: AJUSTES ──────────────────────────────────────── -->
     <div id="tab-ajustes" class="tab-content" style="display:none;flex:1;overflow-y:auto;flex-direction:column;padding:18px;gap:14px;">
 
       <div style="max-width:500px;display:flex;flex-direction:column;gap:14px;">
 
-        <!-- BÃºsqueda artÃ­culo -->
+        <!-- Búsqueda artículo -->
         <div>
-          <div style="font-size:12px;font-weight:600;color:var(--text-muted);margin-bottom:6px;text-transform:uppercase;letter-spacing:.05em;">ArtÃ­culo</div>
+          <div style="font-size:12px;font-weight:600;color:var(--text-muted);margin-bottom:6px;text-transform:uppercase;letter-spacing:.05em;">Artículo</div>
           <div style="position:relative;">
             <svg style="position:absolute;left:10px;top:50%;transform:translateY(-50%);color:var(--text-subtle);pointer-events:none;" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
-            <input id="ajuste-busqueda" type="text" placeholder="Buscar por nombre o cÃ³digo..." class="inp" style="padding-left:32px;" autocomplete="off" />
+            <input id="ajuste-busqueda" type="text" placeholder="Buscar por nombre o código..." class="inp" style="padding-left:32px;" autocomplete="off" />
             <div id="ajuste-dropdown" style="display:none;position:absolute;top:100%;left:0;right:0;z-index:200;background:var(--surface);border:1px solid var(--border);border-radius:var(--r-in);box-shadow:0 8px 24px rgba(0,0,0,.4);max-height:200px;overflow-y:auto;margin-top:3px;"></div>
           </div>
         </div>
 
-        <!-- Info artÃ­culo seleccionado -->
+        <!-- Info artículo seleccionado -->
         <div id="ajuste-art-info" style="display:none;padding:10px 14px;background:var(--surface);border:1px solid var(--border);border-radius:var(--r-in);">
           <div style="font-weight:600;font-size:14px;" id="ajuste-art-nombre"></div>
           <div style="font-size:11px;color:var(--text-subtle);font-family:monospace;" id="ajuste-art-codigo"></div>
@@ -153,9 +153,9 @@
           <div class="field" style="margin:0;">
             <label class="field-label">Tipo de ajuste <span class="required">*</span></label>
             <select id="ajuste-tipo" class="inp">
-              <option value="entrada">Entrada â€” suma al stock</option>
-              <option value="salida">Salida â€” resta del stock</option>
-              <option value="correccion">CorrecciÃ³n â€” fija el stock total</option>
+              <option value="entrada">Entrada — suma al stock</option>
+              <option value="salida">Salida — resta del stock</option>
+              <option value="correccion">Corrección — fija el stock total</option>
             </select>
           </div>
           <div class="field" style="margin:0;">
@@ -176,7 +176,7 @@
       </div>
     </div>
 
-    <!-- â”€â”€ TAB: STOCK BAJO â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ -->
+    <!-- ── TAB: STOCK BAJO ───────────────────────────────────── -->
     <div id="tab-stock-bajo" class="tab-content" style="display:none;flex:1;overflow:hidden;flex-direction:column;padding:14px 18px;gap:10px;">
 
       <div style="display:flex;align-items:center;justify-content:space-between;flex-shrink:0;">
@@ -191,11 +191,11 @@
         <table class="tbl">
           <thead>
             <tr>
-              <th>CÃ³digo</th>
+              <th>Código</th>
               <th>Nombre</th>
               <th>Departamento</th>
               <th style="text-align:right;">Stock actual</th>
-              <th style="text-align:right;">Stock mÃ­n.</th>
+              <th style="text-align:right;">Stock mín.</th>
               <th style="text-align:right;">Diferencia</th>
               <th>Proveedor</th>
             </tr>
@@ -211,6 +211,7 @@
 
   <div class="toast-wrap" id="toast-wrap"></div>
   <script src="../js/auth-guard.js"></script>
+  <script src="../js/nav-bar.js"></script>
   <script src="../js/hotkeys.js"></script>
   <script src="../js/inventario.js"></script>
   <script src="../js/nav-badge.js"></script>

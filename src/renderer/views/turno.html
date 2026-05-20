@@ -1,15 +1,15 @@
-﻿<!DOCTYPE html>
+<!DOCTYPE html>
 <html lang="es">
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Oma POS â€” Turno</title>
+  <title>Oma POS — Turno</title>
   <script src="https://cdn.tailwindcss.com"></script>
   <link rel="stylesheet" href="../css/style.css" />
 </head>
 <body class="app-layout">
 
-  <!-- â”€â”€ Contenido principal â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ -->
+  <!-- ── Contenido principal ────────────────────────────────── -->
   <div class="page-content">
 
     <div class="page-header">
@@ -19,11 +19,11 @@
     <main style="flex:1;overflow-y:auto;padding:24px;">
       <div style="max-width:680px;margin:0 auto;display:flex;flex-direction:column;gap:20px;">
 
-        <!-- â”€â”€ Panel turno activo / abrir turno â”€â”€ -->
+        <!-- ── Panel turno activo / abrir turno ── -->
         <div id="panel-sin-turno" class="card hidden">
           <div class="card-header">Sin turno activo</div>
           <div class="card-body" style="display:flex;flex-direction:column;gap:16px;">
-            <p style="font-size:13px;color:var(--text-muted);">No hay ningÃºn turno abierto. IngresÃ¡ el efectivo inicial en caja para comenzar.</p>
+            <p style="font-size:13px;color:var(--text-muted);">No hay ningún turno abierto. Ingresá el efectivo inicial en caja para comenzar.</p>
             <form id="form-abrir" style="display:flex;gap:12px;align-items:flex-end;" novalidate>
               <div class="field" style="flex:1;">
                 <label class="field-label">Efectivo inicial en caja</label>
@@ -38,7 +38,7 @@
           </div>
         </div>
 
-        <!-- â”€â”€ Panel turno en curso â”€â”€ -->
+        <!-- ── Panel turno en curso ── -->
         <div id="panel-turno-activo" class="card hidden">
           <div class="card-header" style="display:flex;justify-content:space-between;align-items:center;">
             <span>Turno en curso</span>
@@ -93,7 +93,7 @@
               </div>
             </div>
 
-            <!-- BotÃ³n actualizar -->
+            <!-- Botón actualizar -->
             <div style="display:flex;justify-content:flex-end;">
               <button id="btn-actualizar-resumen" class="btn btn-ghost" style="font-size:12px;">
                 <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="1 4 1 10 7 10"/><path d="M3.51 15a9 9 0 1 0 .49-3"/></svg>
@@ -113,7 +113,7 @@
                   </div>
                   <div id="diferencia-display" style="display:flex;flex-direction:column;justify-content:flex-end;">
                     <div style="font-size:11px;color:var(--text-subtle);margin-bottom:5px;">Diferencia</div>
-                    <div id="diferencia-valor" style="font-size:18px;font-weight:700;font-variant-numeric:tabular-nums;">â€”</div>
+                    <div id="diferencia-valor" style="font-size:18px;font-weight:700;font-variant-numeric:tabular-nums;">—</div>
                   </div>
                 </div>
                 <div class="field">
@@ -133,7 +133,7 @@
           </div>
         </div>
 
-        <!-- â”€â”€ Historial de turnos â”€â”€ -->
+        <!-- ── Historial de turnos ── -->
         <div class="card">
           <div class="card-header">Historial de turnos</div>
           <div class="card-body" style="padding:0;">
@@ -167,6 +167,7 @@
 
   <div class="toast-wrap" id="toast-wrap"></div>
   <script src="../js/auth-guard.js"></script>
+  <script src="../js/nav-bar.js"></script>
   <script src="../js/hotkeys.js"></script>
   <script src="../js/turno.js"></script>
   <script src="../js/nav-badge.js"></script>

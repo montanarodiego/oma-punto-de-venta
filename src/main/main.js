@@ -19,31 +19,9 @@ let negocioIdActivo = null;
 let syncInterval    = null;
 let modalAbierto    = false;
 
-// ── Menú de navegación ─────────────────────────────────────────
-function createMenu(win) {
-  const views = [
-    { label: 'Caja',          file: 'caja.html',          accelerator: 'F1' },
-    { label: 'Catálogo',      file: 'catalogo.html',      accelerator: 'F2' },
-    { label: 'Inventario',    file: 'inventario.html',    accelerator: 'F3' },
-    { label: 'Clientes',      file: 'clientes.html',      accelerator: 'F4' },
-    { label: 'Proveedores',   file: 'proveedores.html',   accelerator: 'F5' },
-    { label: 'Informes',      file: 'informes.html',      accelerator: 'F6' },
-    { label: 'Turno',         file: 'turno.html',         accelerator: 'F7' },
-    { label: 'Configuración', file: 'configuracion.html', accelerator: 'F8' },
-  ];
-
-  const viewItems = views.map(v => ({
-    label:       v.label,
-    accelerator: v.accelerator,
-    click() {
-      if (modalAbierto) return;
-      modalAbierto = false;
-      win.loadFile(path.join(__dirname, '..', 'renderer', 'views', v.file));
-    },
-  }));
-
+// ── Menú (solo Ver / DevTools) ─────────────────────────────────
+function createMenu() {
   const template = [
-    { label: 'Navegación', submenu: viewItems },
     {
       label: 'Ver',
       submenu: [
@@ -79,7 +57,7 @@ function createWindow() {
     path.join(__dirname, '..', 'renderer', 'views', 'caja.html')
   );
 
-  createMenu(mainWindow);
+  createMenu();
 }
 
 // ── Ventana de login ───────────────────────────────────────────

@@ -1,9 +1,9 @@
-﻿<!DOCTYPE html>
+<!DOCTYPE html>
 <html lang="es">
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Oma POS â€” ConfiguraciÃ³n</title>
+  <title>Oma POS — Configuración</title>
   <script src="https://cdn.tailwindcss.com"></script>
   <link rel="stylesheet" href="../css/style.css" />
   <style>
@@ -67,11 +67,11 @@
 </head>
 <body class="app-layout">
 
-  <!-- â”€â”€ Contenido principal â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ -->
+  <!-- ── Contenido principal ────────────────────────────────── -->
   <div class="page-content">
 
     <div class="page-header">
-      <h1 class="page-title">ConfiguraciÃ³n del sistema</h1>
+      <h1 class="page-title">Configuración del sistema</h1>
     </div>
 
     <main style="flex:1;overflow-y:auto;padding:24px;">
@@ -88,7 +88,7 @@
                 <div id="modo-descripcion" style="font-size:12px;color:var(--text-muted);margin-top:2px;"></div>
               </div>
             </div>
-            <!-- Opciones especÃ­ficas por modo -->
+            <!-- Opciones específicas por modo -->
             <div id="modo-opciones-ri" style="display:none;flex-direction:column;gap:12px;padding-top:4px;border-top:1px solid var(--border);">
               <div class="field">
                 <label class="field-label">Tasa IVA por defecto</label>
@@ -97,7 +97,7 @@
                   <option value="10.5">10,5%</option>
                   <option value="0">0% (exento)</option>
                 </select>
-                <span class="field-hint">Se aplica a productos nuevos sin tasa especÃ­fica</span>
+                <span class="field-hint">Se aplica a productos nuevos sin tasa específica</span>
               </div>
             </div>
             <div id="modo-opciones-rest" style="display:none;flex-direction:column;gap:12px;padding-top:4px;border-top:1px solid var(--border);">
@@ -119,11 +119,11 @@
           </div>
         </div>
 
-        <!-- TamaÃ±o HUD Caja -->
+        <!-- Tamaño HUD Caja -->
         <div class="card">
-          <div class="card-header">TamaÃ±o de pantalla de caja</div>
+          <div class="card-header">Tamaño de pantalla de caja</div>
           <div class="card-body" style="display:flex;flex-direction:column;gap:12px;">
-            <p style="font-size:12px;color:var(--text-muted);">AjustÃ¡ el tamaÃ±o del texto en la pantalla de caja segÃºn la distancia a la que trabajÃ¡s.</p>
+            <p style="font-size:12px;color:var(--text-muted);">Ajustá el tamaño del texto en la pantalla de caja según la distancia a la que trabajás.</p>
             <div id="hud-size-cards" style="display:grid;grid-template-columns:1fr 1fr;gap:10px;"></div>
           </div>
         </div>
@@ -140,13 +140,13 @@
                   placeholder="Ej: Oma Distribuciones" class="inp" />
               </div>
               <div class="field">
-                <label class="field-label">DirecciÃ³n</label>
+                <label class="field-label">Dirección</label>
                 <input name="direccion" type="text" autocomplete="off"
                   placeholder="Ej: Av. Corrientes 1234, Buenos Aires" class="inp" />
               </div>
               <div style="display:grid;grid-template-columns:1fr 1fr;gap:14px;">
                 <div class="field">
-                  <label class="field-label">TelÃ©fono</label>
+                  <label class="field-label">Teléfono</label>
                   <input name="telefono" type="text" autocomplete="off"
                     placeholder="Ej: 011-4567-8900" class="inp" />
                 </div>
@@ -159,15 +159,15 @@
               <div class="field">
                 <label class="field-label">Mensaje en ticket</label>
                 <input name="mensaje_ticket" type="text" autocomplete="off"
-                  placeholder="Ej: Â¡Gracias por elegirnos!" class="inp" />
+                  placeholder="Ej: ¡Gracias por elegirnos!" class="inp" />
                 <span class="field-hint">Se muestra al pie del comprobante de venta</span>
               </div>
             </div>
           </div>
 
-          <!-- ParÃ¡metros del sistema -->
+          <!-- Parámetros del sistema -->
           <div class="card">
-            <div class="card-header">ParÃ¡metros del sistema</div>
+            <div class="card-header">Parámetros del sistema</div>
             <div class="card-body" style="display:flex;flex-direction:column;gap:14px;">
               <div style="display:grid;grid-template-columns:1fr 1fr;gap:14px;">
                 <div class="field">
@@ -177,10 +177,10 @@
                   <span class="field-hint">Se aplica en caja e informes</span>
                 </div>
                 <div class="field">
-                  <label class="field-label">SÃ­mbolo de moneda</label>
+                  <label class="field-label">Símbolo de moneda</label>
                   <input name="moneda" type="text" maxlength="5" autocomplete="off"
                     placeholder="$" class="inp" />
-                  <span class="field-hint">Ej: $, USD, â‚¬</span>
+                  <span class="field-hint">Ej: $, USD, €</span>
                 </div>
               </div>
               <div style="display:flex;align-items:center;justify-content:space-between;padding-top:14px;border-top:1px solid var(--border);">
@@ -196,9 +196,9 @@
             </div>
           </div>
 
-          <!-- SincronizaciÃ³n -->
+          <!-- Sincronización -->
           <div class="card">
-            <div class="card-header">SincronizaciÃ³n con la nube</div>
+            <div class="card-header">Sincronización con la nube</div>
             <div class="card-body" style="display:flex;align-items:center;gap:14px;">
               <button type="button" id="btn-sync" class="btn btn-primary">
                 <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="1 4 1 10 7 10"/><polyline points="23 20 23 14 17 14"/><path d="M20.49 9A9 9 0 0 0 5.64 5.64L1 10m22 4l-4.64 4.36A9 9 0 0 1 3.51 15"/></svg>
@@ -212,7 +212,7 @@
           <div class="card">
             <div class="card-header">Backup de la base de datos</div>
             <div class="card-body" style="display:flex;flex-direction:column;gap:14px;">
-              <p style="font-size:13px;color:var(--text-muted);">Se genera automÃ¡ticamente un backup al cerrar la app. Los Ãºltimos 30 backups se conservan.</p>
+              <p style="font-size:13px;color:var(--text-muted);">Se genera automáticamente un backup al cerrar la app. Los últimos 30 backups se conservan.</p>
               <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;">
                 <button type="button" id="btn-backup-ahora" class="btn btn-ghost">
                   <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"/><polyline points="17 21 17 13 7 13 7 21"/><polyline points="7 3 7 8 15 8"/></svg>
@@ -243,7 +243,7 @@
 
         </form>
 
-        <!-- GestiÃ³n de usuarios â€” solo admin -->
+        <!-- Gestión de usuarios — solo admin -->
         <div class="card" id="card-usuarios" style="display:none;">
           <div class="card-header" style="display:flex;align-items:center;justify-content:space-between;">
             <span>Usuarios del sistema</span>
@@ -260,12 +260,12 @@
     </main>
   </div>
 
-  <!-- â”€â”€ Modal: Wizard Modo Negocio â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ -->
+  <!-- ── Modal: Wizard Modo Negocio ────────────────────────────── -->
   <div id="modal-wizard" class="wizard-overlay" style="display:none;">
     <div class="wizard-box">
       <div style="text-align:center;">
-        <div style="font-size:22px;font-weight:700;color:#f1f5f9;margin-bottom:8px;">ElegÃ­ el modo de negocio</div>
-        <div style="font-size:13px;color:#94a3b8;line-height:1.5;">El modo configura cÃ³mo se comporta el IVA y el ticket.<br>PodÃ©s cambiarlo en cualquier momento desde aquÃ­.</div>
+        <div style="font-size:22px;font-weight:700;color:#f1f5f9;margin-bottom:8px;">Elegí el modo de negocio</div>
+        <div style="font-size:13px;color:#94a3b8;line-height:1.5;">El modo configura cómo se comporta el IVA y el ticket.<br>Podés cambiarlo en cualquier momento desde aquí.</div>
       </div>
       <div class="wizard-cards" id="wizard-cards-config"></div>
       <div style="text-align:center;">
@@ -276,22 +276,22 @@
     </div>
   </div>
 
-  <!-- â”€â”€ Modal: Usuario â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ -->
+  <!-- ── Modal: Usuario ───────────────────────────────────────── -->
   <div id="modal-usuario" style="display:none;position:fixed;inset:0;z-index:9999;background:rgba(15,23,42,.85);display:none;align-items:center;justify-content:center;padding:20px;">
     <div style="width:100%;max-width:400px;background:#1e293b;border:1px solid #334155;border-radius:14px;padding:28px;display:flex;flex-direction:column;gap:18px;">
       <div style="font-size:16px;font-weight:700;color:var(--text);" id="modal-usuario-titulo">Nuevo usuario</div>
       <form id="form-usuario" style="display:flex;flex-direction:column;gap:14px;" novalidate>
         <div class="field">
           <label class="field-label">Nombre completo</label>
-          <input id="u-nombre" type="text" class="inp" placeholder="Ej: MarÃ­a GarcÃ­a" autocomplete="off" />
+          <input id="u-nombre" type="text" class="inp" placeholder="Ej: María García" autocomplete="off" />
         </div>
         <div class="field">
           <label class="field-label">Usuario (para login)</label>
           <input id="u-usuario" type="text" class="inp" placeholder="Ej: maria" autocomplete="off" />
         </div>
         <div class="field">
-          <label class="field-label">ContraseÃ±a</label>
-          <input id="u-password" type="password" class="inp" placeholder="Dejar vacÃ­o para no cambiar" autocomplete="new-password" />
+          <label class="field-label">Contraseña</label>
+          <input id="u-password" type="password" class="inp" placeholder="Dejar vacío para no cambiar" autocomplete="new-password" />
         </div>
         <div class="field">
           <label class="field-label">Rol</label>
@@ -311,6 +311,7 @@
 
   <div class="toast-wrap" id="toast-wrap"></div>
   <script src="../js/auth-guard.js"></script>
+  <script src="../js/nav-bar.js"></script>
   <script src="../js/hotkeys.js"></script>
   <script src="../js/configuracion.js"></script>
   <script src="../js/nav-badge.js"></script>
