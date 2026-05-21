@@ -133,6 +133,7 @@ contextBridge.exposeInMainWorld('api', {
 
   // Turnos
   turnos: {
+    getActivo:       ()                              => ipcRenderer.invoke('turnos:obtenerActivo'),
     obtenerActivo:   ()                              => ipcRenderer.invoke('turnos:obtenerActivo'),
     abrir:           (efectivoInicial)               => ipcRenderer.invoke('turnos:abrir', efectivoInicial),
     calcularResumen: (id)                            => ipcRenderer.invoke('turnos:calcularResumen', id),

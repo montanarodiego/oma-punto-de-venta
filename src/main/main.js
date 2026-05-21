@@ -12,12 +12,14 @@ const {
   guardarTokenLocal,
   verificarTokenLocal,
 } = require('./sync');
+const Turnos = require('./models/turnos');
 
 let mainWindow      = null;
 let loginWindow     = null;
 let negocioIdActivo = null;
 let syncInterval    = null;
 let modalAbierto    = false;
+let forceClose      = false;
 
 // ── Menú (solo Ver / DevTools) ─────────────────────────────────
 function createMenu() {
@@ -59,6 +61,33 @@ function createWindow() {
   );
 
   createMenu();
+
+  mainWindow.on('close', function (e) {
+    if (forceClose) return;
+    let turno = null;
+    try { turno = Turnos.obtenerActivo(); } catch { /* DB puede no estar lista aún */ }
+    if (!turno) return;
+
+    e.preventDefault();
+    dialog.showMessageBox(mainWindow, {
+      type: 'warning',
+      title: 'Turno abierto',
+      message: 'Hay un turno abierto',
+      detail: 'Debés cerrar el turno antes de salir.\n¿Ir a la pantalla de Turno ahora?',
+      buttons: ['Ir a Turno', 'Salir sin cerrar'],
+      defaultId: 0,
+      cancelId: 1,
+    }).then(function ({ response }) {
+      if (response === 0) {
+        mainWindow.loadFile(
+          path.join(__dirname, '..', 'renderer', 'views', 'turno.html')
+        );
+      } else {
+        forceClose = true;
+        mainWindow.close();
+      }
+    });
+  });
 }
 
 // ── Ventana de login ───────────────────────────────────────────
@@ -218,6 +247,7 @@ app.whenReady().then(async () => {
 });
 
 app.on('before-quit', () => {
+  forceClose = true;
   try { hacerBackup(); } catch { /* no bloquear el cierre si falla */ }
 });
 

@@ -94,7 +94,8 @@ document.addEventListener('DOMContentLoaded', async () => {
     window.api.config.get('mostrar_iva_desglosado'),
     window.api.config.get('tamano_hud'),
     window.api.config.get('modo_negocio'),
-    window.api.turnos.obtenerActivo(),
+    // Usa la promesa de auth-guard (que ya verificó/esperó el turno)
+    window.TURNO_GUARD_PROMISE || window.api.turnos.obtenerActivo(),
   ]);
 
   tasaIva              = parseFloat(tasa) || 21;
@@ -114,6 +115,7 @@ document.addEventListener('DOMContentLoaded', async () => {
 
   inicializarCaja();
 });
+
 
 function inicializarCaja() {
   tickets = [crearTicketObj('Venta')];
@@ -1133,6 +1135,7 @@ const elCobroError         = document.getElementById('cobro-error');
 let cobroFormaPago          = 'efectivo';
 let cobroClienteSeleccionado = null;
 let cobroFocusIdx           = 0;
+let numpadStr               = '';
 const FORMAS_COBRO = ['efectivo', 'tarjeta_debito', 'tarjeta_credito', 'transferencia', 'cuenta_corriente'];
 
 function abrirModalCobro() {
@@ -1146,6 +1149,7 @@ function abrirModalCobro() {
   elCobroMontoRec.value = '';
   elCobroVuelto.textContent = '—';
   elCobroVuelto.style.color = 'var(--text-subtle)';
+  numpadStr = '';
 
   // Reset forma de pago al efectivo
   cobroFormaPago = 'efectivo';
@@ -1299,6 +1303,29 @@ document.getElementById('btn-cobro-imprimir').addEventListener('click', () => ej
 document.getElementById('btn-cobro-sin-imprimir').addEventListener('click', () => ejecutarCobro(false));
 document.getElementById('btn-cobro-cancelar').addEventListener('click', cerrarModalCobro);
 
+// Numpad táctil
+document.getElementById('cobro-numpad').addEventListener('click', e => {
+  const btn = e.target.closest('.numpad-btn');
+  if (!btn) return;
+  const key = btn.dataset.num;
+  if (key === 'del') {
+    numpadStr = numpadStr.slice(0, -1);
+  } else if (key === '00') {
+    numpadStr = (numpadStr + '00').replace(/^0+(\d)/, '$1');
+  } else {
+    numpadStr = (numpadStr + key).replace(/^0+(\d)/, '$1');
+  }
+  if (numpadStr.length > 10) numpadStr = numpadStr.slice(0, 10);
+  elCobroMontoRec.value = numpadStr || '';
+  elCobroMontoRec.dispatchEvent(new Event('input'));
+});
+
+// Si el usuario escribe desde el teclado físico, sincronizar numpadStr
+elCobroMontoRec.addEventListener('keydown', () => {
+  // Resincronizar tras escritura manual en el próximo tick
+  setTimeout(() => { numpadStr = elCobroMontoRec.value.replace(/[^0-9]/g, ''); }, 0);
+});
+
 async function ejecutarCobro(imprimir) {
   elCobroError.style.display = 'none';
   const t       = ticketActivo();
@@ -1418,16 +1445,18 @@ document.addEventListener('keydown', e => {
   }
 
   if (e.key === 'Insert') {
+    if (enInput) return;
     e.preventDefault();
-    if (!modalCobroAbierto && !enInput) {
+    if (!modalCobroAbierto) {
       document.getElementById('btn-producto-libre').click();
     }
     return;
   }
 
   if (e.key === 'Delete') {
+    if (enInput) return;
     e.preventDefault();
-    if (!modalCobroAbierto && !enInput) {
+    if (!modalCobroAbierto) {
       const selIdx = ticketActivo().itemSeleccionadoIdx;
       const carrito = ticketActivo().carrito;
       if (selIdx !== null && carrito[selIdx]) {

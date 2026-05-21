@@ -934,19 +934,33 @@ function rellenarSelectsMapeo() {
 }
 
 function autoDetectColumns() {
+  // exact: matched first (full string or includes); broad: fallback.
+  // map-costo BEFORE map-precio to avoid precio_costo being grabbed by map-precio.
   const KEYWORDS = {
-    'map-codigo':      ['codigo', 'code', 'cod', 'sku', 'id'],
-    'map-nombre':      ['nombre', 'name', 'descripcion', 'producto', 'articulo', 'item'],
-    'map-precio':      ['precio', 'price', 'venta', 'pvp', 'precio_venta', 'p_venta'],
-    'map-costo':       ['costo', 'cost', 'compra', 'precio_costo', 'p_costo'],
-    'map-mayoreo':     ['mayoreo', 'mayor', 'bulk', 'precio_mayor'],
-    'map-stock':       ['stock', 'cantidad', 'existencia', 'qty', 'inventario'],
-    'map-stock-min':   ['stock_min', 'minimo', 'stock_minimo', 'min'],
-    'map-departamento':['departamento', 'categoria', 'category', 'dept', 'rubro'],
+    'map-codigo':       { exact: ['codigo', 'sku', 'code'],                              broad: ['cod'] },
+    'map-nombre':       { exact: ['nombre', 'producto', 'name'],                          broad: ['articulo', 'item'] },
+    'map-costo':        { exact: ['precio_costo', 'p_costo', 'costo', 'cost'],            broad: ['compra'] },
+    'map-precio':       { exact: ['precio_venta', 'pvp', 'p_venta', 'venta'],             broad: ['precio', 'price'] },
+    'map-mayoreo':      { exact: ['precio_mayoreo', 'mayoreo', 'precio_mayor'],           broad: ['mayor', 'bulk'] },
+    'map-stock':        { exact: ['stock_actual', 'stock', 'cantidad', 'qty'],            broad: ['existencia', 'inventario'] },
+    'map-stock-min':    { exact: ['stock_minimo', 'stock_min', 'minimo'],                 broad: ['min'] },
+    'map-departamento': { exact: ['departamento', 'categoria', 'category', 'dept', 'rubro'], broad: [] },
   };
-  for (const [selId, kws] of Object.entries(KEYWORDS)) {
-    const idx = importHeaders.findIndex(h => kws.some(kw => h.toLowerCase().includes(kw)));
-    if (idx >= 0) document.getElementById(selId).value = String(idx);
+
+  const usados = new Set();
+  const hdrs = importHeaders.map(h => h.toLowerCase());
+
+  for (const [selId, { exact, broad }] of Object.entries(KEYWORDS)) {
+    // 1. exact full-string match
+    let idx = hdrs.findIndex((h, i) => !usados.has(i) && exact.includes(h));
+    // 2. includes match on exact keywords
+    if (idx < 0) idx = hdrs.findIndex((h, i) => !usados.has(i) && exact.some(kw => h.includes(kw)));
+    // 3. includes match on broad keywords (fallback)
+    if (idx < 0) idx = hdrs.findIndex((h, i) => !usados.has(i) && broad.some(kw => h.includes(kw)));
+    if (idx >= 0) {
+      document.getElementById(selId).value = String(idx);
+      usados.add(idx);
+    }
   }
 }
 
@@ -963,14 +977,14 @@ function renderPreview() {
 
 async function ejecutarImport() {
   const cols = {
-    codigo:    parseInt(document.getElementById('map-codigo').value, 10),
-    nombre:    parseInt(document.getElementById('map-nombre').value, 10),
-    precio:    parseInt(document.getElementById('map-precio').value, 10),
-    costo:     parseInt(document.getElementById('map-costo').value, 10),
-    mayoreo:   parseInt(document.getElementById('map-mayoreo').value, 10),
-    stock:     parseInt(document.getElementById('map-stock').value, 10),
-    stockMin:  parseInt(document.getElementById('map-stock-min').value, 10),
-    depto:     parseInt(document.getElementById('map-departamento').value, 10),
+    codigo:   parseInt(document.getElementById('map-codigo').value, 10),
+    nombre:   parseInt(document.getElementById('map-nombre').value, 10),
+    precio:   parseInt(document.getElementById('map-precio').value, 10),
+    costo:    parseInt(document.getElementById('map-costo').value, 10),
+    mayoreo:  parseInt(document.getElementById('map-mayoreo').value, 10),
+    stock:    parseInt(document.getElementById('map-stock').value, 10),
+    stockMin: parseInt(document.getElementById('map-stock-min').value, 10),
+    depto:    parseInt(document.getElementById('map-departamento').value, 10),
   };
 
   if (cols.codigo < 0) { mostrarStatusImport('Debés mapear la columna "Código".', true); return; }
@@ -983,27 +997,40 @@ async function ejecutarImport() {
   const importStatus = document.getElementById('import-status');
   importStatus.classList.remove('hidden');
 
-  let nuevos = 0, actualizados = 0, errores = 0;
+  let nuevos = 0, actualizados = 0;
+  const erroresPorMotivo = {};   // { motivo: count }
+  let logCount = 0;              // log detallado solo de las primeras 5 filas con error
 
-  // Mapear nombre de departamento a id (crea si no existe)
+  function registrarError(nFila, motivo, err) {
+    erroresPorMotivo[motivo] = (erroresPorMotivo[motivo] || 0) + 1;
+    if (logCount < 5) {
+      console.error(`[Import] Fila ${nFila}: ${motivo}`, err ?? '');
+      if (err && err !== motivo) console.error('[Import] Error completo fila', nFila, ':', err);
+      logCount++;
+    }
+  }
+
   const deptoCache = {};
 
   for (let i = 0; i < importRows.length; i++) {
-    const row    = importRows[i];
+    const row   = importRows[i];
+    const nFila = i + 2; // fila real en el archivo (1=header, 2=primera de datos)
     const codigo = String(row[cols.codigo] ?? '').trim().toUpperCase();
     const nombre = String(row[cols.nombre] ?? '').trim();
 
     importStatus.textContent = `Procesando fila ${i + 1} de ${importRows.length}…`;
 
-    if (!codigo || !nombre) { errores++; continue; }
+    if (!codigo) { registrarError(nFila, 'Código vacío');  continue; }
+    if (!nombre) { registrarError(nFila, 'Nombre vacío');  continue; }
 
-    const precio    = cols.precio   >= 0 ? parsearNumero(String(row[cols.precio]   ?? ''), null) : null;
-    const costo     = cols.costo    >= 0 ? parsearNumero(String(row[cols.costo]    ?? ''), 0)    : 0;
-    const mayoreo   = cols.mayoreo  >= 0 ? parsearNumero(String(row[cols.mayoreo]  ?? ''), 0)    : 0;
-    const stock     = cols.stock    >= 0 ? parsearNumero(String(row[cols.stock]    ?? ''), 0)    : 0;
-    const stockMin  = cols.stockMin >= 0 ? parsearNumero(String(row[cols.stockMin] ?? ''), 0)    : 0;
+    // Parseo numérico con limpieza de $ y separadores de miles
+    const precio   = cols.precio   >= 0 ? parsearImport(row[cols.precio])    : null;
+    const costo    = cols.costo    >= 0 ? parsearImport(row[cols.costo],   0) : 0;
+    const mayoreo  = cols.mayoreo  >= 0 ? parsearImport(row[cols.mayoreo], 0) : 0;
+    const stock    = cols.stock    >= 0 ? parsearImport(row[cols.stock],   0) : 0;
+    const stockMin = cols.stockMin >= 0 ? parsearImport(row[cols.stockMin],0) : 0;
 
-    // Resolución de departamento
+    // Resolución de departamento (por nombre → id; crea si no existe)
     let departamento_id = null;
     if (cols.depto >= 0) {
       const deptoNombre = String(row[cols.depto] ?? '').trim();
@@ -1016,10 +1043,13 @@ async function ejecutarImport() {
             departamento_id = existing.id;
           } else {
             try {
-              const nuevo = await window.api.departamentos.create({ nombre: deptoNombre });
-              departamentos.push(nuevo);
-              departamento_id = nuevo.id;
-            } catch { departamento_id = null; }
+              const nd = await window.api.departamentos.create({ nombre: deptoNombre });
+              departamentos.push(nd);
+              departamento_id = nd.id;
+            } catch (err) {
+              registrarError(nFila, `Error al crear departamento "${deptoNombre}"`, err);
+              departamento_id = null;
+            }
           }
           deptoCache[deptoNombre] = departamento_id;
         }
@@ -1030,16 +1060,20 @@ async function ejecutarImport() {
       const existente = await window.api.articulos.getByCodigo(codigo);
       if (existente) {
         const upd = { nombre };
-        if (precio !== null && precio > 0) upd.precio_unitario = precio;
-        if (cols.costo    >= 0) upd.costo_unitario  = costo;
-        if (cols.mayoreo  >= 0) upd.precio_mayoreo  = mayoreo;
-        if (cols.stock    >= 0) upd.stock_actual    = stock;
-        if (cols.stockMin >= 0) upd.stock_minimo    = stockMin;
+        if (precio !== null && precio > 0)  upd.precio_unitario = precio;
+        if (cols.costo    >= 0) upd.costo_unitario = costo;
+        if (cols.mayoreo  >= 0) upd.precio_mayoreo = mayoreo;
+        if (cols.stock    >= 0) upd.stock_actual   = stock;
+        if (cols.stockMin >= 0) upd.stock_minimo   = stockMin;
         if (departamento_id !== null) upd.departamento_id = departamento_id;
         await window.api.articulos.update(existente.id, upd);
         actualizados++;
       } else {
-        if (precio === null || precio <= 0) { errores++; continue; }
+        if (precio === null || precio <= 0) {
+          const valorRaw = cols.precio >= 0 ? (row[cols.precio] ?? '(sin columna)') : '(columna no mapeada)';
+          registrarError(nFila, `Sin precio de venta válido — valor recibido: "${valorRaw}"`);
+          continue;
+        }
         await window.api.articulos.create({
           codigo, nombre,
           precio_unitario: precio,
@@ -1052,18 +1086,27 @@ async function ejecutarImport() {
         });
         nuevos++;
       }
-    } catch { errores++; }
+    } catch (err) {
+      registrarError(nFila, err.message || String(err), err);
+    }
   }
+
+  const totalErrores = Object.values(erroresPorMotivo).reduce((a, b) => a + b, 0);
+  const motivosHtml  = Object.entries(erroresPorMotivo)
+    .sort((a, b) => b[1] - a[1])
+    .map(([m, c]) => `<li style="margin-top:3px;">${c} fila${c > 1 ? 's' : ''}: ${esc(m)}</li>`)
+    .join('');
 
   importStatus.innerHTML = `
     <div style="padding:10px 14px;background:rgba(59,130,246,.1);border:1px solid rgba(59,130,246,.3);border-radius:var(--r-in);line-height:1.7;">
       Importación finalizada:<br>
       <strong>${nuevos}</strong> artículos nuevos &nbsp;·&nbsp;
       <strong>${actualizados}</strong> actualizados &nbsp;·&nbsp;
-      <strong style="color:#fca5a5;">${errores}</strong> filas con error
+      <strong style="color:#fca5a5;">${totalErrores}</strong> filas con error
+      ${totalErrores > 0 ? `<ul style="margin-top:8px;padding-left:16px;font-size:12px;color:var(--text-muted);">${motivosHtml}</ul>` : ''}
     </div>`;
 
-  btnImp.disabled   = false;
+  btnImp.disabled    = false;
   btnImp.textContent = 'Importar de nuevo';
   articulos = await window.api.articulos.getAll();
   await recargarDepto();
@@ -1094,6 +1137,14 @@ function fmtNum(n) {
 function parsearNumero(val, fallback) {
   const n = parseFloat(String(val).replace(',', '.'));
   return isNaN(n) ? fallback : n;
+}
+
+// Parseo para importación CSV: limpia $, espacios y separadores de miles (,) antes de parsear
+function parsearImport(val, fallback) {
+  if (val === null || val === undefined) return fallback ?? 0;
+  const limpio = String(val).replace(/[$\s]/g, '').replace(/,/g, '');
+  const n = parseFloat(limpio);
+  return isNaN(n) ? (fallback ?? 0) : n;
 }
 
 function esc(str) {

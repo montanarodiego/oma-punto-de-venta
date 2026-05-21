@@ -650,10 +650,12 @@ body {
 #app-nav {
   position: fixed;
   top: 0; left: 0; right: 0;
-  height: 40px;
+  height: 48px;
   z-index: 1000;
   display: flex;
-  align-items: stretch;
+  align-items: center;
+  gap: 3px;
+  padding: 0 8px;
   background: var(--surface);
   border-bottom: 1px solid var(--border);
   user-select: none;
@@ -661,19 +663,21 @@ body {
 }
 
 body.app-layout {
-  padding-top: 40px;
+  padding-top: 48px;
 }
 
 .nav-tab {
   display: flex;
   align-items: center;
-  gap: 5px;
-  padding: 0 13px;
-  background: none;
-  border: none;
-  border-bottom: 2px solid transparent;
+  gap: 6px;
+  padding: 0 11px;
+  height: 36px;
+  min-height: 36px;
+  background: rgba(255,255,255,.04);
+  border: 1px solid var(--border);
+  border-radius: var(--r);
   color: var(--text-muted);
-  font-size: 0.78125rem;
+  font-size: 0.75rem;
   font-weight: 500;
   font-family: inherit;
   cursor: pointer;
@@ -681,30 +685,132 @@ body.app-layout {
   transition: color 120ms ease, border-color 120ms ease, background 120ms ease;
 }
 
+.nav-tab svg {
+  width: 14px;
+  height: 14px;
+  flex-shrink: 0;
+  stroke: currentColor;
+  fill: none;
+  stroke-width: 2;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
 .nav-tab:hover {
   color: var(--text);
   background: var(--surface-2);
+  border-color: var(--surface-3);
 }
 
 .nav-tab.active {
-  color: var(--text);
-  border-bottom-color: var(--accent);
+  background: var(--accent);
+  border-color: var(--accent);
+  color: #fff;
 }
 
 .nav-key {
-  font-size: 0.625rem;
+  font-size: 0.5625rem;
   font-weight: 600;
   color: var(--text-subtle);
   background: var(--bg);
   border: 1px solid var(--border);
   border-radius: 3px;
-  padding: 1px 4px;
+  padding: 1px 3px;
   line-height: 1.4;
 }
 
 .nav-tab.active .nav-key {
-  color: var(--accent);
-  border-color: rgba(59,130,246,.4);
+  background: rgba(255,255,255,.15);
+  border-color: rgba(255,255,255,.2);
+  color: rgba(255,255,255,.8);
+}
+
+/* ── Navbar tabs wrapper (scrollable) ─────────────────────────── */
+.nav-tabs-wrap {
+  display: flex;
+  align-items: center;
+  gap: 3px;
+  flex: 1;
+  min-width: 0;
+  overflow-x: auto;
+  scrollbar-width: none;
+}
+.nav-tabs-wrap::-webkit-scrollbar { display: none; }
+
+/* ── Navbar separator ─────────────────────────────────────────── */
+.nav-sep {
+  width: 1px;
+  height: 22px;
+  background: var(--border);
+  flex-shrink: 0;
+  margin: 0 6px;
+}
+
+/* ── Navbar user chip ─────────────────────────────────────────── */
+.nav-user {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 0 6px;
+  flex-shrink: 0;
+}
+.nav-user-avatar {
+  width: 26px;
+  height: 26px;
+  border-radius: 50%;
+  background: var(--accent);
+  color: #fff;
+  font-size: 0.6875rem;
+  font-weight: 700;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  letter-spacing: 0;
+}
+.nav-user-info {
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+  line-height: 1;
+}
+.nav-user-name {
+  font-size: 0.75rem;
+  font-weight: 600;
+  color: var(--text);
+  white-space: nowrap;
+}
+.nav-user-role {
+  font-size: 0.625rem;
+  font-weight: 500;
+  color: var(--text-subtle);
+  white-space: nowrap;
+}
+
+/* ── Navbar salir button ──────────────────────────────────────── */
+.btn-nav-salir {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  padding: 0 10px;
+  height: 32px;
+  background: none;
+  border: 1px solid var(--border);
+  border-radius: var(--r);
+  color: var(--text-muted);
+  font-family: inherit;
+  font-size: 0.75rem;
+  font-weight: 500;
+  cursor: pointer;
+  flex-shrink: 0;
+  white-space: nowrap;
+  transition: color 120ms ease, border-color 120ms ease, background 120ms ease;
+  margin-left: 4px;
+}
+.btn-nav-salir:hover {
+  color: var(--danger);
+  border-color: rgba(239,68,68,.4);
+  background: rgba(239,68,68,.08);
 }
 
 /* ── Nav F-key hint ───────────────────────────────────────────── */
