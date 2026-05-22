@@ -128,9 +128,10 @@ formCerrar.addEventListener('submit', async e => {
   e.preventDefault();
   errorCierre.classList.add('hidden');
 
-  const efectivoReal = parseFloat(inpEfectivoReal.value);
+  const _raw = inpEfectivoReal.value.trim();
+  const efectivoReal = _raw === '' ? 0 : parseFloat(_raw);
   if (isNaN(efectivoReal) || efectivoReal < 0)
-    return mostrarErrorCierre('Ingresá el efectivo real en caja.');
+    return mostrarErrorCierre('Ingresá el efectivo real en caja (puede ser $0).');
 
   if (!confirm('¿Cerrar el turno actual? Esta acción no se puede deshacer.')) return;
 

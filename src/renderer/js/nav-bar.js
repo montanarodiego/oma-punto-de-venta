@@ -34,8 +34,8 @@
   function isEditableActive() {
     var el = document.activeElement;
     if (!el) return false;
-    var tag = el.tagName;
-    return tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT' || el.isContentEditable;
+    var tag = el.tagName.toLowerCase();
+    return tag === 'input' || tag === 'textarea' || tag === 'select' || !!el.isContentEditable;
   }
 
   function navegar(file) {
@@ -133,8 +133,8 @@
 
   // F1-F8: capture phase, antes que cualquier otro listener
   document.addEventListener('keydown', function (e) {
-    if (e.altKey || e.ctrlKey || e.metaKey) return;
     if (isEditableActive()) return;
+    if (e.altKey || e.ctrlKey || e.metaKey) return;
     var idx = ['F1', 'F2', 'F3', 'F4', 'F5', 'F6', 'F7', 'F8'].indexOf(e.key);
     if (idx === -1) return;
     e.preventDefault();

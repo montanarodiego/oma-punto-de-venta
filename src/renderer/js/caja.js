@@ -1424,9 +1424,9 @@ function bindearEventos() {
 
 // ── Hotkeys globales de caja ─────────────────────────────────────
 document.addEventListener('keydown', e => {
-  // Evitar conflictos cuando hay un modal de texto activo
-  const tag = document.activeElement?.tagName;
-  const enInput = tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT';
+  const _el  = document.activeElement;
+  const _tag = _el?.tagName?.toLowerCase() ?? '';
+  const enInput = _tag === 'input' || _tag === 'textarea' || _tag === 'select' || !!_el?.isContentEditable;
   const modalCobroAbierto = elModalCobro.classList.contains('visible');
 
   if (e.key === 'F12') {
