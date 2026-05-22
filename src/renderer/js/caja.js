@@ -1141,6 +1141,9 @@ let cobroFocusIdx            = 0;
 let numpadStr                = '';
 const FORMAS_COBRO = ['efectivo', 'tarjeta_debito', 'tarjeta_credito', 'transferencia', 'cuenta_corriente', 'mixto'];
 
+// ── Última transacción (reimprimir) ─────────────────────────────
+let ultimaTransaccionId = null;
+
 // ── Estado pago mixto ────────────────────────────────────────────
 let mixtoClienteSelec   = null;
 let timerMixtoCliente   = null;
@@ -1492,6 +1495,8 @@ async function ejecutarCobro(imprimir) {
 
   try {
     const guardada = await window.api.transacciones.create({ transaccion: transaccionData, detalle: detalleData });
+    ultimaTransaccionId = guardada.id;
+    document.getElementById('btn-reimprimir').disabled = false;
     if (imprimir) {
       await window.api.caja.abrirComprobante({
         transaccionId: guardada.id,
@@ -1615,6 +1620,21 @@ document.addEventListener('keydown', e => {
     if (e.key.length === 1 && !e.ctrlKey && !e.altKey && !e.metaKey) {
       elCampoCodigo.focus();
     }
+  }
+});
+
+// ── Reimprimir último ticket ─────────────────────────────────────
+document.getElementById('btn-reimprimir').addEventListener('click', async () => {
+  if (!ultimaTransaccionId) return;
+  try {
+    await window.api.caja.abrirComprobante({
+      transaccionId: ultimaTransaccionId,
+      montoRecibido: 0,
+      vuelto:        0,
+      propina:       0,
+    });
+  } catch (err) {
+    mostrarToast('No se pudo abrir el comprobante.', 'error');
   }
 });
 

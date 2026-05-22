@@ -79,11 +79,12 @@ function registerHandlers() {
   ipcMain.handle('clientes:registrarPago',   (_e, id, monto, fp)  => Clientes.registrarPago(id, monto, fp));
 
   // ── Transacciones ──────────────────────────────────────────
-  ipcMain.handle('transacciones:getAll',      ()              => Transacciones.getAll());
-  ipcMain.handle('transacciones:getById',     (_e, id)        => Transacciones.getById(id));
-  ipcMain.handle('transacciones:create',      (_e, data)      => Transacciones.create(data));
-  ipcMain.handle('transacciones:getByFecha',  (_e, desde, hasta) => Transacciones.getByFecha(desde, hasta));
-  ipcMain.handle('transacciones:getRecientes',(_e, limite)    => Transacciones.getRecientes(limite));
+  ipcMain.handle('transacciones:getAll',      ()                  => Transacciones.getAll());
+  ipcMain.handle('transacciones:getById',     (_e, id)            => Transacciones.getById(id));
+  ipcMain.handle('transacciones:create',      (_e, data)          => Transacciones.create(data));
+  ipcMain.handle('transacciones:getByFecha',  (_e, desde, hasta)  => Transacciones.getByFecha(desde, hasta));
+  ipcMain.handle('transacciones:getRecientes',(_e, limite)        => Transacciones.getRecientes(limite));
+  ipcMain.handle('transacciones:getUltima',   (_e, turnoId)       => Transacciones.getUltima(turnoId));
 
   // ── Movimientos de caja ────────────────────────────────────
   ipcMain.handle('movimientos:registrar',     (_e, data)      => MovimientosCaja.registrar(data));

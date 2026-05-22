@@ -172,4 +172,15 @@ function create({ transaccion, detalle }) {
   return getById(insert());
 }
 
-module.exports = { getAll, getById, getByFecha, getRecientes, create };
+function getUltima(turnoId) {
+  if (!turnoId) return null;
+  return getDb()
+    .prepare(`
+      SELECT id FROM transacciones
+      WHERE turno_id = ? AND estado != 'cancelada'
+      ORDER BY id DESC LIMIT 1
+    `)
+    .get(turnoId) ?? null;
+}
+
+module.exports = { getAll, getById, getByFecha, getRecientes, create, getUltima };

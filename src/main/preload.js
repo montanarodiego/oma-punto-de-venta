@@ -57,6 +57,7 @@ contextBridge.exposeInMainWorld('api', {
     create:       (data)           => ipcRenderer.invoke('transacciones:create', data),
     getByFecha:   (desde, hasta)   => ipcRenderer.invoke('transacciones:getByFecha', desde, hasta),
     getRecientes: (limite)         => ipcRenderer.invoke('transacciones:getRecientes', limite),
+    getUltima:    (turnoId)        => ipcRenderer.invoke('transacciones:getUltima', turnoId),
   },
 
   // Movimientos de caja
