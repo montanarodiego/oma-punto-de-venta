@@ -32,7 +32,31 @@
       "Bash(ping -n 5 127.0.0.1)",
       "Bash(node --check \"C:\\\\Users\\\\diego\\\\Desktop\\\\oma-punto-de-venta\\\\src\\\\renderer\\\\js\\\\hotkeys.js\")",
       "Bash(node --check \"C:\\\\Users\\\\diego\\\\Desktop\\\\oma-punto-de-venta\\\\src\\\\main\\\\models\\\\proveedores.js\")",
-      "Bash(node --check \"C:\\\\Users\\\\diego\\\\Desktop\\\\oma-punto-de-venta\\\\src\\\\renderer\\\\js\\\\catalogo.js\")"
+      "Bash(node --check \"C:\\\\Users\\\\diego\\\\Desktop\\\\oma-punto-de-venta\\\\src\\\\renderer\\\\js\\\\catalogo.js\")",
+      "Bash(node -e \"require\\('./src/main/models/departamentos'\\)\")",
+      "Bash(findstr -i \"bcrypt\\\\|better-sqlite\")",
+      "Bash(node -e \"const b = require\\('bcryptjs'\\); console.log\\(b.hashSync\\('1234', 10\\)\\)\")",
+      "Bash(node --check src/main/models/pedidos.js)",
+      "Bash(node --check src/main/ipc.js)",
+      "Bash(node --check src/main/preload.js)",
+      "Bash(node --check src/renderer/js/proveedores.js)",
+      "Bash(grep -v \"//.*modal-overlay\")",
+      "Bash(grep -v \"btn-cerrar\\\\|btn-cancelar\\\\|btn-close\\\\|modal-close\\\\|tab-close\\\\|stopPropagation\\\\|//.*click\"})",
+      "Bash(grep -n '<aside\\\\|</aside>\\\\|page-content\\\\|Sidebar' src/renderer/views/__TRACKED_VAR__.html)",
+      "Bash(Get-Content \"C:\\\\Users\\\\diego\\\\Desktop\\\\oma-punto-de-venta\\\\src\\\\main\\\\ipc.js\")",
+      "Bash(Select-Object -First 30)",
+      "Bash(node -e \"require\\('bcryptjs'\\); console.log\\('bcryptjs OK:', require\\('bcryptjs/package.json'\\).version\\)\")",
+      "Bash(grep *)",
+      "Bash(Read \"C:/Users/diego/AppData/Local/Temp/claude/C--Users-diego-Desktop-oma-punto-de-venta/6fce4fb6-2407-4ac5-b4cd-3f787bd4d94d/tasks/b72y45xhx.output\")",
+      "Bash(Test-Path *)",
+      "Bash(git remote *)",
+      "Bash(git branch *)",
+      "Bash(git push *)",
+      "Bash(node --check src/main/models/turnos.js)",
+      "Bash(node --check src/main/models/informes.js)",
+      "Bash(node --check src/renderer/js/comprobante.js)",
+      "Bash(node --check src/renderer/js/caja.js)",
+      "PowerShell(gh *)"
     ]
   }
 }
