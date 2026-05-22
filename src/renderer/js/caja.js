@@ -973,6 +973,9 @@ function renderListaTransacciones(rows) {
   sinMsg.classList.add('hidden');
 
   const FORMAS = { efectivo:'Efectivo', tarjeta_debito:'Débito', tarjeta_credito:'Crédito', transferencia:'Transferencia', cuenta_corriente:'Cta. Cte.' };
+  const formaLabel = t => t.forma_pago_2
+    ? `Mixto (${FORMAS[t.forma_pago] || t.forma_pago} + ${FORMAS[t.forma_pago_2] || t.forma_pago_2})`
+    : (FORMAS[t.forma_pago] || t.forma_pago);
   const ESTADOS = { vigente: { label:'Vigente', cls:'estado-vigente' }, cancelada: { label:'Cancelada', cls:'estado-cancelada' }, devolucion_parcial: { label:'Dev. parcial', cls:'estado-dev-parcial' } };
 
   lista.innerHTML = rows.map(t => {
@@ -982,7 +985,7 @@ function renderListaTransacciones(rows) {
         <div style="flex:1;min-width:0;">
           <div style="font-size:13px;font-weight:500;">#${t.id} — ${fmt(t.monto_total)}</div>
           <div style="font-size:11px;color:var(--text-subtle);">
-            ${formatHora(t.created_at)} · ${esc(FORMAS[t.forma_pago] || t.forma_pago)}
+            ${formatHora(t.created_at)} · ${esc(formaLabel(t))}
             ${t.nombre_cliente ? ` · ${esc(t.nombre_cliente)}` : ''}
           </div>
         </div>
@@ -1132,11 +1135,17 @@ const elCobroClienteBadge  = document.getElementById('cobro-cliente-badge');
 const elCobroClienteNombre = document.getElementById('cobro-cliente-nombre');
 const elCobroError         = document.getElementById('cobro-error');
 
-let cobroFormaPago          = 'efectivo';
+let cobroFormaPago           = 'efectivo';
 let cobroClienteSeleccionado = null;
-let cobroFocusIdx           = 0;
-let numpadStr               = '';
-const FORMAS_COBRO = ['efectivo', 'tarjeta_debito', 'tarjeta_credito', 'transferencia', 'cuenta_corriente'];
+let cobroFocusIdx            = 0;
+let numpadStr                = '';
+const FORMAS_COBRO = ['efectivo', 'tarjeta_debito', 'tarjeta_credito', 'transferencia', 'cuenta_corriente', 'mixto'];
+
+// ── Estado pago mixto ────────────────────────────────────────────
+let mixtoClienteSelec   = null;
+let timerMixtoCliente   = null;
+let mixtoClientesLista  = [];
+let _mixtoUpdating      = false;
 
 function abrirModalCobro() {
   const carrito = ticketActivo().carrito;
@@ -1162,6 +1171,25 @@ function abrirModalCobro() {
   elCobroResCliente.style.display = 'none';
   elCobroClienteBadge.style.display = 'none';
 
+  // Reset mixto
+  mixtoClienteSelec = null;
+  _mixtoUpdating    = false;
+  const { total: totalMixtoInit } = calcularTotales();
+  const elM1 = document.getElementById('mixto-monto-1');
+  const elM2 = document.getElementById('mixto-monto-2');
+  if (elM1) elM1.value = '';
+  if (elM2) elM2.value = totalMixtoInit.toFixed(2);
+  document.getElementById('mixto-metodo-1').value = 'efectivo';
+  document.getElementById('mixto-metodo-2').value = 'tarjeta_debito';
+  document.getElementById('mixto-efectivo-extra').style.display = 'none';
+  document.getElementById('mixto-seccion-cliente').style.display = 'none';
+  document.getElementById('mixto-cliente-badge').style.display   = 'none';
+  document.getElementById('mixto-buscar-cliente').value = '';
+  document.getElementById('mixto-efectivo-recibido').value = '';
+  document.getElementById('mixto-vuelto-display').textContent = '—';
+  document.getElementById('mixto-vuelto-display').style.color = 'var(--text-subtle)';
+  actualizarMixtoExtraSections();
+
   elModalCobro.classList.add('visible');
   setTimeout(() => elCobroMontoRec.focus(), 50);
 }
@@ -1177,14 +1205,18 @@ function actualizarOpcionCobroActiva() {
   });
   cobroFormaPago = FORMAS_COBRO[cobroFocusIdx];
 
+  const esMixto = cobroFormaPago === 'mixto';
   elCobroSecEfectivo.classList.toggle('visible', cobroFormaPago === 'efectivo');
   elCobroSecCliente.style.display = cobroFormaPago === 'cuenta_corriente' ? 'flex' : 'none';
+  document.getElementById('cobro-seccion-mixto').style.display = esMixto ? 'flex' : 'none';
 
   if (cobroFormaPago === 'efectivo') {
     setTimeout(() => elCobroMontoRec.focus(), 30);
     actualizarVueltoCobro();
   } else if (cobroFormaPago === 'cuenta_corriente') {
     setTimeout(() => elCobrobuscCliente.focus(), 30);
+  } else if (esMixto) {
+    setTimeout(() => document.getElementById('mixto-monto-1').focus(), 30);
   }
 }
 
@@ -1276,10 +1308,10 @@ elModalCobro.addEventListener('keydown', e => {
   if (e.key === 'F1') { e.preventDefault(); ejecutarCobro(true); return; }
   if (e.key === 'F2') { e.preventDefault(); ejecutarCobro(false); return; }
 
-  // Atajos numéricos 1-5 para forma de pago
+  // Atajos numéricos 1-6 para forma de pago
   if (!e.ctrlKey && !e.altKey && !enInput) {
     const n = parseInt(e.key, 10);
-    if (n >= 1 && n <= 5) { e.preventDefault(); cobroFocusIdx = n - 1; actualizarOpcionCobroActiva(); return; }
+    if (n >= 1 && n <= 6) { e.preventDefault(); cobroFocusIdx = n - 1; actualizarOpcionCobroActiva(); return; }
   }
 
   // ↑↓ navegar formas de pago cuando no hay input activo
@@ -1355,7 +1387,6 @@ async function ejecutarCobro(imprimir) {
       montoRecibido = r;
       vuelto = r - total;
     }
-    // Si r === 0, asume monto exacto (montoRecibido = null)
   }
 
   if (cobroFormaPago === 'cuenta_corriente' && !cobroClienteSeleccionado) {
@@ -1365,6 +1396,70 @@ async function ejecutarCobro(imprimir) {
     return;
   }
 
+  // ── Validaciones pago mixto ──────────────────────────────────
+  let formaPago2       = null;
+  let montoPago2       = null;
+  let cuentaClienteId  = cobroClienteSeleccionado?.id ?? null;
+
+  if (cobroFormaPago === 'mixto') {
+    const metodo1 = document.getElementById('mixto-metodo-1').value;
+    const metodo2 = document.getElementById('mixto-metodo-2').value;
+    const m1      = parseFloat(document.getElementById('mixto-monto-1').value) || 0;
+    const m2      = parseFloat(document.getElementById('mixto-monto-2').value) || 0;
+
+    if (metodo1 === metodo2) {
+      elCobroError.textContent = 'Los dos métodos de pago no pueden ser iguales.';
+      elCobroError.style.display = '';
+      return;
+    }
+    if (m1 <= 0) {
+      elCobroError.textContent = 'Ingresá el monto del primer método de pago.';
+      elCobroError.style.display = '';
+      document.getElementById('mixto-monto-1').focus();
+      return;
+    }
+    if (m2 < 0) {
+      elCobroError.textContent = 'El segundo monto no puede ser negativo.';
+      elCobroError.style.display = '';
+      return;
+    }
+    if (Math.abs(m1 + m2 - total) > 0.015) {
+      elCobroError.textContent = `La suma (${fmt(m1 + m2)}) no coincide con el total (${fmt(total)}).`;
+      elCobroError.style.display = '';
+      return;
+    }
+    if ((metodo1 === 'cuenta_corriente' || metodo2 === 'cuenta_corriente') && !mixtoClienteSelec) {
+      elCobroError.textContent = 'Seleccioná un cliente para la parte de Cta. Cte.';
+      elCobroError.style.display = '';
+      document.getElementById('mixto-buscar-cliente').focus();
+      return;
+    }
+
+    // Efectivo dentro del mixto
+    if (metodo1 === 'efectivo' || metodo2 === 'efectivo') {
+      const efectivoPorcion = metodo1 === 'efectivo' ? m1 : m2;
+      const recibido = parseFloat(document.getElementById('mixto-efectivo-recibido').value) || 0;
+      if (recibido > 0) {
+        if (recibido < efectivoPorcion) {
+          elCobroError.textContent = `El efectivo recibido (${fmt(recibido)}) es menor al monto en efectivo (${fmt(efectivoPorcion)}).`;
+          elCobroError.style.display = '';
+          document.getElementById('mixto-efectivo-recibido').focus();
+          return;
+        }
+        montoRecibido = recibido;
+        vuelto        = recibido - efectivoPorcion;
+      }
+    }
+
+    formaPago2      = metodo2;
+    montoPago2      = m2;
+    cuentaClienteId = mixtoClienteSelec?.id ?? null;
+  }
+
+  const formaFinal = cobroFormaPago === 'mixto'
+    ? document.getElementById('mixto-metodo-1').value
+    : cobroFormaPago;
+
   const transaccionData = {
     monto_total:       total,
     subtotal:          subtotalItems,
@@ -1373,8 +1468,10 @@ async function ejecutarCobro(imprimir) {
     propina:           totales.propina ?? 0,
     notas:             t.notas?.trim() || null,
     turno_id:          turnoActivo?.id ?? null,
-    forma_pago:        cobroFormaPago,
-    cuenta_cliente_id: cobroClienteSeleccionado?.id ?? null,
+    forma_pago:        formaFinal,
+    forma_pago_2:      formaPago2,
+    monto_pago_2:      montoPago2,
+    cuenta_cliente_id: cuentaClienteId,
   };
 
   const detalleData = t.carrito.map(item => {
@@ -1519,6 +1616,145 @@ document.addEventListener('keydown', e => {
       elCampoCodigo.focus();
     }
   }
+});
+
+// ── Pago Mixto — lógica de la sección ───────────────────────────
+function actualizarMixtoExtraSections() {
+  const m1 = document.getElementById('mixto-metodo-1').value;
+  const m2 = document.getElementById('mixto-metodo-2').value;
+  const tieneEfectivo = m1 === 'efectivo' || m2 === 'efectivo';
+  const tieneCuenta   = m1 === 'cuenta_corriente' || m2 === 'cuenta_corriente';
+
+  document.getElementById('mixto-efectivo-extra').style.display = tieneEfectivo ? 'flex' : 'none';
+  document.getElementById('mixto-seccion-cliente').style.display = tieneCuenta ? 'flex' : 'none';
+
+  if (tieneEfectivo) actualizarMixtoVuelto();
+}
+
+function actualizarMixtoVuelto() {
+  const m1      = document.getElementById('mixto-metodo-1').value;
+  const m2      = document.getElementById('mixto-metodo-2').value;
+  const monto1  = parseFloat(document.getElementById('mixto-monto-1').value) || 0;
+  const monto2  = parseFloat(document.getElementById('mixto-monto-2').value) || 0;
+  const efectivoPorcion = m1 === 'efectivo' ? monto1 : (m2 === 'efectivo' ? monto2 : 0);
+  const recibido = parseFloat(document.getElementById('mixto-efectivo-recibido').value) || 0;
+  const elVuelto = document.getElementById('mixto-vuelto-display');
+  if (!efectivoPorcion || recibido === 0) {
+    elVuelto.textContent = '—';
+    elVuelto.style.color = 'var(--text-subtle)';
+    return;
+  }
+  const diff = recibido - efectivoPorcion;
+  if (diff < 0) {
+    elVuelto.textContent = `Falta ${fmt(Math.abs(diff))}`;
+    elVuelto.style.color = '#ef4444';
+  } else {
+    elVuelto.textContent = fmt(diff);
+    elVuelto.style.color = '#22c55e';
+  }
+}
+
+// Sincronizar montos al editar cualquiera de los dos
+document.getElementById('mixto-monto-1').addEventListener('input', () => {
+  if (_mixtoUpdating) return;
+  _mixtoUpdating = true;
+  const { total } = calcularTotales();
+  const m1 = parseFloat(document.getElementById('mixto-monto-1').value) || 0;
+  document.getElementById('mixto-monto-2').value = Math.max(0, total - m1).toFixed(2);
+  actualizarMixtoVuelto();
+  _mixtoUpdating = false;
+});
+
+document.getElementById('mixto-monto-2').addEventListener('input', () => {
+  if (_mixtoUpdating) return;
+  _mixtoUpdating = true;
+  const { total } = calcularTotales();
+  const m2 = parseFloat(document.getElementById('mixto-monto-2').value) || 0;
+  document.getElementById('mixto-monto-1').value = Math.max(0, total - m2).toFixed(2);
+  actualizarMixtoVuelto();
+  _mixtoUpdating = false;
+});
+
+document.getElementById('mixto-efectivo-recibido').addEventListener('input', actualizarMixtoVuelto);
+
+// Cambio de selects: evitar duplicados y actualizar secciones extra
+document.getElementById('mixto-metodo-1').addEventListener('change', () => {
+  const m1 = document.getElementById('mixto-metodo-1').value;
+  const m2 = document.getElementById('mixto-metodo-2').value;
+  if (m1 === m2) {
+    const opciones = ['efectivo','tarjeta_debito','tarjeta_credito','transferencia','cuenta_corriente'];
+    const alt = opciones.find(o => o !== m1) || 'tarjeta_debito';
+    document.getElementById('mixto-metodo-2').value = alt;
+  }
+  actualizarMixtoExtraSections();
+  if (!mixtoClienteSelec) {
+    document.getElementById('mixto-cliente-badge').style.display = 'none';
+    document.getElementById('mixto-buscar-cliente').value = '';
+    mixtoClienteSelec = null;
+  }
+});
+
+document.getElementById('mixto-metodo-2').addEventListener('change', () => {
+  const m1 = document.getElementById('mixto-metodo-1').value;
+  const m2 = document.getElementById('mixto-metodo-2').value;
+  if (m1 === m2) {
+    const opciones = ['efectivo','tarjeta_debito','tarjeta_credito','transferencia','cuenta_corriente'];
+    const alt = opciones.find(o => o !== m2) || 'efectivo';
+    document.getElementById('mixto-metodo-1').value = alt;
+  }
+  actualizarMixtoExtraSections();
+  if (!mixtoClienteSelec) {
+    document.getElementById('mixto-cliente-badge').style.display = 'none';
+    document.getElementById('mixto-buscar-cliente').value = '';
+    mixtoClienteSelec = null;
+  }
+});
+
+// Búsqueda de cliente para mixto
+document.getElementById('mixto-buscar-cliente').addEventListener('input', () => {
+  clearTimeout(timerMixtoCliente);
+  const q = document.getElementById('mixto-buscar-cliente').value.trim();
+  if (!q) { document.getElementById('mixto-resultados-cliente').style.display = 'none'; mixtoClientesLista = []; return; }
+  timerMixtoCliente = setTimeout(() => buscarClientesMixto(q), 250);
+});
+
+async function buscarClientesMixto(q) {
+  mixtoClientesLista = await window.api.clientes.search(q);
+  const cont = document.getElementById('mixto-resultados-cliente');
+  if (mixtoClientesLista.length === 0) {
+    cont.innerHTML = '<div style="padding:8px 12px;font-size:12px;color:var(--text-subtle);">Sin resultados</div>';
+  } else {
+    cont.innerHTML = mixtoClientesLista.map(c => `
+      <div style="padding:8px 12px;cursor:pointer;font-size:13px;border-bottom:1px solid var(--border-sub);"
+           onmouseenter="this.style.background='var(--surface-3)'" onmouseleave="this.style.background=''"
+           data-mixto-cli-id="${c.id}">
+        <span style="font-weight:500;">${esc(c.nombre)}</span>
+        ${c.telefono ? `<span style="color:var(--text-subtle);margin-left:8px;font-size:11px;">${esc(c.telefono)}</span>` : ''}
+      </div>`).join('');
+  }
+  cont.style.display = '';
+}
+
+document.getElementById('mixto-resultados-cliente').addEventListener('click', e => {
+  const item = e.target.closest('[data-mixto-cli-id]');
+  if (!item) return;
+  const cl = mixtoClientesLista.find(c => c.id === parseInt(item.dataset.mixtoCliId, 10));
+  if (cl) seleccionarClienteMixto(cl);
+});
+
+function seleccionarClienteMixto(cl) {
+  mixtoClienteSelec = cl;
+  document.getElementById('mixto-cliente-nombre').textContent = cl.nombre;
+  document.getElementById('mixto-cliente-badge').style.display = 'flex';
+  document.getElementById('mixto-buscar-cliente').value = '';
+  document.getElementById('mixto-resultados-cliente').style.display = 'none';
+}
+
+document.getElementById('mixto-btn-quitar-cliente').addEventListener('click', () => {
+  mixtoClienteSelec = null;
+  document.getElementById('mixto-cliente-badge').style.display = 'none';
+  document.getElementById('mixto-buscar-cliente').value = '';
+  document.getElementById('mixto-buscar-cliente').focus();
 });
 
 // ── Helpers ──────────────────────────────────────────────────────

@@ -40,17 +40,39 @@ function calcularResumen(turnoId) {
   const turno = db.prepare('SELECT * FROM turnos WHERE id = ?').get(turnoId);
   if (!turno) throw new Error('Turno no encontrado');
 
+  // Para pagos mixtos: monto_pago_2 corresponde a forma_pago_2;
+  //   monto de forma_pago = monto_total - COALESCE(monto_pago_2, 0)
   const r = db.prepare(`
     SELECT
-      COUNT(*)                                                                                    AS total_transacciones,
-      COALESCE(SUM(monto_total), 0)                                                               AS total_ventas,
-      COALESCE(SUM(CASE WHEN forma_pago='efectivo'          THEN monto_total ELSE 0 END), 0)      AS ventas_efectivo,
-      COALESCE(SUM(CASE WHEN forma_pago='tarjeta_debito'    THEN monto_total ELSE 0 END), 0)      AS ventas_debito,
-      COALESCE(SUM(CASE WHEN forma_pago='tarjeta_credito'   THEN monto_total ELSE 0 END), 0)      AS ventas_credito,
-      COALESCE(SUM(CASE WHEN forma_pago='transferencia'     THEN monto_total ELSE 0 END), 0)      AS ventas_transferencia,
-      COALESCE(SUM(CASE WHEN forma_pago='cuenta_corriente'  THEN monto_total ELSE 0 END), 0)      AS ventas_cuenta_corriente,
-      COALESCE(SUM(descuento_global), 0)                                                          AS total_descuentos,
-      COALESCE(SUM(propina), 0)                                                                   AS total_propinas
+      COUNT(*) AS total_transacciones,
+      COALESCE(SUM(monto_total), 0) AS total_ventas,
+      COALESCE(SUM(
+        CASE WHEN forma_pago = 'efectivo'
+          THEN CASE WHEN forma_pago_2 IS NOT NULL THEN monto_total - COALESCE(monto_pago_2,0) ELSE monto_total END
+             WHEN forma_pago_2 = 'efectivo' THEN COALESCE(monto_pago_2,0) ELSE 0 END
+      ), 0) AS ventas_efectivo,
+      COALESCE(SUM(
+        CASE WHEN forma_pago = 'tarjeta_debito'
+          THEN CASE WHEN forma_pago_2 IS NOT NULL THEN monto_total - COALESCE(monto_pago_2,0) ELSE monto_total END
+             WHEN forma_pago_2 = 'tarjeta_debito' THEN COALESCE(monto_pago_2,0) ELSE 0 END
+      ), 0) AS ventas_debito,
+      COALESCE(SUM(
+        CASE WHEN forma_pago = 'tarjeta_credito'
+          THEN CASE WHEN forma_pago_2 IS NOT NULL THEN monto_total - COALESCE(monto_pago_2,0) ELSE monto_total END
+             WHEN forma_pago_2 = 'tarjeta_credito' THEN COALESCE(monto_pago_2,0) ELSE 0 END
+      ), 0) AS ventas_credito,
+      COALESCE(SUM(
+        CASE WHEN forma_pago = 'transferencia'
+          THEN CASE WHEN forma_pago_2 IS NOT NULL THEN monto_total - COALESCE(monto_pago_2,0) ELSE monto_total END
+             WHEN forma_pago_2 = 'transferencia' THEN COALESCE(monto_pago_2,0) ELSE 0 END
+      ), 0) AS ventas_transferencia,
+      COALESCE(SUM(
+        CASE WHEN forma_pago = 'cuenta_corriente'
+          THEN CASE WHEN forma_pago_2 IS NOT NULL THEN monto_total - COALESCE(monto_pago_2,0) ELSE monto_total END
+             WHEN forma_pago_2 = 'cuenta_corriente' THEN COALESCE(monto_pago_2,0) ELSE 0 END
+      ), 0) AS ventas_cuenta_corriente,
+      COALESCE(SUM(descuento_global), 0) AS total_descuentos,
+      COALESCE(SUM(propina), 0)          AS total_propinas
     FROM transacciones
     WHERE turno_id = ?
       AND (estado IS NULL OR estado != 'cancelada')

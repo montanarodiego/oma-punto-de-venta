@@ -74,6 +74,8 @@ function initDatabase() {
       motivo_cancelacion TEXT,
       turno_id           INTEGER REFERENCES turnos(id),
       forma_pago         TEXT NOT NULL DEFAULT 'efectivo',
+      forma_pago_2       TEXT,
+      monto_pago_2       REAL,
       cuenta_cliente_id  INTEGER REFERENCES clientes(id),
       sync_status        TEXT NOT NULL DEFAULT 'pending',
       created_at         TEXT NOT NULL DEFAULT (datetime('now'))
@@ -456,6 +458,14 @@ function runMigrations(db) {
     if (!cols.some(c => c.name === 'propina')) {
       db.exec('ALTER TABLE transacciones ADD COLUMN propina REAL NOT NULL DEFAULT 0');
     }
+  }
+
+  // ── Feature: pago mixto en transacciones ─────────────────────
+  {
+    const cols  = db.prepare('PRAGMA table_info(transacciones)').all();
+    const names = new Set(cols.map(c => c.name));
+    if (!names.has('forma_pago_2')) db.exec('ALTER TABLE transacciones ADD COLUMN forma_pago_2 TEXT');
+    if (!names.has('monto_pago_2')) db.exec('ALTER TABLE transacciones ADD COLUMN monto_pago_2 REAL');
   }
 
   // ── Feature: promociones por volumen ─────────────────────────

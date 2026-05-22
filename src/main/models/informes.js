@@ -33,17 +33,21 @@ function ventasPorPeriodo(desde, hasta) {
 
   resumen.ganancia_bruta = gananciaBruta.ganancia_bruta;
 
+  // Para pagos mixtos, desagregar monto por cada método de pago
   const porFormaPago = db.prepare(`
-    SELECT
-      forma_pago,
-      COUNT(*)                         AS cantidad,
-      COALESCE(SUM(monto_total), 0)    AS total
-    FROM transacciones
-    WHERE created_at BETWEEN ? AND ?
-      AND estado != 'cancelada'
-    GROUP BY forma_pago
-    ORDER BY total DESC
-  `).all(d, h);
+    SELECT forma_pago, SUM(cantidad) AS cantidad, SUM(total) AS total FROM (
+      SELECT forma_pago, 1 AS cantidad,
+        CASE WHEN forma_pago_2 IS NULL THEN monto_total
+             ELSE monto_total - COALESCE(monto_pago_2, 0) END AS total
+      FROM transacciones
+      WHERE created_at BETWEEN ? AND ? AND estado != 'cancelada'
+      UNION ALL
+      SELECT forma_pago_2 AS forma_pago, 1 AS cantidad, COALESCE(monto_pago_2, 0) AS total
+      FROM transacciones
+      WHERE created_at BETWEEN ? AND ? AND estado != 'cancelada'
+        AND forma_pago_2 IS NOT NULL
+    ) GROUP BY forma_pago ORDER BY total DESC
+  `).all(d, h, d, h);
 
   const transacciones = db.prepare(`
     SELECT id, created_at, forma_pago, subtotal, monto_impuesto, monto_total

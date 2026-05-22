@@ -106,12 +106,24 @@ document.addEventListener('DOMContentLoaded', async () => {
     document.getElementById('propina-monto').textContent  = fmt(propina);
   }
 
-  // Forma de pago
-  document.getElementById('forma-pago').textContent =
-    FORMAS_PAGO[transaccion.forma_pago] || transaccion.forma_pago;
+  // Forma de pago (simple o mixta)
+  if (transaccion.forma_pago_2) {
+    document.getElementById('forma-pago').textContent = 'Pago mixto';
+    document.getElementById('seccion-pago-mixto').classList.remove('hidden');
+    const monto1 = transaccion.monto_total - (transaccion.monto_pago_2 || 0);
+    const monto2 = transaccion.monto_pago_2 || 0;
+    document.getElementById('mixto-forma-1').textContent   = FORMAS_PAGO[transaccion.forma_pago]   || transaccion.forma_pago;
+    document.getElementById('mixto-importe-1').textContent = fmt(monto1);
+    document.getElementById('mixto-forma-2').textContent   = FORMAS_PAGO[transaccion.forma_pago_2] || transaccion.forma_pago_2;
+    document.getElementById('mixto-importe-2').textContent = fmt(monto2);
+  } else {
+    document.getElementById('forma-pago').textContent =
+      FORMAS_PAGO[transaccion.forma_pago] || transaccion.forma_pago;
+  }
 
-  // Efectivo: vuelto
-  if (transaccion.forma_pago === 'efectivo' && montoRecibido > 0) {
+  // Efectivo: vuelto (aplica también si efectivo es sub-método en mixto)
+  const tieneEfectivo = transaccion.forma_pago === 'efectivo' || transaccion.forma_pago_2 === 'efectivo';
+  if (tieneEfectivo && montoRecibido > 0) {
     document.getElementById('seccion-efectivo').classList.remove('hidden');
     document.getElementById('recibido').textContent = fmt(montoRecibido);
     document.getElementById('vuelto').textContent   = fmt(vuelto);
