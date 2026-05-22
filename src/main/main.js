@@ -1,4 +1,5 @@
 const { app, BrowserWindow, Menu, ipcMain, dialog } = require('electron');
+const { autoUpdater } = require('electron-updater');
 const path = require('path');
 const { initDatabase, getDb } = require('./database');
 const { registerHandlers }    = require('./ipc');
@@ -208,6 +209,27 @@ function registerAuthHandlers() {
   });
 }
 
+// ── Auto-updater ───────────────────────────────────────────────
+autoUpdater.on('update-available', () => {
+  dialog.showMessageBox({
+    type: 'info',
+    title: 'Actualización disponible',
+    message: 'Hay una nueva versión de OmaTech POS. Se descargará en segundo plano.',
+    buttons: ['OK'],
+  });
+});
+
+autoUpdater.on('update-downloaded', () => {
+  dialog.showMessageBox({
+    type: 'info',
+    title: 'Actualización lista',
+    message: 'La actualización fue descargada. La aplicación se reiniciará para instalarla.',
+    buttons: ['Reiniciar ahora'],
+  }).then(() => {
+    autoUpdater.quitAndInstall();
+  });
+});
+
 // ── Inicio ─────────────────────────────────────────────────────
 app.whenReady().then(async () => {
   initDatabase();
@@ -244,6 +266,8 @@ app.whenReady().then(async () => {
   app.on('activate', () => {
     if (BrowserWindow.getAllWindows().length === 0) createWindow();
   });
+
+  autoUpdater.checkForUpdatesAndNotify();
 });
 
 app.on('before-quit', () => {
