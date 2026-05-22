@@ -1,9 +1,11 @@
 // Módulo Turno — apertura / cierre de caja
 
 let turnoActivo = null;
+let _cancelarMovId = null;
 
 const panelSinTurno    = document.getElementById('panel-sin-turno');
 const panelTurnoActivo = document.getElementById('panel-turno-activo');
+const panelMovimientos = document.getElementById('panel-movimientos');
 const formAbrir        = document.getElementById('form-abrir');
 const formCerrar       = document.getElementById('form-cerrar');
 const inpEfectivoReal  = document.getElementById('inp-efectivo-real');
@@ -13,6 +15,7 @@ const diferenciaValor  = document.getElementById('diferencia-valor');
 // ── Init ────────────────────────────────────────────────────────
 document.addEventListener('DOMContentLoaded', async () => {
   await cargar();
+  initCancelarMovModal();
 });
 
 async function cargar() {
@@ -26,8 +29,14 @@ async function cargar() {
   renderHistorial(historial);
 
   if (turno) {
-    const resumen = await window.api.turnos.calcularResumen(turno.id);
+    const [resumen, movimientos] = await Promise.all([
+      window.api.turnos.calcularResumen(turno.id),
+      window.api.movimientos.listarPorTurno(turno.id),
+    ]);
     renderResumen(resumen);
+    renderMovimientos(movimientos);
+  } else {
+    panelMovimientos.classList.add('hidden');
   }
 }
 
@@ -98,8 +107,12 @@ formAbrir.addEventListener('submit', async e => {
   try {
     turnoActivo = await window.api.turnos.abrir(efectivo);
     renderEstado();
-    const historial = await window.api.turnos.historial(30);
+    const [historial, movimientos] = await Promise.all([
+      window.api.turnos.historial(30),
+      window.api.movimientos.listarPorTurno(turnoActivo.id),
+    ]);
     renderHistorial(historial);
+    renderMovimientos(movimientos);
   } finally {
     btn.disabled = false;
   }
@@ -146,6 +159,7 @@ formCerrar.addEventListener('submit', async e => {
     inpEfectivoReal.value = '';
     diferenciaValor.textContent = '—';
     diferenciaValor.style.color = 'var(--text-subtle)';
+    panelMovimientos.classList.add('hidden');
     renderEstado();
     const historial = await window.api.turnos.historial(30);
     renderHistorial(historial);
@@ -159,8 +173,12 @@ formCerrar.addEventListener('submit', async e => {
 // ── Actualizar resumen ──────────────────────────────────────────
 document.getElementById('btn-actualizar-resumen').addEventListener('click', async () => {
   if (!turnoActivo) return;
-  const resumen = await window.api.turnos.calcularResumen(turnoActivo.id);
+  const [resumen, movimientos] = await Promise.all([
+    window.api.turnos.calcularResumen(turnoActivo.id),
+    window.api.movimientos.listarPorTurno(turnoActivo.id),
+  ]);
   renderResumen(resumen);
+  renderMovimientos(movimientos);
 });
 
 // ── Historial ───────────────────────────────────────────────────
@@ -216,4 +234,139 @@ function esc(str) {
 function mostrarErrorCierre(msg) {
   errorCierre.textContent = msg;
   errorCierre.classList.remove('hidden');
+}
+
+// ── Movimientos de caja ─────────────────────────────────────────
+function renderMovimientos(lista) {
+  const panel   = panelMovimientos;
+  const contenedor = document.getElementById('lista-movimientos-turno');
+  const sinMsg  = document.getElementById('mov-sin-registros');
+  const badge   = document.getElementById('mov-totales-badge');
+
+  panel.classList.remove('hidden');
+
+  if (!lista || lista.length === 0) {
+    contenedor.innerHTML = '';
+    sinMsg.classList.remove('hidden');
+    badge.textContent = '';
+    return;
+  }
+  sinMsg.classList.add('hidden');
+
+  const activos    = lista.filter(m => !m.cancelado);
+  const entradas   = activos.filter(m => m.tipo === 'entrada').reduce((s, m) => s + m.monto, 0);
+  const salidas    = activos.filter(m => m.tipo === 'salida').reduce((s, m) => s + m.monto, 0);
+  badge.textContent = `Entradas: ${fmt(entradas)} · Salidas: ${fmt(salidas)}`;
+
+  contenedor.innerHTML = lista.map(m => {
+    const cancelado = !!m.cancelado;
+    const esEntrada = m.tipo === 'entrada';
+    const colorTipo = cancelado ? 'var(--text-subtle)' : esEntrada ? '#4ade80' : '#f87171';
+    const iconoTipo = esEntrada ? '↓' : '↑';
+    const labelTipo = esEntrada ? 'Entrada' : 'Salida';
+
+    return `
+      <div data-mov-id="${m.id}"
+        style="display:flex;align-items:center;gap:12px;padding:10px 16px;border-bottom:1px solid var(--border);
+               ${cancelado ? 'opacity:.55;' : ''}">
+        <div style="font-size:18px;font-weight:700;color:${colorTipo};min-width:18px;text-align:center;">${iconoTipo}</div>
+        <div style="flex:1;min-width:0;">
+          <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;">
+            <span style="font-size:13px;font-weight:600;font-variant-numeric:tabular-nums;color:${colorTipo};${cancelado ? 'text-decoration:line-through;' : ''}">
+              ${fmt(m.monto)}
+            </span>
+            <span style="font-size:11px;color:var(--text-subtle);">${labelTipo}</span>
+            ${cancelado ? '<span style="font-size:10px;font-weight:700;letter-spacing:.06em;padding:1px 6px;border-radius:100px;background:rgba(239,68,68,.15);color:#f87171;">CANCELADO</span>' : ''}
+          </div>
+          <div style="font-size:12px;color:var(--text-muted);margin-top:2px;${cancelado ? 'text-decoration:line-through;' : ''}">${esc(m.descripcion)}</div>
+          ${cancelado && m.cancelado_motivo ? `<div style="font-size:11px;color:var(--text-subtle);margin-top:1px;">Motivo: ${esc(m.cancelado_motivo)}</div>` : ''}
+          <div style="font-size:11px;color:var(--text-subtle);margin-top:2px;">${fmtFecha(m.created_at)}</div>
+        </div>
+        ${!cancelado ? `
+          <button class="btn-cancelar-mov" data-mov-id="${m.id}"
+            style="padding:4px 10px;font-size:11px;font-weight:600;border-radius:var(--r-in);
+                   border:1px solid rgba(239,68,68,.35);background:rgba(239,68,68,.08);
+                   color:#f87171;cursor:pointer;white-space:nowrap;flex-shrink:0;">
+            Cancelar
+          </button>
+        ` : ''}
+      </div>`;
+  }).join('');
+
+  contenedor.querySelectorAll('.btn-cancelar-mov').forEach(btn => {
+    btn.addEventListener('click', () => abrirModalCancelarMov(parseInt(btn.dataset.movId, 10), lista));
+  });
+}
+
+function abrirModalCancelarMov(id, lista) {
+  const mov = lista.find(m => m.id === id);
+  if (!mov) return;
+  _cancelarMovId = id;
+
+  const tipoLabel = mov.tipo === 'entrada' ? 'Entrada' : 'Salida';
+  document.getElementById('cancelar-mov-info').innerHTML =
+    `<strong>${tipoLabel} de ${fmt(mov.monto)}</strong><br>
+     <span style="color:var(--text-muted);">${esc(mov.descripcion)}</span><br>
+     <span style="color:var(--text-subtle);font-size:11px;">${fmtFecha(mov.created_at)}</span>`;
+
+  document.getElementById('cancelar-mov-motivo').value = '';
+  document.getElementById('cancelar-mov-error').classList.add('hidden');
+  document.getElementById('modal-cancelar-mov').classList.remove('hidden');
+  document.getElementById('cancelar-mov-motivo').focus();
+}
+
+function initCancelarMovModal() {
+  ['btn-cerrar-cancelar-mov', 'btn-cancelar-mov-abort'].forEach(id => {
+    document.getElementById(id).addEventListener('click', () => {
+      document.getElementById('modal-cancelar-mov').classList.add('hidden');
+      _cancelarMovId = null;
+    });
+  });
+
+  document.getElementById('btn-cancelar-mov-confirm').addEventListener('click', async () => {
+    const motivo = document.getElementById('cancelar-mov-motivo').value.trim();
+    const errEl  = document.getElementById('cancelar-mov-error');
+    errEl.classList.add('hidden');
+
+    if (!motivo) {
+      errEl.textContent = 'El motivo es obligatorio.';
+      errEl.classList.remove('hidden');
+      document.getElementById('cancelar-mov-motivo').focus();
+      return;
+    }
+
+    const btn = document.getElementById('btn-cancelar-mov-confirm');
+    btn.disabled = true;
+    try {
+      await window.api.movimientos.cancelar(_cancelarMovId, motivo);
+      document.getElementById('modal-cancelar-mov').classList.add('hidden');
+      _cancelarMovId = null;
+
+      const [resumen, movimientos] = await Promise.all([
+        window.api.turnos.calcularResumen(turnoActivo.id),
+        window.api.movimientos.listarPorTurno(turnoActivo.id),
+      ]);
+      renderResumen(resumen);
+      renderMovimientos(movimientos);
+      mostrarToast('Movimiento cancelado correctamente.');
+    } catch (err) {
+      errEl.textContent = err.message || 'Error al cancelar el movimiento.';
+      errEl.classList.remove('hidden');
+    } finally {
+      btn.disabled = false;
+    }
+  });
+}
+
+function mostrarToast(msg, tipo = 'ok') {
+  const wrap = document.getElementById('toast-wrap');
+  const el   = document.createElement('div');
+  el.className = `toast ${tipo === 'error' ? 'toast-error' : ''}`;
+  el.textContent = msg;
+  wrap.appendChild(el);
+  requestAnimationFrame(() => el.classList.add('show'));
+  setTimeout(() => {
+    el.classList.remove('show');
+    setTimeout(() => el.remove(), 400);
+  }, 3000);
 }

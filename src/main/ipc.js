@@ -87,8 +87,9 @@ function registerHandlers() {
   ipcMain.handle('transacciones:getUltima',   (_e, turnoId)       => Transacciones.getUltima(turnoId));
 
   // ── Movimientos de caja ────────────────────────────────────
-  ipcMain.handle('movimientos:registrar',     (_e, data)      => MovimientosCaja.registrar(data));
-  ipcMain.handle('movimientos:listarPorTurno',(_e, turnoId)   => MovimientosCaja.listarPorTurno(turnoId));
+  ipcMain.handle('movimientos:registrar',     (_e, data)         => MovimientosCaja.registrar(data));
+  ipcMain.handle('movimientos:listarPorTurno',(_e, turnoId)      => MovimientosCaja.listarPorTurno(turnoId));
+  ipcMain.handle('movimientos:cancelar',      (_e, id, motivo)   => MovimientosCaja.cancelar(id, motivo));
 
   // ── Devoluciones ───────────────────────────────────────────
   ipcMain.handle('devoluciones:cancelar',     (_e, data)      => Devoluciones.cancelarTransaccion(data));

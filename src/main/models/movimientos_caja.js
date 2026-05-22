@@ -15,4 +15,15 @@ function listarPorTurno(turnoId) {
     .all(turnoId);
 }
 
-module.exports = { registrar, listarPorTurno };
+function cancelar(id, motivo) {
+  if (!motivo || !String(motivo).trim()) throw new Error('El motivo es obligatorio para cancelar un movimiento.');
+  const db  = getDb();
+  const mov = db.prepare('SELECT * FROM movimientos_caja WHERE id = ?').get(id);
+  if (!mov) throw new Error('Movimiento no encontrado.');
+  if (mov.cancelado) throw new Error('Este movimiento ya está cancelado.');
+  db.prepare('UPDATE movimientos_caja SET cancelado = 1, cancelado_motivo = ? WHERE id = ?')
+    .run(String(motivo).trim(), id);
+  return db.prepare('SELECT * FROM movimientos_caja WHERE id = ?').get(id);
+}
+
+module.exports = { registrar, listarPorTurno, cancelar };

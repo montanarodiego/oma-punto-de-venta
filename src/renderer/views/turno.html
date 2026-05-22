@@ -133,6 +133,21 @@
           </div>
         </div>
 
+        <!-- ── Movimientos de caja del turno activo ── -->
+        <div id="panel-movimientos" class="card hidden">
+          <div class="card-header" style="display:flex;justify-content:space-between;align-items:center;">
+            <span>Movimientos de caja del turno</span>
+            <span id="mov-totales-badge" style="font-size:12px;color:var(--text-subtle);font-weight:400;"></span>
+          </div>
+          <div class="card-body" style="padding:0;">
+            <div id="lista-movimientos-turno" style="display:flex;flex-direction:column;"></div>
+            <div id="mov-sin-registros" class="hidden"
+              style="text-align:center;color:var(--text-subtle);font-size:13px;padding:20px 0;">
+              Sin movimientos registrados en este turno.
+            </div>
+          </div>
+        </div>
+
         <!-- ── Historial de turnos ── -->
         <div class="card">
           <div class="card-header">Historial de turnos</div>
@@ -163,6 +178,34 @@
 
       </div>
     </main>
+  </div>
+
+  <!-- ── Modal: Cancelar movimiento de caja ── -->
+  <div id="modal-cancelar-mov" class="modal-overlay hidden">
+    <div class="modal-box" style="max-width:400px;">
+      <div class="modal-header">
+        <h3 class="modal-title">Cancelar movimiento</h3>
+        <button class="modal-close" id="btn-cerrar-cancelar-mov">×</button>
+      </div>
+      <div class="modal-body" style="display:flex;flex-direction:column;gap:14px;">
+        <div id="cancelar-mov-info"
+          style="padding:10px 12px;background:var(--surface-2);border-radius:var(--r-in);font-size:13px;line-height:1.5;"></div>
+        <div class="field">
+          <label class="field-label">Motivo de cancelación <span style="color:var(--danger)">*</span></label>
+          <input id="cancelar-mov-motivo" type="text"
+            placeholder="Ej: error de carga, duplicado..." class="inp" />
+        </div>
+        <div id="cancelar-mov-error" class="hidden"
+          style="padding:8px 12px;background:rgba(239,68,68,.1);border:1px solid rgba(239,68,68,.25);border-radius:var(--r-in);color:#fca5a5;font-size:13px;"></div>
+      </div>
+      <div class="modal-footer">
+        <button type="button" id="btn-cancelar-mov-abort" class="btn btn-ghost">Cancelar</button>
+        <button type="button" id="btn-cancelar-mov-confirm"
+          class="btn" style="background:rgba(239,68,68,.12);border:1px solid rgba(239,68,68,.3);color:#fca5a5;font-weight:600;">
+          Confirmar cancelación
+        </button>
+      </div>
+    </div>
   </div>
 
   <div class="toast-wrap" id="toast-wrap"></div>

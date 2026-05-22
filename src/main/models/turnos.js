@@ -82,7 +82,7 @@ function calcularResumen(turnoId) {
     SELECT
       COALESCE(SUM(CASE WHEN tipo='entrada' THEN monto ELSE 0 END), 0) AS total_entradas,
       COALESCE(SUM(CASE WHEN tipo='salida'  THEN monto ELSE 0 END), 0) AS total_salidas
-    FROM movimientos_caja WHERE turno_id = ?
+    FROM movimientos_caja WHERE turno_id = ? AND (cancelado IS NULL OR cancelado = 0)
   `).get(turnoId);
 
   const efectivoEsperado =

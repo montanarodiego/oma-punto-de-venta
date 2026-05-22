@@ -169,12 +169,14 @@ function initDatabase() {
     );
 
     CREATE TABLE IF NOT EXISTS movimientos_caja (
-      id          INTEGER PRIMARY KEY AUTOINCREMENT,
-      turno_id    INTEGER REFERENCES turnos(id),
-      tipo        TEXT NOT NULL CHECK(tipo IN ('entrada','salida')),
-      monto       REAL NOT NULL,
-      descripcion TEXT NOT NULL,
-      created_at  TEXT NOT NULL DEFAULT (datetime('now'))
+      id               INTEGER PRIMARY KEY AUTOINCREMENT,
+      turno_id         INTEGER REFERENCES turnos(id),
+      tipo             TEXT NOT NULL CHECK(tipo IN ('entrada','salida')),
+      monto            REAL NOT NULL,
+      descripcion      TEXT NOT NULL,
+      cancelado        INTEGER NOT NULL DEFAULT 0,
+      cancelado_motivo TEXT,
+      created_at       TEXT NOT NULL DEFAULT (datetime('now'))
     );
 
     CREATE TABLE IF NOT EXISTS devoluciones (
@@ -301,14 +303,24 @@ function runMigrations(db) {
   // ── Feature: movimientos_caja table ──────────────────────────
   db.exec(`
     CREATE TABLE IF NOT EXISTS movimientos_caja (
-      id          INTEGER PRIMARY KEY AUTOINCREMENT,
-      turno_id    INTEGER REFERENCES turnos(id),
-      tipo        TEXT NOT NULL CHECK(tipo IN ('entrada','salida')),
-      monto       REAL NOT NULL,
-      descripcion TEXT NOT NULL,
-      created_at  TEXT NOT NULL DEFAULT (datetime('now'))
+      id               INTEGER PRIMARY KEY AUTOINCREMENT,
+      turno_id         INTEGER REFERENCES turnos(id),
+      tipo             TEXT NOT NULL CHECK(tipo IN ('entrada','salida')),
+      monto            REAL NOT NULL,
+      descripcion      TEXT NOT NULL,
+      cancelado        INTEGER NOT NULL DEFAULT 0,
+      cancelado_motivo TEXT,
+      created_at       TEXT NOT NULL DEFAULT (datetime('now'))
     )
   `);
+
+  // ── Feature: cancelar movimientos de caja ─────────────────────
+  {
+    const cols  = db.prepare('PRAGMA table_info(movimientos_caja)').all();
+    const names = new Set(cols.map(c => c.name));
+    if (!names.has('cancelado'))        db.exec('ALTER TABLE movimientos_caja ADD COLUMN cancelado INTEGER NOT NULL DEFAULT 0');
+    if (!names.has('cancelado_motivo')) db.exec('ALTER TABLE movimientos_caja ADD COLUMN cancelado_motivo TEXT');
+  }
 
   // ── Feature: devoluciones tables ─────────────────────────────
   db.exec(`

@@ -62,8 +62,9 @@ contextBridge.exposeInMainWorld('api', {
 
   // Movimientos de caja
   movimientos: {
-    registrar:      (data)     => ipcRenderer.invoke('movimientos:registrar', data),
-    listarPorTurno: (turnoId)  => ipcRenderer.invoke('movimientos:listarPorTurno', turnoId),
+    registrar:      (data)            => ipcRenderer.invoke('movimientos:registrar', data),
+    listarPorTurno: (turnoId)         => ipcRenderer.invoke('movimientos:listarPorTurno', turnoId),
+    cancelar:       (id, motivo)      => ipcRenderer.invoke('movimientos:cancelar', id, motivo),
   },
 
   // Devoluciones
