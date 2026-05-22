@@ -56,7 +56,8 @@
       "Bash(node --check src/main/models/informes.js)",
       "Bash(node --check src/renderer/js/comprobante.js)",
       "Bash(node --check src/renderer/js/caja.js)",
-      "PowerShell(gh *)"
+      "PowerShell(gh *)",
+      "PowerShell(npm run *)"
     ]
   }
 }

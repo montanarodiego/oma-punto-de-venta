@@ -1020,8 +1020,8 @@ async function ejecutarImport() {
 
     importStatus.textContent = `Procesando fila ${i + 1} de ${importRows.length}…`;
 
-    if (!codigo) { registrarError(nFila, 'Código vacío');  continue; }
-    if (!nombre) { registrarError(nFila, 'Nombre vacío');  continue; }
+    if (!codigo) { registrarError(nFila, 'Código vacío'); continue; }
+    if (!nombre) continue; // fila sin nombre: saltar silenciosamente
 
     // Parseo numérico con limpieza de $ y separadores de miles
     const precio   = cols.precio   >= 0 ? parsearImport(row[cols.precio])    : null;
@@ -1069,13 +1069,14 @@ async function ejecutarImport() {
         await window.api.articulos.update(existente.id, upd);
         actualizados++;
       } else {
-        if (precio === null || precio <= 0) {
+        if (precio === null || precio < 0) {
           const valorRaw = cols.precio >= 0 ? (row[cols.precio] ?? '(sin columna)') : '(columna no mapeada)';
           registrarError(nFila, `Sin precio de venta válido — valor recibido: "${valorRaw}"`);
           continue;
         }
         await window.api.articulos.create({
           codigo, nombre,
+          descripcion:     '',
           precio_unitario: precio,
           costo_unitario:  costo,
           precio_mayoreo:  mayoreo,
@@ -1139,12 +1140,36 @@ function parsearNumero(val, fallback) {
   return isNaN(n) ? fallback : n;
 }
 
-// Parseo para importación CSV: limpia $, espacios y separadores de miles (,) antes de parsear
-function parsearImport(val, fallback) {
-  if (val === null || val === undefined) return fallback ?? 0;
-  const limpio = String(val).replace(/[$\s]/g, '').replace(/,/g, '');
-  const n = parseFloat(limpio);
-  return isNaN(n) ? (fallback ?? 0) : n;
+// Parseo para importación CSV: soporta formato argentino ($1.234,56) y US ($1,234.56)
+function parsearImport(val, fallback = 0) {
+  if (val === null || val === undefined || val === '') return fallback;
+  // Quitar todo excepto dígitos, punto y coma
+  const s = String(val).replace(/[^0-9.,]/g, '');
+  if (!s) return fallback;
+
+  const hasDot   = s.includes('.');
+  const hasComma = s.includes(',');
+
+  let normalizado;
+  if (hasDot && hasComma) {
+    // El separador que aparece ÚLTIMO es el decimal
+    if (s.lastIndexOf(',') > s.lastIndexOf('.')) {
+      // Formato argentino/europeo: 1.234,56 → quitar puntos, coma→punto
+      normalizado = s.replace(/\./g, '').replace(',', '.');
+    } else {
+      // Formato US: 1,234.56 → quitar comas
+      normalizado = s.replace(/,/g, '');
+    }
+  } else if (hasComma) {
+    // Solo coma: tratar como separador decimal (1234,56 → 1234.56)
+    normalizado = s.replace(',', '.');
+  } else {
+    // Solo puntos o ninguno: parseFloat estándar
+    normalizado = s;
+  }
+
+  const n = parseFloat(normalizado);
+  return isNaN(n) ? fallback : n;
 }
 
 function esc(str) {

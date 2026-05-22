@@ -45,7 +45,7 @@ function create(data) {
        @departamento_id, @es_kit, @usa_inventario, 'pending', datetime('now'))
   `);
   const result = stmt.run({
-    unidad_medida: 'unidad', tasa_iva: '21', precio_mayoreo: 0,
+    descripcion: null, unidad_medida: 'unidad', tasa_iva: '21', precio_mayoreo: 0,
     departamento_id: null, es_kit: 0, usa_inventario: 1,
     ...data,
   });
