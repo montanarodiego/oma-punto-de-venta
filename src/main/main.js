@@ -1,4 +1,4 @@
-const { app, BrowserWindow, Menu, ipcMain, dialog } = require('electron');
+const { app, BrowserWindow, Menu, ipcMain, dialog, globalShortcut } = require('electron');
 const { autoUpdater } = require('electron-updater');
 const path = require('path');
 const { initDatabase, getDb } = require('./database');
@@ -263,11 +263,34 @@ app.whenReady().then(async () => {
   // auth-guard.js en cada vista redirige a login.html si no hay sesión local
   createWindow();
 
+  // F1-F8: atajos globales de sistema — funcionan sin importar el foco del HTML
+  const F_MODULOS = {
+    F1: 'caja.html',
+    F2: 'catalogo.html',
+    F3: 'inventario.html',
+    F4: 'clientes.html',
+    F5: 'proveedores.html',
+    F6: 'informes.html',
+    F7: 'turno.html',
+    F8: 'configuracion.html',
+  };
+  Object.entries(F_MODULOS).forEach(([key, file]) => {
+    globalShortcut.register(key, () => {
+      if (mainWindow && !mainWindow.isDestroyed() && mainWindow.isFocused()) {
+        mainWindow.webContents.send('navegar-global', file);
+      }
+    });
+  });
+
   app.on('activate', () => {
     if (BrowserWindow.getAllWindows().length === 0) createWindow();
   });
 
   autoUpdater.checkForUpdatesAndNotify();
+});
+
+app.on('will-quit', () => {
+  globalShortcut.unregisterAll();
 });
 
 app.on('before-quit', () => {

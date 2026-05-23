@@ -189,4 +189,11 @@ contextBridge.exposeInMainWorld('api', {
 
   // Estado de modales — bloquea F1-F8 en el proceso principal
   modalState: (open) => ipcRenderer.send('modal-state', open),
+
+  // Suscripción a navegación global desde main (globalShortcut F1-F8)
+  onNavegar: (cb) => {
+    const handler = (_e, file) => cb(file);
+    ipcRenderer.on('navegar-global', handler);
+    return () => ipcRenderer.removeListener('navegar-global', handler);
+  },
 });

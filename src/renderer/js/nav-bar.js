@@ -31,13 +31,6 @@
     return false;
   }
 
-  function isEditableActive() {
-    var el = document.activeElement;
-    if (!el) return false;
-    var tag = el.tagName.toLowerCase();
-    return tag === 'input' || tag === 'textarea' || tag === 'select' || !!el.isContentEditable;
-  }
-
   function navegar(file) {
     if (hayModalAbierto()) return;
     window.api.navegar(file);
@@ -131,13 +124,8 @@
 
   document.body.prepend(nav);
 
-  // F1-F8: capture phase, antes que cualquier otro listener
-  document.addEventListener('keydown', function (e) {
-    if (isEditableActive()) return;
-    if (e.altKey || e.ctrlKey || e.metaKey) return;
-    var idx = ['F1', 'F2', 'F3', 'F4', 'F5', 'F6', 'F7', 'F8'].indexOf(e.key);
-    if (idx === -1) return;
-    e.preventDefault();
-    navegar(tabs[idx].file);
-  }, true);
+  // F1-F8: manejados por globalShortcut en main.js — aquí solo recibimos el IPC
+  window.api.onNavegar(function (file) {
+    navegar(file);
+  });
 })();
