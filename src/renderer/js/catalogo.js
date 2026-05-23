@@ -106,7 +106,10 @@ function bindEventos() {
   document.getElementById('btn-close-import').addEventListener('click', cerrarModalImport);
   document.getElementById('btn-ejecutar-import').addEventListener('click', ejecutarImport);
   ['map-codigo','map-nombre','map-precio','map-costo','map-mayoreo','map-stock','map-stock-min','map-departamento'].forEach(id => {
-    document.getElementById(id).addEventListener('change', renderPreview);
+    document.getElementById(id).addEventListener('change', () => {
+      autoDetectadosIds.delete(id);
+      renderPreview();
+    });
   });
 
   // Botón Gestionar departamentos
@@ -865,14 +868,16 @@ async function renderKits() {
 }
 
 // ── Importar Excel / CSV ──────────────────────────────────────
-let importRows    = [];
-let importHeaders = [];
+let importRows       = [];
+let importHeaders    = [];
+let autoDetectadosIds = new Set();
 
 function cerrarModalImport() {
   document.getElementById('modal-import').classList.add('hidden');
   document.getElementById('input-excel').value = '';
   importRows = [];
   importHeaders = [];
+  autoDetectadosIds = new Set();
   document.getElementById('import-step-mapeo').classList.add('hidden');
   document.getElementById('import-step-vacio').style.display = '';
   document.getElementById('btn-ejecutar-import').classList.add('hidden');
@@ -908,7 +913,7 @@ function leerExcel(e) {
     if (importRows.length === 0) { alert('El archivo no tiene filas con datos.'); return; }
 
     rellenarSelectsMapeo();
-    autoDetectColumns();
+    autoDetectadosIds = autoDetectColumns();
     renderPreview();
 
     document.getElementById('import-step-vacio').style.display = 'none';
@@ -933,38 +938,108 @@ function rellenarSelectsMapeo() {
   });
 }
 
+function normalizarHdr(h) {
+  return String(h).toLowerCase().trim()
+    .normalize('NFD').replace(/[̀-ͯ]/g, '');
+}
+
 function autoDetectColumns() {
-  // exact: matched first (full string or includes); broad: fallback.
-  // map-costo BEFORE map-precio to avoid precio_costo being grabbed by map-precio.
+  // costo ANTES que precio para que "precio_costo" no sea capturado por precio
   const KEYWORDS = {
-    'map-codigo':       { exact: ['codigo', 'sku', 'code'],                              broad: ['cod'] },
-    'map-nombre':       { exact: ['nombre', 'producto', 'name'],                          broad: ['articulo', 'item'] },
-    'map-costo':        { exact: ['precio_costo', 'p_costo', 'costo', 'cost'],            broad: ['compra'] },
-    'map-precio':       { exact: ['precio_venta', 'pvp', 'p_venta', 'venta'],             broad: ['precio', 'price'] },
-    'map-mayoreo':      { exact: ['precio_mayoreo', 'mayoreo', 'precio_mayor'],           broad: ['mayor', 'bulk'] },
-    'map-stock':        { exact: ['stock_actual', 'stock', 'cantidad', 'qty'],            broad: ['existencia', 'inventario'] },
-    'map-stock-min':    { exact: ['stock_minimo', 'stock_min', 'minimo'],                 broad: ['min'] },
-    'map-departamento': { exact: ['departamento', 'categoria', 'category', 'dept', 'rubro'], broad: [] },
+    'map-codigo': {
+      exact: ['codigo', 'sku', 'code', 'barcode', 'cod', 'clave',
+              'codigo de barras', 'codigobarras', 'codigo barras'],
+      broad: ['barra', 'ean', 'upc'],
+    },
+    'map-nombre': {
+      exact: ['nombre', 'producto', 'name', 'descripcion', 'description',
+              'articulo', 'desc', 'item'],
+      broad: [],
+    },
+    'map-costo': {
+      exact: ['precio_costo', 'p_costo', 'costo', 'cost', 'precio costo',
+              'preciocosto', 'pcosto', 'precio compra'],
+      broad: ['compra'],
+    },
+    'map-precio': {
+      exact: ['precio_venta', 'pvp', 'p_venta', 'venta', 'precio venta',
+              'precioventa', 'pventa', 'price', 'precio'],
+      broad: [],
+    },
+    'map-mayoreo': {
+      exact: ['precio_mayoreo', 'mayoreo', 'precio_mayor', 'precio mayor',
+              'preciomayoreo', 'bulk'],
+      broad: ['mayor', 'wholesale'],
+    },
+    'map-stock': {
+      exact: ['stock_actual', 'stock', 'cantidad', 'qty', 'existencia',
+              'existencias', 'inventory', 'inventario'],
+      broad: ['exist'],
+    },
+    'map-stock-min': {
+      exact: ['stock_minimo', 'stock_min', 'minimo', 'stock minimo',
+              'stockminimo', 'min stock'],
+      broad: ['stmin'],
+    },
+    'map-departamento': {
+      exact: ['departamento', 'categoria', 'category', 'dept', 'rubro',
+              'department', 'seccion'],
+      broad: ['depto', 'cat'],
+    },
   };
 
+  const detectados = new Set();
   const usados = new Set();
-  const hdrs = importHeaders.map(h => h.toLowerCase());
+  const hdrs = importHeaders.map(normalizarHdr);
 
   for (const [selId, { exact, broad }] of Object.entries(KEYWORDS)) {
-    // 1. exact full-string match
     let idx = hdrs.findIndex((h, i) => !usados.has(i) && exact.includes(h));
-    // 2. includes match on exact keywords
     if (idx < 0) idx = hdrs.findIndex((h, i) => !usados.has(i) && exact.some(kw => h.includes(kw)));
-    // 3. includes match on broad keywords (fallback)
     if (idx < 0) idx = hdrs.findIndex((h, i) => !usados.has(i) && broad.some(kw => h.includes(kw)));
     if (idx >= 0) {
       document.getElementById(selId).value = String(idx);
       usados.add(idx);
+      detectados.add(selId);
     }
   }
+  return detectados;
 }
 
 function renderPreview() {
+  const FIELD_LABELS = {
+    'map-codigo':       'Código',
+    'map-nombre':       'Nombre',
+    'map-precio':       'Precio venta',
+    'map-costo':        'Precio costo',
+    'map-mayoreo':      'Precio mayoreo',
+    'map-stock':        'Stock',
+    'map-stock-min':    'Stock mín.',
+    'map-departamento': 'Departamento',
+  };
+
+  // Badges de columnas mapeadas
+  const resumen = document.getElementById('import-mapeo-resumen');
+  if (resumen) {
+    const badges = Object.entries(FIELD_LABELS).map(([id, label]) => {
+      const sel = document.getElementById(id);
+      const val = sel ? parseInt(sel.value, 10) : -1;
+      if (val < 0) return '';
+      const colName = importHeaders[val] || `Col. ${val + 1}`;
+      const esAuto  = autoDetectadosIds.has(id);
+      const bg  = esAuto ? 'rgba(34,197,94,.12)'  : 'rgba(234,179,8,.12)';
+      const brd = esAuto ? 'rgba(34,197,94,.3)'   : 'rgba(234,179,8,.3)';
+      const fg  = esAuto ? '#4ade80'              : '#fbbf24';
+      const tag = esAuto
+        ? `<span style="font-size:9px;font-weight:700;background:rgba(34,197,94,.2);color:#4ade80;padding:1px 5px;border-radius:3px;margin-left:4px;">AUTO</span>`
+        : `<span style="font-size:9px;font-weight:700;background:rgba(234,179,8,.2);color:#fbbf24;padding:1px 5px;border-radius:3px;margin-left:4px;">MANUAL</span>`;
+      return `<div style="display:inline-flex;align-items:center;gap:3px;padding:3px 8px;background:${bg};border:1px solid ${brd};border-radius:5px;font-size:11px;color:${fg};">${esc(label)}${tag}<span style="color:var(--text-subtle);font-size:10px;margin-left:3px;">"${esc(colName)}"</span></div>`;
+    }).filter(Boolean).join('');
+    resumen.innerHTML = badges
+      ? `<div style="font-size:10px;font-weight:600;color:var(--text-subtle);text-transform:uppercase;letter-spacing:.05em;margin-bottom:6px;">Columnas mapeadas</div><div style="display:flex;flex-wrap:wrap;gap:6px;">${badges}</div>`
+      : '';
+  }
+
+  // Tabla de vista previa
   const preview = importRows.slice(0, 5);
   const thead = `<thead><tr>${importHeaders.map(h => `<th style="white-space:nowrap;">${esc(h)}</th>`).join('')}</tr></thead>`;
   const tbody = `<tbody>${preview.map(row =>
@@ -987,7 +1062,6 @@ async function ejecutarImport() {
     depto:    parseInt(document.getElementById('map-departamento').value, 10),
   };
 
-  if (cols.codigo < 0) { mostrarStatusImport('Debés mapear la columna "Código".', true); return; }
   if (cols.nombre < 0) { mostrarStatusImport('Debés mapear la columna "Nombre".', true); return; }
 
   const btnImp = document.getElementById('btn-ejecutar-import');
@@ -997,40 +1071,33 @@ async function ejecutarImport() {
   const importStatus = document.getElementById('import-status');
   importStatus.classList.remove('hidden');
 
-  let nuevos = 0, actualizados = 0;
-  const erroresPorMotivo = {};   // { motivo: count }
-  let logCount = 0;              // log detallado solo de las primeras 5 filas con error
-
-  function registrarError(nFila, motivo, err) {
-    erroresPorMotivo[motivo] = (erroresPorMotivo[motivo] || 0) + 1;
-    if (logCount < 5) {
-      console.error(`[Import] Fila ${nFila}: ${motivo}`, err ?? '');
-      if (err && err !== motivo) console.error('[Import] Error completo fila', nFila, ':', err);
-      logCount++;
-    }
-  }
+  let nuevos = 0, actualizados = 0, codigosAuto = 0;
+  const erroresDetalle = []; // { fila, campo, valorRecibido, motivo }
 
   const deptoCache = {};
+  const tsBase = String(Date.now()).slice(-8);
 
   for (let i = 0; i < importRows.length; i++) {
     const row   = importRows[i];
-    const nFila = i + 2; // fila real en el archivo (1=header, 2=primera de datos)
-    const codigo = String(row[cols.codigo] ?? '').trim().toUpperCase();
+    const nFila = i + 2;
+    let   codigo = cols.codigo >= 0 ? String(row[cols.codigo] ?? '').trim().toUpperCase() : '';
     const nombre = String(row[cols.nombre] ?? '').trim();
 
     importStatus.textContent = `Procesando fila ${i + 1} de ${importRows.length}…`;
 
-    if (!codigo) { registrarError(nFila, 'Código vacío'); continue; }
-    if (!nombre) continue; // fila sin nombre: saltar silenciosamente
+    if (!nombre) continue;
 
-    // Parseo numérico con limpieza de $ y separadores de miles
-    const precio   = cols.precio   >= 0 ? parsearImport(row[cols.precio])    : null;
-    const costo    = cols.costo    >= 0 ? parsearImport(row[cols.costo],   0) : 0;
-    const mayoreo  = cols.mayoreo  >= 0 ? parsearImport(row[cols.mayoreo], 0) : 0;
-    const stock    = cols.stock    >= 0 ? parsearImport(row[cols.stock],   0) : 0;
-    const stockMin = cols.stockMin >= 0 ? parsearImport(row[cols.stockMin],0) : 0;
+    if (!codigo) {
+      codigosAuto++;
+      codigo = `IMP-${tsBase}-${String(codigosAuto).padStart(4, '0')}`;
+    }
 
-    // Resolución de departamento (por nombre → id; crea si no existe)
+    const precio   = cols.precio   >= 0 ? parsearImport(row[cols.precio])     : null;
+    const costo    = cols.costo    >= 0 ? parsearImport(row[cols.costo],   0)  : 0;
+    const mayoreo  = cols.mayoreo  >= 0 ? parsearImport(row[cols.mayoreo], 0)  : 0;
+    const stock    = cols.stock    >= 0 ? parsearImport(row[cols.stock],   0)  : 0;
+    const stockMin = cols.stockMin >= 0 ? parsearImport(row[cols.stockMin], 0) : 0;
+
     let departamento_id = null;
     if (cols.depto >= 0) {
       const deptoNombre = String(row[cols.depto] ?? '').trim();
@@ -1047,7 +1114,7 @@ async function ejecutarImport() {
               departamentos.push(nd);
               departamento_id = nd.id;
             } catch (err) {
-              registrarError(nFila, `Error al crear departamento "${deptoNombre}"`, err);
+              erroresDetalle.push({ fila: nFila, campo: 'departamento', valorRecibido: deptoNombre, motivo: `No se pudo crear: ${err.message || err}` });
               departamento_id = null;
             }
           }
@@ -1069,9 +1136,11 @@ async function ejecutarImport() {
         await window.api.articulos.update(existente.id, upd);
         actualizados++;
       } else {
-        if (precio === null || precio < 0) {
-          const valorRaw = cols.precio >= 0 ? (row[cols.precio] ?? '(sin columna)') : '(columna no mapeada)';
-          registrarError(nFila, `Sin precio de venta válido — valor recibido: "${valorRaw}"`);
+        if (precio === null || precio <= 0) {
+          const valorRaw = cols.precio >= 0
+            ? String(row[cols.precio] ?? '(vacío)')
+            : '(columna no mapeada)';
+          erroresDetalle.push({ fila: nFila, campo: 'precio venta', valorRecibido: valorRaw, motivo: 'Precio ausente o ≤ 0 (requerido para artículo nuevo)' });
           continue;
         }
         await window.api.articulos.create({
@@ -1088,24 +1157,52 @@ async function ejecutarImport() {
         nuevos++;
       }
     } catch (err) {
-      registrarError(nFila, err.message || String(err), err);
+      erroresDetalle.push({ fila: nFila, campo: '—', valorRecibido: codigo, motivo: err.message || String(err) });
     }
   }
 
-  const totalErrores = Object.values(erroresPorMotivo).reduce((a, b) => a + b, 0);
-  const motivosHtml  = Object.entries(erroresPorMotivo)
-    .sort((a, b) => b[1] - a[1])
-    .map(([m, c]) => `<li style="margin-top:3px;">${c} fila${c > 1 ? 's' : ''}: ${esc(m)}</li>`)
-    .join('');
+  const totalErrores = erroresDetalle.length;
+  let erroresHtml = '';
+  if (totalErrores > 0) {
+    const filas = erroresDetalle.map(e =>
+      `<tr>
+        <td style="padding:4px 8px;text-align:right;color:var(--text-subtle);white-space:nowrap;">${e.fila}</td>
+        <td style="padding:4px 8px;white-space:nowrap;">${esc(e.campo)}</td>
+        <td style="padding:4px 8px;font-family:monospace;font-size:11px;color:var(--text-muted);max-width:160px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;" title="${esc(String(e.valorRecibido))}">${esc(String(e.valorRecibido))}</td>
+        <td style="padding:4px 8px;color:#fca5a5;font-size:12px;">${esc(e.motivo)}</td>
+      </tr>`
+    ).join('');
+    erroresHtml = `
+      <div style="margin-top:10px;">
+        <div style="font-size:11px;font-weight:600;color:#fca5a5;margin-bottom:6px;">Detalle de errores (${totalErrores}):</div>
+        <div style="overflow-x:auto;max-height:180px;overflow-y:auto;border:1px solid rgba(239,68,68,.25);border-radius:var(--r-in);">
+          <table style="width:100%;border-collapse:collapse;font-size:12px;">
+            <thead>
+              <tr style="background:rgba(239,68,68,.08);">
+                <th style="padding:4px 8px;text-align:right;color:var(--text-subtle);font-weight:600;white-space:nowrap;">Fila</th>
+                <th style="padding:4px 8px;text-align:left;color:var(--text-subtle);font-weight:600;">Campo</th>
+                <th style="padding:4px 8px;text-align:left;color:var(--text-subtle);font-weight:600;">Valor recibido</th>
+                <th style="padding:4px 8px;text-align:left;color:var(--text-subtle);font-weight:600;">Problema</th>
+              </tr>
+            </thead>
+            <tbody>${filas}</tbody>
+          </table>
+        </div>
+      </div>`;
+  }
+
+  const autoMsg = codigosAuto > 0
+    ? `&nbsp;·&nbsp;<span style="color:var(--text-subtle);">${codigosAuto} código${codigosAuto > 1 ? 's' : ''} auto-generado${codigosAuto > 1 ? 's' : ''}</span>`
+    : '';
 
   importStatus.innerHTML = `
     <div style="padding:10px 14px;background:rgba(59,130,246,.1);border:1px solid rgba(59,130,246,.3);border-radius:var(--r-in);line-height:1.7;">
       Importación finalizada:<br>
       <strong>${nuevos}</strong> artículos nuevos &nbsp;·&nbsp;
       <strong>${actualizados}</strong> actualizados &nbsp;·&nbsp;
-      <strong style="color:#fca5a5;">${totalErrores}</strong> filas con error
-      ${totalErrores > 0 ? `<ul style="margin-top:8px;padding-left:16px;font-size:12px;color:var(--text-muted);">${motivosHtml}</ul>` : ''}
-    </div>`;
+      <strong style="color:#fca5a5;">${totalErrores}</strong> filas con error${autoMsg}
+    </div>
+    ${erroresHtml}`;
 
   btnImp.disabled    = false;
   btnImp.textContent = 'Importar de nuevo';
