@@ -1318,7 +1318,7 @@ elModalCobro.addEventListener('keydown', e => {
   }
 
   // ↑↓ navegar formas de pago cuando no hay input activo
-  if (!enInput || e.target === elCobroMontoRec) {
+  if (!enInput) {
     if (e.key === 'ArrowDown') {
       e.preventDefault();
       if (cobroFocusIdx < FORMAS_COBRO.length - 1) { cobroFocusIdx++; actualizarOpcionCobroActiva(); }
@@ -1525,12 +1525,18 @@ function bindearEventos() {
 }
 
 // ── Hotkeys globales de caja ─────────────────────────────────────
+function isEditableActive() {
+  const el = document.activeElement;
+  if (!el) return false;
+  const tag = el.tagName.toLowerCase();
+  return tag === 'input' || tag === 'textarea' || tag === 'select' ||
+         el.isContentEditable === true || el.getAttribute('contenteditable') === 'true';
+}
+
 document.addEventListener('keydown', e => {
-  const _el  = document.activeElement;
-  const _tag = _el?.tagName?.toLowerCase() ?? '';
-  const enInput = _tag === 'input' || _tag === 'textarea' || _tag === 'select' || !!_el?.isContentEditable;
   const modalCobroAbierto = elModalCobro.classList.contains('visible');
 
+  // F-keys de acceso rápido: actúan siempre, incluso con un input activo
   if (e.key === 'F12') {
     e.preventDefault();
     if (!modalCobroAbierto) abrirModalCobro();
@@ -1546,31 +1552,6 @@ document.addEventListener('keydown', e => {
     return;
   }
 
-  if (e.key === 'Insert') {
-    if (enInput) return;
-    e.preventDefault();
-    if (!modalCobroAbierto) {
-      document.getElementById('btn-producto-libre').click();
-    }
-    return;
-  }
-
-  if (e.key === 'Delete') {
-    if (enInput) return;
-    e.preventDefault();
-    if (!modalCobroAbierto) {
-      const selIdx = ticketActivo().itemSeleccionadoIdx;
-      const carrito = ticketActivo().carrito;
-      if (selIdx !== null && carrito[selIdx]) {
-        carrito.splice(selIdx, 1);
-        ticketActivo().itemSeleccionadoIdx = Math.min(selIdx, carrito.length - 1);
-        if (carrito.length === 0) ticketActivo().itemSeleccionadoIdx = null;
-        renderCarrito(); actualizarTotales();
-      }
-    }
-    return;
-  }
-
   if (e.key === 'F11') {
     e.preventDefault();
     if (!modalCobroAbierto) {
@@ -1580,6 +1561,32 @@ document.addEventListener('keydown', e => {
       else {
         const idx = carrito.findIndex(i => parseFloat(i.precio_mayoreo) > 0);
         if (idx >= 0) toggleMayoreo(idx);
+      }
+    }
+    return;
+  }
+
+  // Para el resto de atajos: no interferir cuando hay un campo de texto activo
+  if (isEditableActive()) return;
+
+  if (e.key === 'Insert') {
+    e.preventDefault();
+    if (!modalCobroAbierto) {
+      document.getElementById('btn-producto-libre').click();
+    }
+    return;
+  }
+
+  if (e.key === 'Delete') {
+    e.preventDefault();
+    if (!modalCobroAbierto) {
+      const selIdx = ticketActivo().itemSeleccionadoIdx;
+      const carrito = ticketActivo().carrito;
+      if (selIdx !== null && carrito[selIdx]) {
+        carrito.splice(selIdx, 1);
+        ticketActivo().itemSeleccionadoIdx = Math.min(selIdx, carrito.length - 1);
+        if (carrito.length === 0) ticketActivo().itemSeleccionadoIdx = null;
+        renderCarrito(); actualizarTotales();
       }
     }
     return;
@@ -1615,8 +1622,8 @@ document.addEventListener('keydown', e => {
     return;
   }
 
-  // Cuando el campo de código tiene el foco, cualquier tecla alfanumérica debe ir a él
-  if (!modalCobroAbierto && !enInput && !elBuscadorOverlay.classList.contains('visible')) {
+  // Redirigir tipeo alfanumérico al campo de código
+  if (!modalCobroAbierto && !elBuscadorOverlay.classList.contains('visible')) {
     if (e.key.length === 1 && !e.ctrlKey && !e.altKey && !e.metaKey) {
       elCampoCodigo.focus();
     }
