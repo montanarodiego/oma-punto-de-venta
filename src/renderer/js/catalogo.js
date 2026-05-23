@@ -1144,15 +1144,20 @@ async function ejecutarImport() {
           continue;
         }
         await window.api.articulos.create({
-          codigo, nombre,
+          codigo,
+          nombre,
           descripcion:     '',
           precio_unitario: precio,
           costo_unitario:  costo,
           precio_mayoreo:  mayoreo,
           stock_actual:    stock,
           stock_minimo:    stockMin,
+          proveedor:       null,
           departamento_id,
           unidad_medida:   'unidad',
+          tasa_iva:        '21',
+          es_kit:          0,
+          usa_inventario:  1,
         });
         nuevos++;
       }

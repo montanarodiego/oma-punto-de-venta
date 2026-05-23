@@ -45,9 +45,20 @@ function create(data) {
        @departamento_id, @es_kit, @usa_inventario, 'pending', datetime('now'))
   `);
   const result = stmt.run({
-    descripcion: null, proveedor: null, unidad_medida: 'unidad', tasa_iva: '21',
-    precio_mayoreo: 0, departamento_id: null, es_kit: 0, usa_inventario: 1,
-    ...data,
+    codigo:          data.codigo          ?? '',
+    nombre:          data.nombre          ?? '',
+    descripcion:     data.descripcion     ?? null,
+    costo_unitario:  data.costo_unitario  ?? 0,
+    precio_unitario: data.precio_unitario ?? 0,
+    precio_mayoreo:  data.precio_mayoreo  ?? 0,
+    stock_actual:    data.stock_actual    ?? 0,
+    stock_minimo:    data.stock_minimo    ?? 0,
+    proveedor:       data.proveedor       ?? null,
+    unidad_medida:   data.unidad_medida   ?? 'unidad',
+    tasa_iva:        data.tasa_iva        ?? '21',
+    departamento_id: data.departamento_id ?? null,
+    es_kit:          data.es_kit          ?? 0,
+    usa_inventario:  data.usa_inventario  ?? 1,
   });
   return getById(result.lastInsertRowid);
 }
