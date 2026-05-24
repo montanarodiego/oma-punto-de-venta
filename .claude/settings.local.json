@@ -57,7 +57,8 @@
       "Bash(node --check src/renderer/js/comprobante.js)",
       "Bash(node --check src/renderer/js/caja.js)",
       "PowerShell(gh *)",
-      "PowerShell(npm run *)"
+      "PowerShell(npm run *)",
+      "Bash(node -e \"const m = require\\('./src/main/models/informes'\\); console.log\\(Object.keys\\(m\\).join\\(', '\\)\\);\")"
     ]
   }
 }

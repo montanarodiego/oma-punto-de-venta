@@ -107,6 +107,9 @@ function registerHandlers() {
   ipcMain.handle('informes:mejorDia',             (_e, d, h) => Informes.mejorDia(d, h));
   ipcMain.handle('informes:resumenRapido',        (_e, d, h) => Informes.resumenRapido(d, h));
   ipcMain.handle('informes:ventasPorCliente',     (_e, d, h) => Informes.ventasPorCliente(d, h));
+  ipcMain.handle('informes:ventasPorMes',         (_e, d, h) => Informes.ventasPorMes(d, h));
+  ipcMain.handle('informes:ventasPorDepartamento',(_e, d, h) => Informes.ventasPorDepartamento(d, h));
+  ipcMain.handle('informes:ventasPorHoraRango',   (_e, d, h) => Informes.ventasPorHoraRango(d, h));
 
   // ── Proveedores ────────────────────────────────────────────
   ipcMain.handle('proveedores:getAll',    ()           => Proveedores.getAll());

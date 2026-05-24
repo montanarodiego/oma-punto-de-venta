@@ -86,6 +86,9 @@ contextBridge.exposeInMainWorld('api', {
     mejorDia:             (d, h) => ipcRenderer.invoke('informes:mejorDia',             d, h),
     resumenRapido:        (d, h) => ipcRenderer.invoke('informes:resumenRapido',        d, h),
     ventasPorCliente:     (d, h) => ipcRenderer.invoke('informes:ventasPorCliente',     d, h),
+    ventasPorMes:         (d, h) => ipcRenderer.invoke('informes:ventasPorMes',         d, h),
+    ventasPorDepartamento:(d, h) => ipcRenderer.invoke('informes:ventasPorDepartamento',d, h),
+    ventasPorHoraRango:   (d, h) => ipcRenderer.invoke('informes:ventasPorHoraRango',   d, h),
   },
 
   // Proveedores

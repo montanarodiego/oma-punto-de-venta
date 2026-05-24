@@ -50,7 +50,7 @@ function ventasPorPeriodo(desde, hasta) {
   `).all(d, h, d, h);
 
   const transacciones = db.prepare(`
-    SELECT id, created_at, forma_pago, subtotal, monto_impuesto, monto_total
+    SELECT id, created_at, forma_pago, forma_pago_2, monto_pago_2, subtotal, monto_impuesto, monto_total
     FROM transacciones
     WHERE created_at BETWEEN ? AND ?
       AND estado != 'cancelada'
@@ -243,7 +243,77 @@ function ventasPorCliente(desde, hasta) {
   `).all(d, h);
 }
 
+function ventasPorMes(desde, hasta) {
+  const db = getDb();
+  const d  = desde + ' 00:00:00';
+  const h  = hasta  + ' 23:59:59';
+
+  return db.prepare(`
+    WITH g AS (
+      SELECT dt.transaccion_id,
+        SUM(CASE WHEN dt.articulo_id IS NOT NULL
+          THEN dt.cantidad * (dt.precio_al_momento - a.costo_unitario)
+          ELSE 0 END) AS ganancia
+      FROM detalle_transaccion dt
+      LEFT JOIN articulos a ON a.id = dt.articulo_id
+      GROUP BY dt.transaccion_id
+    )
+    SELECT
+      strftime('%Y-%m', t.created_at)   AS mes,
+      COUNT(*)                          AS cantidad,
+      COALESCE(SUM(t.monto_total), 0)   AS total,
+      COALESCE(SUM(g.ganancia), 0)      AS ganancia
+    FROM transacciones t
+    LEFT JOIN g ON g.transaccion_id = t.id
+    WHERE t.created_at BETWEEN ? AND ?
+      AND t.estado != 'cancelada'
+    GROUP BY strftime('%Y-%m', t.created_at)
+    ORDER BY mes ASC
+  `).all(d, h);
+}
+
+function ventasPorDepartamento(desde, hasta) {
+  const db = getDb();
+  const d  = desde + ' 00:00:00';
+  const h  = hasta  + ' 23:59:59';
+
+  return db.prepare(`
+    SELECT
+      COALESCE(dep.nombre, 'Sin depto.') AS departamento,
+      COUNT(DISTINCT t.id)               AS cantidad,
+      COALESCE(SUM(dt.importe_total), 0) AS total,
+      COALESCE(SUM(dt.cantidad * (dt.precio_al_momento - a.costo_unitario)), 0) AS ganancia
+    FROM detalle_transaccion dt
+    JOIN transacciones t ON t.id = dt.transaccion_id
+    LEFT JOIN articulos a ON a.id = dt.articulo_id
+    LEFT JOIN departamentos dep ON dep.id = a.departamento_id
+    WHERE t.created_at BETWEEN ? AND ?
+      AND t.estado != 'cancelada'
+    GROUP BY COALESCE(dep.nombre, 'Sin depto.')
+    ORDER BY total DESC
+  `).all(d, h);
+}
+
+function ventasPorHoraRango(desde, hasta) {
+  const db = getDb();
+  const d  = desde + ' 00:00:00';
+  const h  = hasta  + ' 23:59:59';
+
+  return db.prepare(`
+    SELECT
+      CAST(strftime('%H', created_at) AS INTEGER) AS hora,
+      COUNT(*)                                    AS cantidad,
+      COALESCE(SUM(monto_total), 0)               AS total
+    FROM transacciones
+    WHERE created_at BETWEEN ? AND ?
+      AND estado != 'cancelada'
+    GROUP BY strftime('%H', created_at)
+    ORDER BY hora ASC
+  `).all(d, h);
+}
+
 module.exports = {
   ventasPorPeriodo, articulosMasVendidos, utilidadBruta, saldosClientes,
   ventasPorDia, ventasPorHora, mejorDia, resumenRapido, ventasPorCliente,
+  ventasPorMes, ventasPorDepartamento, ventasPorHoraRango,
 };
