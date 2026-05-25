@@ -1,3 +1,4 @@
+require('dotenv').config();
 const { app, BrowserWindow, Menu, ipcMain, dialog, globalShortcut } = require('electron');
 const { autoUpdater } = require('electron-updater');
 const path = require('path');
@@ -15,12 +16,13 @@ const {
 } = require('./sync');
 const Turnos = require('./models/turnos');
 
-let mainWindow      = null;
-let loginWindow     = null;
-let negocioIdActivo = null;
-let syncInterval    = null;
-let modalAbierto    = false;
-let forceClose      = false;
+let mainWindow        = null;
+let loginWindow       = null;
+let negocioIdActivo   = null;
+let syncInterval      = null;
+let modalAbierto      = false;
+let modalCobroAbierto = false;
+let forceClose        = false;
 
 // ── Menú (solo Ver / DevTools) ─────────────────────────────────
 function createMenu() {
@@ -48,6 +50,7 @@ function createWindow() {
     height: 768,
     minWidth: 800,
     minHeight: 600,
+    show: false,
     icon: path.join(__dirname, '..', '..', 'assets', 'icon.ico'),
     webPreferences: {
       preload: path.join(__dirname, 'preload.js'),
@@ -56,6 +59,14 @@ function createWindow() {
     },
     title: 'Oma — Punto de Venta',
   });
+
+  mainWindow.once('ready-to-show', function () {
+    mainWindow.maximize();
+    mainWindow.show();
+  });
+
+  mainWindow.setMenuBarVisibility(false);
+  mainWindow.setAutoHideMenuBar(true);
 
   mainWindow.loadFile(
     path.join(__dirname, '..', 'renderer', 'views', 'caja.html')
@@ -145,7 +156,8 @@ function iniciarSyncInterval() {
 
 // ── Handlers de autenticación y sync ──────────────────────────
 function registerAuthHandlers() {
-  ipcMain.on('modal-state', (_e, open) => { modalAbierto = !!open; });
+  ipcMain.on('modal-state',       (_e, open) => { modalAbierto      = !!open; });
+  ipcMain.on('modal-cobro-state', (_e, open) => { modalCobroAbierto = !!open; });
 
   ipcMain.handle('sync:manual', async () => {
     if (!negocioIdActivo) return { ok: false, error: 'Sin sesión activa.' };
@@ -210,24 +222,42 @@ function registerAuthHandlers() {
 }
 
 // ── Auto-updater ───────────────────────────────────────────────
-autoUpdater.on('update-available', () => {
-  dialog.showMessageBox({
-    type: 'info',
-    title: 'Actualización disponible',
-    message: 'Hay una nueva versión de OmaTech POS. Se descargará en segundo plano.',
-    buttons: ['OK'],
-  });
+autoUpdater.autoDownload = false;
+
+autoUpdater.on('update-available', (info) => {
+  if (mainWindow && !mainWindow.isDestroyed()) {
+    mainWindow.webContents.send('update-available', {
+      version:      info.version,
+      releaseNotes: info.releaseNotes || null,
+    });
+  }
+});
+
+autoUpdater.on('update-not-available', () => {
+  // silencioso
+});
+
+autoUpdater.on('download-progress', (progress) => {
+  if (mainWindow && !mainWindow.isDestroyed()) {
+    mainWindow.webContents.send('update-progress', {
+      percent:        Math.round(progress.percent),
+      transferred:    progress.transferred,
+      total:          progress.total,
+      bytesPerSecond: progress.bytesPerSecond,
+    });
+  }
 });
 
 autoUpdater.on('update-downloaded', () => {
-  dialog.showMessageBox({
-    type: 'info',
-    title: 'Actualización lista',
-    message: 'La actualización fue descargada. La aplicación se reiniciará para instalarla.',
-    buttons: ['Reiniciar ahora'],
-  }).then(() => {
-    autoUpdater.quitAndInstall();
-  });
+  if (mainWindow && !mainWindow.isDestroyed()) {
+    mainWindow.webContents.send('update-downloaded');
+  }
+});
+
+autoUpdater.on('error', (err) => {
+  if (mainWindow && !mainWindow.isDestroyed()) {
+    mainWindow.webContents.send('update-error', err.message);
+  }
 });
 
 // ── Inicio ─────────────────────────────────────────────────────
@@ -235,6 +265,9 @@ app.whenReady().then(async () => {
   initDatabase();
   registerHandlers();
   registerAuthHandlers();
+
+  ipcMain.handle('updater:start-download', () => autoUpdater.downloadUpdate());
+  ipcMain.handle('updater:install',        () => autoUpdater.quitAndInstall());
 
   ipcMain.handle('caja:abrirComprobante', (_e, { transaccionId, montoRecibido, vuelto, propina }) => {
     const popup = new BrowserWindow({
@@ -264,9 +297,25 @@ app.whenReady().then(async () => {
   createWindow();
 
   // F1-F8: atajos globales de sistema — funcionan sin importar el foco del HTML
+  // F1/F2 tienen comportamiento doble: navegan normalmente, pero dentro del modal cobro
+  // envían el evento de cobro correspondiente en lugar de navegar.
+  globalShortcut.register('F1', () => {
+    if (!mainWindow || mainWindow.isDestroyed() || !mainWindow.isFocused()) return;
+    if (modalCobroAbierto) {
+      mainWindow.webContents.send('cobrar-con-ticket');
+    } else {
+      mainWindow.webContents.send('navegar-global', 'caja.html');
+    }
+  });
+  globalShortcut.register('F2', () => {
+    if (!mainWindow || mainWindow.isDestroyed() || !mainWindow.isFocused()) return;
+    if (modalCobroAbierto) {
+      mainWindow.webContents.send('cobrar-sin-ticket');
+    } else {
+      mainWindow.webContents.send('navegar-global', 'catalogo.html');
+    }
+  });
   const F_MODULOS = {
-    F1: 'caja.html',
-    F2: 'catalogo.html',
     F3: 'inventario.html',
     F4: 'clientes.html',
     F5: 'proveedores.html',

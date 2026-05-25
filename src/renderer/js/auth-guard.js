@@ -40,7 +40,14 @@
     _resolverTurno = resolve;
   });
 
-  /* ── 3. Inyectar CSS del modal ─────────────────────────────────── */
+  /* ── 3. Inyectar updater UI ───────────────────────────────────── */
+  (function injectUpdaterUI() {
+    var s = document.createElement('script');
+    s.src = '../js/updater-ui.js';
+    document.head.appendChild(s);
+  }());
+
+  /* ── 4. Inyectar CSS del modal ─────────────────────────────────── */
   (function injectCSS() {
     var s = document.createElement('style');
     s.textContent = [

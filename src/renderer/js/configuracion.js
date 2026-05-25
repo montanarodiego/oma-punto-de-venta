@@ -353,13 +353,17 @@ function esc(str) {
 let editandoUsuarioId = null;
 
 document.addEventListener('DOMContentLoaded', () => {
-  if (window.SESSION && window.SESSION.rol === 'admin') {
-    document.getElementById('card-usuarios').style.display = '';
+  const esAdmin = !!(window.SESSION && window.SESSION.rol === 'admin');
+  const cardUsuarios = document.getElementById('card-usuarios');
+  if (esAdmin) {
+    cardUsuarios.style.display = '';
     cargarUsuarios();
+    document.getElementById('btn-nuevo-usuario').addEventListener('click', abrirModalUsuario);
+    document.getElementById('btn-cancelar-usuario').addEventListener('click', cerrarModalUsuario);
+    document.getElementById('form-usuario').addEventListener('submit', guardarUsuario);
+  } else {
+    cardUsuarios.style.display = 'none';
   }
-  document.getElementById('btn-nuevo-usuario').addEventListener('click', abrirModalUsuario);
-  document.getElementById('btn-cancelar-usuario').addEventListener('click', cerrarModalUsuario);
-  document.getElementById('form-usuario').addEventListener('submit', guardarUsuario);
 });
 
 async function cargarUsuarios() {

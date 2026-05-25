@@ -115,6 +115,10 @@ function bindEventos() {
   // Botón Gestionar departamentos
   document.getElementById('btn-gestionar-deptos').addEventListener('click', () => switchTab('departamentos'));
 
+  // Botón Promociones
+  document.getElementById('btn-promociones').addEventListener('click', abrirModalPromos);
+  bindPromoGlobalForm();
+
   // Departamento color preview
   document.getElementById('depto-color').addEventListener('input', e => {
     document.getElementById('depto-color-hex').textContent = e.target.value;
@@ -1050,6 +1054,30 @@ function renderPreview() {
   document.getElementById('tabla-preview').innerHTML = thead + tbody;
 }
 
+// Columnas de promoción que se detectan automáticamente en la importación
+const PROMO_PRECIO_KW = ['precio_promo', 'precio_promocional', 'promo_precio', 'precio_mayoreo2',
+                         'descuento_volumen', 'promo_unit', 'precio_promo_unit', 'precio_oferta'];
+const PROMO_NOMBRE_KW = ['promo_nombre', 'nombre_promo', 'nombre_promocion', 'promocion_nombre'];
+const PROMO_DESDE_KW  = ['promo_desde', 'cantidad_desde_promo', 'cant_promo_desde', 'desde_promo',
+                         'min_cant_promo', 'cantidad_minima_promo', 'cant_min_promo'];
+const PROMO_HASTA_KW  = ['promo_hasta', 'cantidad_hasta_promo', 'cant_promo_hasta', 'hasta_promo',
+                         'max_cant_promo', 'cantidad_maxima_promo', 'cant_max_promo'];
+
+function detectarColumnasPromoImport() {
+  const hdrs       = importHeaders.map(normalizarHdr);
+  const mayoreoIdx = parseInt(document.getElementById('map-mayoreo').value, 10);
+  const find = kws => {
+    const idx = hdrs.findIndex(h => kws.includes(h) || kws.some(kw => h.includes(kw)));
+    return (idx >= 0 && idx !== mayoreoIdx) ? idx : -1;
+  };
+  return {
+    promoPrecio: find(PROMO_PRECIO_KW),
+    promoNombre: find(PROMO_NOMBRE_KW),
+    promoDesde:  find(PROMO_DESDE_KW),
+    promoHasta:  find(PROMO_HASTA_KW),
+  };
+}
+
 async function ejecutarImport() {
   const cols = {
     codigo:   parseInt(document.getElementById('map-codigo').value, 10),
@@ -1064,6 +1092,9 @@ async function ejecutarImport() {
 
   if (cols.nombre < 0) { mostrarStatusImport('Debés mapear la columna "Nombre".', true); return; }
 
+  const colsPromo = detectarColumnasPromoImport();
+  const hayPromos = colsPromo.promoPrecio >= 0;
+
   const btnImp = document.getElementById('btn-ejecutar-import');
   btnImp.disabled = true;
   btnImp.textContent = 'Importando...';
@@ -1071,7 +1102,7 @@ async function ejecutarImport() {
   const importStatus = document.getElementById('import-status');
   importStatus.classList.remove('hidden');
 
-  let nuevos = 0, actualizados = 0, codigosAuto = 0;
+  let nuevos = 0, actualizados = 0, codigosAuto = 0, promoCreadas = 0;
   const erroresDetalle = []; // { fila, campo, valorRecibido, motivo }
 
   const deptoCache = {};
@@ -1123,6 +1154,7 @@ async function ejecutarImport() {
       }
     }
 
+    let artId = null;
     try {
       const existente = await window.api.articulos.getByCodigo(codigo);
       if (existente) {
@@ -1134,6 +1166,7 @@ async function ejecutarImport() {
         if (cols.stockMin >= 0) upd.stock_minimo   = stockMin;
         if (departamento_id !== null) upd.departamento_id = departamento_id;
         await window.api.articulos.update(existente.id, upd);
+        artId = existente.id;
         actualizados++;
       } else {
         if (precio === null || precio <= 0) {
@@ -1143,7 +1176,7 @@ async function ejecutarImport() {
           erroresDetalle.push({ fila: nFila, campo: 'precio venta', valorRecibido: valorRaw, motivo: 'Precio ausente o ≤ 0 (requerido para artículo nuevo)' });
           continue;
         }
-        await window.api.articulos.create({
+        const nuevo = await window.api.articulos.create({
           codigo,
           nombre,
           descripcion:     '',
@@ -1159,10 +1192,33 @@ async function ejecutarImport() {
           es_kit:          0,
           usa_inventario:  1,
         });
+        artId = nuevo.id;
         nuevos++;
       }
     } catch (err) {
       erroresDetalle.push({ fila: nFila, campo: '—', valorRecibido: codigo, motivo: err.message || String(err) });
+      continue;
+    }
+
+    // Crear promoción si hay columna de precio promo con valor
+    if (hayPromos && artId !== null) {
+      const precioPromo = parsearImport(row[colsPromo.promoPrecio]);
+      if (precioPromo > 0) {
+        const promoNombre = colsPromo.promoNombre >= 0 ? String(row[colsPromo.promoNombre] ?? '').trim() : '';
+        const promoDesde  = colsPromo.promoDesde >= 0 ? (parseInt(row[colsPromo.promoDesde]) || 1) : 1;
+        const promoHastaR = colsPromo.promoHasta >= 0 ? parseInt(row[colsPromo.promoHasta]) : NaN;
+        const promoHasta  = isNaN(promoHastaR) || promoHastaR <= 0 ? null : promoHastaR;
+        try {
+          await window.api.promociones.crear({
+            articulo_id:        artId,
+            nombre:             promoNombre,
+            cantidad_desde:     promoDesde,
+            cantidad_hasta:     promoHasta,
+            precio_promocional: precioPromo,
+          });
+          promoCreadas++;
+        } catch (_) {}
+      }
     }
   }
 
@@ -1199,13 +1255,16 @@ async function ejecutarImport() {
   const autoMsg = codigosAuto > 0
     ? `&nbsp;·&nbsp;<span style="color:var(--text-subtle);">${codigosAuto} código${codigosAuto > 1 ? 's' : ''} auto-generado${codigosAuto > 1 ? 's' : ''}</span>`
     : '';
+  const promoMsg = promoCreadas > 0
+    ? `&nbsp;·&nbsp;<span style="color:#4ade80;">${promoCreadas} promoción${promoCreadas !== 1 ? 'es' : ''} creada${promoCreadas !== 1 ? 's' : ''}</span>`
+    : '';
 
   importStatus.innerHTML = `
     <div style="padding:10px 14px;background:rgba(59,130,246,.1);border:1px solid rgba(59,130,246,.3);border-radius:var(--r-in);line-height:1.7;">
       Importación finalizada:<br>
       <strong>${nuevos}</strong> artículos nuevos &nbsp;·&nbsp;
       <strong>${actualizados}</strong> actualizados &nbsp;·&nbsp;
-      <strong style="color:#fca5a5;">${totalErrores}</strong> filas con error${autoMsg}
+      <strong style="color:#fca5a5;">${totalErrores}</strong> filas con error${autoMsg}${promoMsg}
     </div>
     ${erroresHtml}`;
 
@@ -1425,6 +1484,217 @@ async function eliminarPromo(id) {
   } catch (err) {
     toast('Error al eliminar: ' + (err.message || err), 'error');
   }
+}
+
+// ── Modal: Gestión global de promociones ─────────────────────
+
+let promosGlobalTodas = [];
+let pgArtSeleccionado = null;
+let pgArtTimer        = null;
+
+async function abrirModalPromos() {
+  pgArtSeleccionado = null;
+  document.getElementById('pg-art-busq').value       = '';
+  document.getElementById('pg-promo-nombre').value   = '';
+  document.getElementById('pg-promo-desde').value    = '';
+  document.getElementById('pg-promo-hasta').value    = '';
+  document.getElementById('pg-promo-precio').value   = '';
+  document.getElementById('promo-global-form-wrap').style.display = 'none';
+  document.getElementById('pg-error').classList.add('hidden');
+  document.getElementById('promos-busq-art').value   = '';
+  document.getElementById('modal-promos-global').classList.remove('hidden');
+  await cargarPromosGlobal();
+}
+
+async function cargarPromosGlobal() {
+  document.getElementById('promos-global-tbody').innerHTML =
+    '<tr><td colspan="6" style="text-align:center;color:var(--text-subtle);padding:24px;">Cargando...</td></tr>';
+  try {
+    promosGlobalTodas = await window.api.promociones.listarTodas();
+    filtrarYRenderPromosGlobal();
+  } catch (err) {
+    document.getElementById('promos-global-tbody').innerHTML =
+      `<tr><td colspan="6" style="text-align:center;color:#fca5a5;padding:24px;">Error: ${esc(err.message || err)}</td></tr>`;
+  }
+}
+
+function filtrarYRenderPromosGlobal() {
+  const q = (document.getElementById('promos-busq-art').value || '').trim().toLowerCase();
+  const lista = q
+    ? promosGlobalTodas.filter(p => (p.articulo_nombre || '').toLowerCase().includes(q))
+    : promosGlobalTodas;
+  renderPromosGlobal(lista);
+}
+
+function renderPromosGlobal(lista) {
+  const tbody = document.getElementById('promos-global-tbody');
+  if (lista.length === 0) {
+    tbody.innerHTML = '<tr><td colspan="6" style="text-align:center;color:var(--text-subtle);padding:24px;">Sin promociones encontradas.</td></tr>';
+    return;
+  }
+  tbody.innerHTML = lista.map(p => `
+    <tr>
+      <td style="padding:8px 12px;">
+        <div style="font-size:13px;font-weight:500;">${esc(p.articulo_nombre || '—')}</div>
+        <div style="font-size:11px;color:var(--text-subtle);font-family:monospace;">${esc(p.articulo_codigo || '')}</div>
+      </td>
+      <td style="padding:8px 12px;">${esc(p.nombre || '—')}</td>
+      <td style="padding:8px 12px;text-align:center;">${p.cantidad_desde}</td>
+      <td style="padding:8px 12px;text-align:center;color:var(--text-subtle);">${p.cantidad_hasta ?? '∞'}</td>
+      <td style="padding:8px 12px;text-align:right;font-weight:600;color:#4ade80;">${fmt(p.precio_promocional)}</td>
+      <td style="padding:8px 12px;text-align:right;">
+        <button data-pg-del="${p.id}"
+          style="color:var(--danger);font-size:16px;line-height:1;background:none;border:none;cursor:pointer;padding:0 4px;"
+          title="Eliminar">×</button>
+      </td>
+    </tr>`).join('');
+
+  tbody.querySelectorAll('[data-pg-del]').forEach(btn => {
+    btn.addEventListener('click', () => eliminarPromoGlobal(parseInt(btn.dataset.pgDel)));
+  });
+}
+
+async function eliminarPromoGlobal(id) {
+  if (!confirm('¿Eliminar esta promoción?')) return;
+  try {
+    await window.api.promociones.eliminar(id);
+    promosGlobalTodas = promosGlobalTodas.filter(p => p.id !== id);
+    filtrarYRenderPromosGlobal();
+    toast('Promoción eliminada.');
+  } catch (err) {
+    toast('Error al eliminar: ' + (err.message || err), 'error');
+  }
+}
+
+async function agregarPromoGlobal() {
+  const errEl = document.getElementById('pg-error');
+  errEl.classList.add('hidden');
+
+  if (!pgArtSeleccionado) {
+    errEl.textContent = 'Seleccioná un artículo de la lista.';
+    errEl.classList.remove('hidden');
+    return;
+  }
+  const nombre   = document.getElementById('pg-promo-nombre').value.trim();
+  const desde    = parseFloat(document.getElementById('pg-promo-desde').value);
+  const hastaRaw = document.getElementById('pg-promo-hasta').value.trim();
+  const hasta    = hastaRaw === '' ? null : parseFloat(hastaRaw);
+  const precio   = parseFloat(document.getElementById('pg-promo-precio').value);
+
+  if (isNaN(desde) || desde < 1) {
+    errEl.textContent = '"Desde" debe ser mayor o igual a 1.';
+    errEl.classList.remove('hidden');
+    return;
+  }
+  if (hasta !== null && hasta < desde) {
+    errEl.textContent = '"Hasta" debe ser mayor o igual a "Desde".';
+    errEl.classList.remove('hidden');
+    return;
+  }
+  if (isNaN(precio) || precio <= 0) {
+    errEl.textContent = 'El precio promocional debe ser mayor a 0.';
+    errEl.classList.remove('hidden');
+    return;
+  }
+
+  const btnAgregar = document.getElementById('pg-btn-agregar');
+  btnAgregar.disabled = true;
+  try {
+    const nueva = await window.api.promociones.crear({
+      articulo_id:        pgArtSeleccionado.id,
+      nombre,
+      cantidad_desde:     desde,
+      cantidad_hasta:     hasta,
+      precio_promocional: precio,
+    });
+    const art = articulos.find(a => a.id === pgArtSeleccionado.id);
+    nueva.articulo_nombre = art?.nombre || pgArtSeleccionado.nombre;
+    nueva.articulo_codigo = art?.codigo || '';
+    promosGlobalTodas.push(nueva);
+    promosGlobalTodas.sort((a, b) =>
+      (a.articulo_nombre || '').localeCompare(b.articulo_nombre || '') ||
+      a.cantidad_desde - b.cantidad_desde
+    );
+    pgArtSeleccionado = null;
+    document.getElementById('pg-art-busq').value     = '';
+    document.getElementById('pg-promo-nombre').value = '';
+    document.getElementById('pg-promo-desde').value  = '';
+    document.getElementById('pg-promo-hasta').value  = '';
+    document.getElementById('pg-promo-precio').value = '';
+    document.getElementById('promo-global-form-wrap').style.display = 'none';
+    filtrarYRenderPromosGlobal();
+    toast('Promoción creada.');
+  } catch (err) {
+    errEl.textContent = 'Error: ' + (err.message || err);
+    errEl.classList.remove('hidden');
+  } finally {
+    btnAgregar.disabled = false;
+  }
+}
+
+function bindPromoGlobalForm() {
+  document.getElementById('promos-busq-art').addEventListener('input', filtrarYRenderPromosGlobal);
+
+  document.getElementById('btn-nueva-promo-global').addEventListener('click', () => {
+    const wrap = document.getElementById('promo-global-form-wrap');
+    const esVisible = wrap.style.display !== 'none';
+    wrap.style.display = esVisible ? 'none' : '';
+    if (!esVisible) setTimeout(() => document.getElementById('pg-art-busq').focus(), 30);
+  });
+
+  document.getElementById('pg-btn-cancelar-form').addEventListener('click', () => {
+    document.getElementById('promo-global-form-wrap').style.display = 'none';
+    pgArtSeleccionado = null;
+  });
+
+  document.getElementById('pg-art-busq').addEventListener('input', e => {
+    clearTimeout(pgArtTimer);
+    const q  = e.target.value.trim();
+    const dd = document.getElementById('pg-art-dropdown');
+    pgArtSeleccionado = null;
+    if (!q) { dd.style.display = 'none'; return; }
+    pgArtTimer = setTimeout(() => {
+      const res = articulos.filter(a =>
+        a.nombre.toLowerCase().includes(q.toLowerCase()) ||
+        a.codigo.toLowerCase().includes(q.toLowerCase())
+      ).slice(0, 8);
+      if (res.length === 0) { dd.style.display = 'none'; return; }
+      dd.innerHTML = res.map(a => `
+        <div data-pg-art-id="${a.id}" data-pg-art-nombre="${esc(a.nombre)}"
+          style="padding:7px 12px;cursor:pointer;border-bottom:1px solid var(--border);">
+          <span style="font-size:12px;font-weight:500;">${esc(a.nombre)}</span>
+          <span style="font-size:11px;color:var(--text-subtle);margin-left:8px;">${esc(a.codigo)}</span>
+        </div>`).join('');
+      dd.style.display = 'block';
+    }, 150);
+  });
+
+  document.getElementById('pg-art-dropdown').addEventListener('click', e => {
+    const item = e.target.closest('[data-pg-art-id]');
+    if (!item) return;
+    pgArtSeleccionado = { id: parseInt(item.dataset.pgArtId), nombre: item.dataset.pgArtNombre };
+    document.getElementById('pg-art-busq').value = item.dataset.pgArtNombre;
+    document.getElementById('pg-art-dropdown').style.display = 'none';
+    document.getElementById('pg-promo-desde').focus();
+  });
+
+  document.getElementById('pg-btn-agregar').addEventListener('click', agregarPromoGlobal);
+
+  document.getElementById('pg-promo-precio').addEventListener('keydown', e => {
+    if (e.key === 'Enter') { e.preventDefault(); agregarPromoGlobal(); }
+  });
+
+  document.getElementById('btn-close-promos-global').addEventListener('click', () =>
+    document.getElementById('modal-promos-global').classList.add('hidden')
+  );
+  document.getElementById('btn-cerrar-promos-global').addEventListener('click', () =>
+    document.getElementById('modal-promos-global').classList.add('hidden')
+  );
+
+  document.addEventListener('click', e => {
+    if (!e.target.closest('#pg-art-busq') && !e.target.closest('#pg-art-dropdown'))
+      document.getElementById('pg-art-dropdown').style.display = 'none';
+  });
 }
 
 // ── Exportar catálogo a CSV ───────────────────────────────────

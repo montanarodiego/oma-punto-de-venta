@@ -114,6 +114,7 @@ contextBridge.exposeInMainWorld('api', {
   promociones: {
     listarPorArticulo: (articuloId) => ipcRenderer.invoke('promociones:listarPorArticulo', articuloId),
     listarActivas:     (ids)        => ipcRenderer.invoke('promociones:listarActivas', ids),
+    listarTodas:       ()           => ipcRenderer.invoke('promociones:listarTodas'),
     crear:             (data)       => ipcRenderer.invoke('promociones:crear', data),
     eliminar:          (id)         => ipcRenderer.invoke('promociones:eliminar', id),
   },
@@ -187,11 +188,17 @@ contextBridge.exposeInMainWorld('api', {
     stockBajo:        ()        => ipcRenderer.invoke('inventario:stockBajo'),
   },
 
+  // Soporte
+  soporte: {
+    enviarReporte: (datos) => ipcRenderer.invoke('soporte:enviarReporte', datos),
+  },
+
   // Navegación (main process loadFile — funciona aunque location.href falle en Electron)
   navegar: (file) => ipcRenderer.invoke('navegar', file),
 
   // Estado de modales — bloquea F1-F8 en el proceso principal
-  modalState: (open) => ipcRenderer.send('modal-state', open),
+  modalState:    (open) => ipcRenderer.send('modal-state',       open),
+  setModalCobro: (open) => ipcRenderer.send('modal-cobro-state', open),
 
   // Suscripción a navegación global desde main (globalShortcut F1-F8)
   onNavegar: (cb) => {
@@ -199,4 +206,24 @@ contextBridge.exposeInMainWorld('api', {
     ipcRenderer.on('navegar-global', handler);
     return () => ipcRenderer.removeListener('navegar-global', handler);
   },
+
+  // Cobro desde globalShortcut (F1/F2 dentro del modal de cobro)
+  onCobrarConTicket: (cb) => {
+    const handler = () => cb();
+    ipcRenderer.on('cobrar-con-ticket', handler);
+    return () => ipcRenderer.removeListener('cobrar-con-ticket', handler);
+  },
+  onCobrarSinTicket: (cb) => {
+    const handler = () => cb();
+    ipcRenderer.on('cobrar-sin-ticket', handler);
+    return () => ipcRenderer.removeListener('cobrar-sin-ticket', handler);
+  },
+
+  // Auto-updater
+  startDownload: () => ipcRenderer.invoke('updater:start-download'),
+  installUpdate: () => ipcRenderer.invoke('updater:install'),
+  onUpdateAvailable:  (cb) => { ipcRenderer.on('update-available',  (_e, info)    => cb(info));    },
+  onUpdateProgress:   (cb) => { ipcRenderer.on('update-progress',   (_e, data)    => cb(data));    },
+  onUpdateDownloaded: (cb) => { ipcRenderer.on('update-downloaded', ()            => cb());        },
+  onUpdateError:      (cb) => { ipcRenderer.on('update-error',      (_e, message) => cb(message)); },
 });

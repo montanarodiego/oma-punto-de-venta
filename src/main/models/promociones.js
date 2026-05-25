@@ -24,9 +24,20 @@ function crear(data) {
   return db.prepare('SELECT * FROM promociones WHERE id = ?').get(result.lastInsertRowid);
 }
 
+function listarTodas() {
+  return getDb()
+    .prepare(`
+      SELECT p.*, a.nombre AS articulo_nombre, a.codigo AS articulo_codigo
+      FROM promociones p
+      JOIN articulos a ON a.id = p.articulo_id
+      ORDER BY a.nombre ASC, p.cantidad_desde ASC
+    `)
+    .all();
+}
+
 function eliminar(id) {
   getDb().prepare('DELETE FROM promociones WHERE id = ?').run(id);
   return true;
 }
 
-module.exports = { listarPorArticulo, listarActivasPorArticulos, crear, eliminar };
+module.exports = { listarPorArticulo, listarActivasPorArticulos, listarTodas, crear, eliminar };

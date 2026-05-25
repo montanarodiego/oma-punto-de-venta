@@ -1,5 +1,7 @@
 const { ipcMain, shell } = require('electron');
 const path           = require('path');
+const { version }    = require('../../package.json');
+const { enviarReporte } = require('./mailer');
 const Usuarios       = require('./models/usuarios');
 const Articulos      = require('./models/articulos');
 const Transacciones  = require('./models/transacciones');
@@ -129,6 +131,7 @@ function registerHandlers() {
   // ── Promociones por volumen ───────────────────────────────────
   ipcMain.handle('promociones:listarPorArticulo', (_e, articuloId) => Promociones.listarPorArticulo(articuloId));
   ipcMain.handle('promociones:listarActivas',     (_e, ids)        => Promociones.listarActivasPorArticulos(ids));
+  ipcMain.handle('promociones:listarTodas',       ()               => Promociones.listarTodas());
   ipcMain.handle('promociones:crear',             (_e, data)       => { onlyAdmin(); return Promociones.crear(data); });
   ipcMain.handle('promociones:eliminar',          (_e, id)         => { onlyAdmin(); return Promociones.eliminar(id); });
 
@@ -186,6 +189,19 @@ function registerHandlers() {
       total += row.count;
     }
     return total;
+  });
+
+  // ── Soporte / Reportar problema ───────────────────────────────
+  ipcMain.handle('soporte:enviarReporte', async (_e, datos) => {
+    try {
+      const db = getDb();
+      const row = db.prepare("SELECT valor FROM configuracion WHERE clave = 'nombre_negocio'").get();
+      const negocio = row ? row.valor : null;
+      await enviarReporte({ ...datos, version, negocio });
+      return { ok: true };
+    } catch (err) {
+      return { ok: false, error: err.message };
+    }
   });
 
   // ── Configuración ──────────────────────────────────────────

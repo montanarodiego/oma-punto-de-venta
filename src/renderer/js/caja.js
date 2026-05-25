@@ -475,6 +475,7 @@ async function agregarAlCarrito(articulo) {
   if (existente) {
     existente.cantidad++;
     evaluarPromo(existente);
+    ticketActivo().itemSeleccionadoIdx = carrito.indexOf(existente);
   } else {
     const item = { ...articulo, cantidad: 1, descuento_porcentaje: 0, usarMayoreo: false, promos, promoAplicada: null };
     evaluarPromo(item);
@@ -1202,11 +1203,13 @@ function abrirModalCobro() {
   actualizarMixtoExtraSections();
 
   elModalCobro.classList.add('visible');
+  window.api.setModalCobro(true);
   setTimeout(() => elCobroMontoRec.focus(), 50);
 }
 
 function cerrarModalCobro() {
   elModalCobro.classList.remove('visible');
+  window.api.setModalCobro(false);
   recuperarFocoCodigo();
 }
 
@@ -1630,8 +1633,57 @@ document.addEventListener('keydown', e => {
     return;
   }
 
+  const buscadorAbierto = elBuscadorOverlay.classList.contains('visible');
+
+  // ↑↓ navegar filas del carrito
+  if ((e.key === 'ArrowUp' || e.key === 'ArrowDown') && !modalCobroAbierto && !buscadorAbierto) {
+    e.preventDefault();
+    const carrito = ticketActivo().carrito;
+    if (carrito.length === 0) return;
+    let selIdx = ticketActivo().itemSeleccionadoIdx ?? 0;
+    if (e.key === 'ArrowUp') selIdx = Math.max(0, selIdx - 1);
+    else selIdx = Math.min(carrito.length - 1, selIdx + 1);
+    ticketActivo().itemSeleccionadoIdx = selIdx;
+    renderCarrito();
+    const row = elCarritoTbody.querySelector(`tr[data-row-idx="${selIdx}"]`);
+    if (row) row.scrollIntoView({ block: 'nearest' });
+    return;
+  }
+
+  // + sumar 1 unidad al item seleccionado
+  if ((e.key === '+' || e.code === 'NumpadAdd') && !modalCobroAbierto && !buscadorAbierto) {
+    e.preventDefault();
+    const carrito = ticketActivo().carrito;
+    const selIdx  = ticketActivo().itemSeleccionadoIdx;
+    if (selIdx !== null && carrito[selIdx]) {
+      carrito[selIdx].cantidad++;
+      evaluarPromo(carrito[selIdx]);
+      renderCarrito(); actualizarTotales();
+    }
+    return;
+  }
+
+  // - restar 1 unidad (eliminar si llega a 0)
+  if ((e.key === '-' || e.code === 'NumpadSubtract') && !modalCobroAbierto && !buscadorAbierto) {
+    e.preventDefault();
+    const carrito = ticketActivo().carrito;
+    const selIdx  = ticketActivo().itemSeleccionadoIdx;
+    if (selIdx !== null && carrito[selIdx]) {
+      const next = carrito[selIdx].cantidad - 1;
+      if (next <= 0) {
+        carrito.splice(selIdx, 1);
+        ticketActivo().itemSeleccionadoIdx = carrito.length > 0 ? Math.min(selIdx, carrito.length - 1) : null;
+      } else {
+        carrito[selIdx].cantidad = next;
+        evaluarPromo(carrito[selIdx]);
+      }
+      renderCarrito(); actualizarTotales();
+    }
+    return;
+  }
+
   // Redirigir tipeo alfanumérico al campo de código
-  if (!modalCobroAbierto && !elBuscadorOverlay.classList.contains('visible')) {
+  if (!modalCobroAbierto && !buscadorAbierto) {
     if (e.key.length === 1 && !e.ctrlKey && !e.altKey && !e.metaKey) {
       elCampoCodigo.focus();
     }
@@ -1826,4 +1878,16 @@ function mostrarToast(msg, tipo = 'success') {
   el.textContent = msg;
   wrap.appendChild(el);
   setTimeout(() => el.remove(), 3500);
+}
+
+// ── F1/F2 desde globalShortcut dentro del modal de cobro ─────────
+if (window.api.onCobrarConTicket) {
+  window.api.onCobrarConTicket(() => {
+    if (elModalCobro.classList.contains('visible')) ejecutarCobro(true);
+  });
+}
+if (window.api.onCobrarSinTicket) {
+  window.api.onCobrarSinTicket(() => {
+    if (elModalCobro.classList.contains('visible')) ejecutarCobro(false);
+  });
 }

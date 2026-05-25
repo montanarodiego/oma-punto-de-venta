@@ -91,6 +91,20 @@
     '</div>';
   nav.appendChild(userChip);
 
+  // Botón Reportar problema
+  var btnReportar = document.createElement('button');
+  btnReportar.className = 'btn-nav-reportar';
+  btnReportar.title = 'Reportar un problema';
+  btnReportar.innerHTML =
+    '<svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">' +
+      '<path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/>' +
+      '<line x1="12" y1="9" x2="12" y2="13"/>' +
+      '<line x1="12" y1="17" x2="12.01" y2="17"/>' +
+    '</svg>' +
+    '<span>Reportar</span>';
+  btnReportar.addEventListener('click', function () { abrirModalReporte(); });
+  nav.appendChild(btnReportar);
+
   // Botón Salir
   var btnSalir = document.createElement('button');
   btnSalir.className = 'btn-nav-salir';
@@ -127,5 +141,135 @@
   // F1-F8: manejados por globalShortcut en main.js — aquí solo recibimos el IPC
   window.api.onNavegar(function (file) {
     navegar(file);
+  });
+
+  // ── Modal Reportar Problema ─────────────────────────────────────
+  var modalReporte = document.createElement('div');
+  modalReporte.id = 'modal-reporte-problema';
+  modalReporte.className = 'modal-reporte-overlay';
+  modalReporte.style.display = 'none';
+  modalReporte.innerHTML =
+    '<div class="modal-reporte-box">' +
+      '<div class="modal-reporte-header">' +
+        '<div>' +
+          '<h2 class="modal-reporte-titulo">Reportar un problema</h2>' +
+          '<p class="modal-reporte-subtitulo">Tu reporte llega directamente al equipo de OmaTech</p>' +
+        '</div>' +
+        '<button class="modal-reporte-close" id="btn-reporte-close" title="Cerrar">' +
+          '<svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>' +
+        '</button>' +
+      '</div>' +
+      '<div id="modal-reporte-exito" class="modal-reporte-exito" style="display:none;">' +
+        '<svg viewBox="0 0 24 24" width="40" height="40" fill="none" stroke="#22c55e" stroke-width="2" stroke-linecap="round"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg>' +
+        '<p>Reporte enviado. ¡Gracias!<br><span>El equipo de OmaTech lo revisará pronto.</span></p>' +
+      '</div>' +
+      '<form id="form-reporte-problema" class="modal-reporte-form">' +
+        '<div class="modal-reporte-row">' +
+          '<label class="modal-reporte-label" for="reporte-tipo">Tipo de problema</label>' +
+          '<select id="reporte-tipo" class="modal-reporte-input">' +
+            '<option value="Error en la app">Error en la app</option>' +
+            '<option value="Algo no funciona bien">Algo no funciona bien</option>' +
+            '<option value="Sugerencia de mejora">Sugerencia de mejora</option>' +
+            '<option value="Otro">Otro</option>' +
+          '</select>' +
+        '</div>' +
+        '<div class="modal-reporte-row">' +
+          '<label class="modal-reporte-label" for="reporte-modulo">Módulo donde ocurrió</label>' +
+          '<select id="reporte-modulo" class="modal-reporte-input">' +
+            '<option value="Caja">Caja</option>' +
+            '<option value="Catálogo">Catálogo</option>' +
+            '<option value="Inventario">Inventario</option>' +
+            '<option value="Clientes">Clientes</option>' +
+            '<option value="Proveedores">Proveedores</option>' +
+            '<option value="Informes">Informes</option>' +
+            '<option value="Turno">Turno</option>' +
+            '<option value="Configuración">Configuración</option>' +
+            '<option value="Otro">Otro</option>' +
+          '</select>' +
+        '</div>' +
+        '<div class="modal-reporte-row">' +
+          '<label class="modal-reporte-label" for="reporte-descripcion">Descripción <span style="color:var(--danger)">*</span></label>' +
+          '<textarea id="reporte-descripcion" class="modal-reporte-input modal-reporte-textarea" placeholder="Describí el problema con el mayor detalle posible" required></textarea>' +
+        '</div>' +
+        '<div class="modal-reporte-row">' +
+          '<label class="modal-reporte-label" for="reporte-nombre">Tu nombre <span style="color:var(--text-subtle);font-weight:400;">(opcional)</span></label>' +
+          '<input id="reporte-nombre" type="text" class="modal-reporte-input" placeholder="Ej: Juan García">' +
+        '</div>' +
+        '<div id="reporte-error" class="modal-reporte-error" style="display:none;"></div>' +
+        '<div class="modal-reporte-actions">' +
+          '<button type="button" class="btn-reporte-cancelar" id="btn-reporte-cancelar">Cancelar</button>' +
+          '<button type="submit" class="btn-reporte-enviar" id="btn-reporte-enviar">' +
+            '<svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/></svg>' +
+            '<span>Enviar reporte</span>' +
+          '</button>' +
+        '</div>' +
+      '</form>' +
+    '</div>';
+  document.body.appendChild(modalReporte);
+
+  function abrirModalReporte() {
+    document.getElementById('form-reporte-problema').reset();
+    document.getElementById('reporte-error').style.display = 'none';
+    document.getElementById('modal-reporte-exito').style.display = 'none';
+    document.getElementById('form-reporte-problema').style.display = '';
+    // Pre-seleccionar módulo según la página actual
+    var modMap = {
+      'caja.html': 'Caja', 'catalogo.html': 'Catálogo', 'inventario.html': 'Inventario',
+      'clientes.html': 'Clientes', 'proveedores.html': 'Proveedores',
+      'informes.html': 'Informes', 'turno.html': 'Turno', 'configuracion.html': 'Configuración',
+    };
+    var sel = document.getElementById('reporte-modulo');
+    if (modMap[currentFile]) sel.value = modMap[currentFile];
+    // Pre-rellenar nombre del usuario logueado
+    if (_nombre) document.getElementById('reporte-nombre').value = _nombre;
+    modalReporte.style.display = 'flex';
+    setTimeout(function () { document.getElementById('reporte-descripcion').focus(); }, 80);
+  }
+
+  function cerrarModalReporte() {
+    modalReporte.style.display = 'none';
+  }
+
+  document.getElementById('btn-reporte-close').addEventListener('click', cerrarModalReporte);
+  document.getElementById('btn-reporte-cancelar').addEventListener('click', cerrarModalReporte);
+  modalReporte.addEventListener('click', function (e) {
+    if (e.target === modalReporte) cerrarModalReporte();
+  });
+
+  document.getElementById('form-reporte-problema').addEventListener('submit', async function (e) {
+    e.preventDefault();
+    var tipo        = document.getElementById('reporte-tipo').value;
+    var modulo      = document.getElementById('reporte-modulo').value;
+    var descripcion = document.getElementById('reporte-descripcion').value.trim();
+    var nombre      = document.getElementById('reporte-nombre').value.trim();
+    var errEl       = document.getElementById('reporte-error');
+    var btnEnviar   = document.getElementById('btn-reporte-enviar');
+
+    if (!descripcion) {
+      errEl.textContent = 'La descripción es obligatoria.';
+      errEl.style.display = '';
+      return;
+    }
+    errEl.style.display = 'none';
+    btnEnviar.disabled = true;
+    btnEnviar.querySelector('span').textContent = 'Enviando…';
+
+    try {
+      var res = await window.api.soporte.enviarReporte({ tipo, modulo, descripcion, nombre });
+      if (res.ok) {
+        document.getElementById('form-reporte-problema').style.display = 'none';
+        document.getElementById('modal-reporte-exito').style.display = 'flex';
+        setTimeout(cerrarModalReporte, 3000);
+      } else {
+        errEl.textContent = 'No se pudo enviar: ' + (res.error || 'error desconocido');
+        errEl.style.display = '';
+      }
+    } catch (err) {
+      errEl.textContent = 'No se pudo enviar: ' + (err.message || 'error de red');
+      errEl.style.display = '';
+    } finally {
+      btnEnviar.disabled = false;
+      btnEnviar.querySelector('span').textContent = 'Enviar reporte';
+    }
   });
 })();
