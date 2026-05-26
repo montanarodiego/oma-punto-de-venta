@@ -220,6 +220,11 @@ contextBridge.exposeInMainWorld('api', {
     ipcRenderer.on('cobrar-sin-ticket', handler);
     return () => ipcRenderer.removeListener('cobrar-sin-ticket', handler);
   },
+  onAbrirCobro: (cb) => {
+    const handler = () => cb();
+    ipcRenderer.on('abrir-cobro', handler);
+    return () => ipcRenderer.removeListener('abrir-cobro', handler);
+  },
 
   // Auto-updater
   startDownload: () => ipcRenderer.invoke('updater:start-download'),

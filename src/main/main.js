@@ -417,6 +417,13 @@ app.whenReady().then(async () => {
     });
   });
 
+  // F12: abrir modal de cobro siempre, aunque haya un input con foco
+  globalShortcut.register('F12', () => {
+    if (mainWindow && !mainWindow.isDestroyed() && mainWindow.isFocused()) {
+      mainWindow.webContents.send('abrir-cobro');
+    }
+  });
+
   app.on('activate', () => {
     if (BrowserWindow.getAllWindows().length === 0) createWindow();
   });

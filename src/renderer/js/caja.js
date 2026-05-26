@@ -1311,37 +1311,58 @@ document.getElementById('cobro-btn-quitar-cliente').addEventListener('click', ()
   elCobrobuscCliente.focus();
 });
 
-// Teclado dentro del modal cobro
-elModalCobro.addEventListener('keydown', e => {
+// ── Modal de cobro — capture-phase, captura teclas siempre (incluso con input activo) ──
+document.addEventListener('keydown', e => {
   if (!elModalCobro.classList.contains('visible')) return;
 
   const enInput = ['INPUT', 'TEXTAREA'].includes(document.activeElement?.tagName);
 
-  if (e.key === 'Escape') { e.preventDefault(); cerrarModalCobro(); return; }
+  if (e.key === 'Escape') { e.preventDefault(); e.stopPropagation(); cerrarModalCobro(); return; }
+  if (e.key === 'F1')     { e.preventDefault(); e.stopPropagation(); ejecutarCobro(true);  return; }
+  if (e.key === 'F2')     { e.preventDefault(); e.stopPropagation(); ejecutarCobro(false); return; }
 
-  if (e.key === 'F1') { e.preventDefault(); ejecutarCobro(true); return; }
-  if (e.key === 'F2') { e.preventDefault(); ejecutarCobro(false); return; }
-
-  // Atajos numéricos 1-6 para forma de pago
-  if (!e.ctrlKey && !e.altKey && !enInput) {
-    const n = parseInt(e.key, 10);
-    if (n >= 1 && n <= 6) { e.preventDefault(); cobroFocusIdx = n - 1; actualizarOpcionCobroActiva(); return; }
+  // Enter confirma cobro (excepto en buscador de cliente, donde Enter cierra el dropdown)
+  if (e.key === 'Enter' && document.activeElement !== elCobrobuscCliente) {
+    e.preventDefault(); e.stopPropagation(); ejecutarCobro(true); return;
   }
 
-  // ↑↓ navegar formas de pago cuando no hay input activo
   if (!enInput) {
     if (e.key === 'ArrowDown') {
-      e.preventDefault();
+      e.preventDefault(); e.stopPropagation();
       if (cobroFocusIdx < FORMAS_COBRO.length - 1) { cobroFocusIdx++; actualizarOpcionCobroActiva(); }
       return;
     }
     if (e.key === 'ArrowUp') {
-      e.preventDefault();
+      e.preventDefault(); e.stopPropagation();
       if (cobroFocusIdx > 0) { cobroFocusIdx--; actualizarOpcionCobroActiva(); }
       return;
     }
+    // Dígitos: si efectivo → van al monto; si otra forma → seleccionan pago 1-6
+    if (/^\d$/.test(e.key) && !e.ctrlKey && !e.altKey) {
+      const n = parseInt(e.key, 10);
+      if (cobroFormaPago === 'efectivo') {
+        e.preventDefault(); e.stopPropagation();
+        numpadStr = (numpadStr + e.key).replace(/^0+(\d)/, '$1');
+        if (numpadStr.length > 10) numpadStr = numpadStr.slice(0, 10);
+        elCobroMontoRec.value = numpadStr;
+        elCobroMontoRec.dispatchEvent(new Event('input'));
+        elCobroMontoRec.focus();
+      } else if (n >= 1 && n <= 6) {
+        e.preventDefault(); e.stopPropagation();
+        cobroFocusIdx = n - 1; actualizarOpcionCobroActiva();
+      }
+      return;
+    }
+    // Backspace borra el último dígito del monto cuando efectivo está activo
+    if (e.key === 'Backspace' && cobroFormaPago === 'efectivo') {
+      e.preventDefault(); e.stopPropagation();
+      numpadStr = numpadStr.slice(0, -1);
+      elCobroMontoRec.value = numpadStr;
+      elCobroMontoRec.dispatchEvent(new Event('input'));
+      return;
+    }
   }
-});
+}, true);
 
 document.getElementById('btn-cobrar').addEventListener('click', abrirModalCobro);
 document.getElementById('btn-cobrar-toolbar').addEventListener('click', abrirModalCobro);
@@ -1535,7 +1556,77 @@ function bindearEventos() {
   }
 }
 
-// ── Hotkeys globales de caja ─────────────────────────────────────
+// ── Atajos de acción — capture-phase (interceptan ANTES de que lleguen a cualquier input) ──
+document.addEventListener('keydown', e => {
+  if (elModalCobro.classList.contains('visible')) return;
+  if (document.querySelector('.modal-overlay:not(.hidden)')) return;
+
+  const enCampoCodigo   = document.activeElement?.id === 'campo-codigo';
+  const buscadorAbierto = elBuscadorOverlay.classList.contains('visible');
+
+  // + siempre suma cantidad (incluso con campo-codigo activo)
+  if ((e.key === '+' || e.code === 'NumpadAdd') && !buscadorAbierto) {
+    e.preventDefault(); e.stopPropagation();
+    const carrito = ticketActivo().carrito;
+    const selIdx  = ticketActivo().itemSeleccionadoIdx;
+    if (selIdx !== null && carrito[selIdx]) {
+      carrito[selIdx].cantidad++;
+      evaluarPromo(carrito[selIdx]);
+      renderCarrito(); actualizarTotales();
+    }
+    return;
+  }
+
+  // - siempre resta cantidad (incluso con campo-codigo activo)
+  if ((e.key === '-' || e.code === 'NumpadSubtract') && !buscadorAbierto) {
+    e.preventDefault(); e.stopPropagation();
+    const carrito = ticketActivo().carrito;
+    const selIdx  = ticketActivo().itemSeleccionadoIdx;
+    if (selIdx !== null && carrito[selIdx]) {
+      const next = carrito[selIdx].cantidad - 1;
+      if (next <= 0) {
+        carrito.splice(selIdx, 1);
+        ticketActivo().itemSeleccionadoIdx = carrito.length > 0 ? Math.min(selIdx, carrito.length - 1) : null;
+      } else {
+        carrito[selIdx].cantidad = next;
+        evaluarPromo(carrito[selIdx]);
+      }
+      renderCarrito(); actualizarTotales();
+    }
+    return;
+  }
+
+  // ↑↓ navegan el carrito (excepto cuando foco está en campo-codigo o en buscador)
+  if ((e.key === 'ArrowUp' || e.key === 'ArrowDown') && !enCampoCodigo && !buscadorAbierto) {
+    e.preventDefault(); e.stopPropagation();
+    const carrito = ticketActivo().carrito;
+    if (carrito.length === 0) return;
+    let selIdx = ticketActivo().itemSeleccionadoIdx ?? 0;
+    if (e.key === 'ArrowUp') selIdx = Math.max(0, selIdx - 1);
+    else selIdx = Math.min(carrito.length - 1, selIdx + 1);
+    ticketActivo().itemSeleccionadoIdx = selIdx;
+    renderCarrito();
+    const row = elCarritoTbody.querySelector(`tr[data-row-idx="${selIdx}"]`);
+    if (row) row.scrollIntoView({ block: 'nearest' });
+    return;
+  }
+
+  // Delete elimina el ítem seleccionado (excepto en campo-codigo)
+  if (e.key === 'Delete' && !enCampoCodigo && !buscadorAbierto) {
+    e.preventDefault(); e.stopPropagation();
+    const selIdx = ticketActivo().itemSeleccionadoIdx;
+    const carrito = ticketActivo().carrito;
+    if (selIdx !== null && carrito[selIdx]) {
+      carrito.splice(selIdx, 1);
+      ticketActivo().itemSeleccionadoIdx = carrito.length > 0 ? Math.min(selIdx, carrito.length - 1) : null;
+      if (carrito.length === 0) ticketActivo().itemSeleccionadoIdx = null;
+      renderCarrito(); actualizarTotales();
+    }
+    return;
+  }
+}, true);
+
+// ── Hotkeys globales de caja (bubble-phase) ──────────────────────
 function isEditableActive() {
   const el = document.activeElement;
   if (!el) return false;
@@ -1547,7 +1638,6 @@ function isEditableActive() {
 document.addEventListener('keydown', e => {
   const modalCobroAbierto = elModalCobro.classList.contains('visible');
 
-  // F-keys de acceso rápido: actúan siempre, incluso con un input activo
   if (e.key === 'F12') {
     e.preventDefault();
     if (!modalCobroAbierto) abrirModalCobro();
@@ -1577,28 +1667,12 @@ document.addEventListener('keydown', e => {
     return;
   }
 
-  // Para el resto de atajos: no interferir cuando hay un campo de texto activo
   if (isEditableActive()) return;
 
   if (e.key === 'Insert') {
     e.preventDefault();
     if (!modalCobroAbierto) {
       document.getElementById('btn-producto-libre').click();
-    }
-    return;
-  }
-
-  if (e.key === 'Delete') {
-    e.preventDefault();
-    if (!modalCobroAbierto) {
-      const selIdx = ticketActivo().itemSeleccionadoIdx;
-      const carrito = ticketActivo().carrito;
-      if (selIdx !== null && carrito[selIdx]) {
-        carrito.splice(selIdx, 1);
-        ticketActivo().itemSeleccionadoIdx = Math.min(selIdx, carrito.length - 1);
-        if (carrito.length === 0) ticketActivo().itemSeleccionadoIdx = null;
-        renderCarrito(); actualizarTotales();
-      }
     }
     return;
   }
@@ -1626,7 +1700,6 @@ document.addEventListener('keydown', e => {
     return;
   }
 
-  // Escape en buscador F10
   if (e.key === 'Escape' && elBuscadorOverlay.classList.contains('visible')) {
     e.preventDefault();
     cerrarBuscador();
@@ -1635,54 +1708,6 @@ document.addEventListener('keydown', e => {
 
   const buscadorAbierto = elBuscadorOverlay.classList.contains('visible');
 
-  // ↑↓ navegar filas del carrito
-  if ((e.key === 'ArrowUp' || e.key === 'ArrowDown') && !modalCobroAbierto && !buscadorAbierto) {
-    e.preventDefault();
-    const carrito = ticketActivo().carrito;
-    if (carrito.length === 0) return;
-    let selIdx = ticketActivo().itemSeleccionadoIdx ?? 0;
-    if (e.key === 'ArrowUp') selIdx = Math.max(0, selIdx - 1);
-    else selIdx = Math.min(carrito.length - 1, selIdx + 1);
-    ticketActivo().itemSeleccionadoIdx = selIdx;
-    renderCarrito();
-    const row = elCarritoTbody.querySelector(`tr[data-row-idx="${selIdx}"]`);
-    if (row) row.scrollIntoView({ block: 'nearest' });
-    return;
-  }
-
-  // + sumar 1 unidad al item seleccionado
-  if ((e.key === '+' || e.code === 'NumpadAdd') && !modalCobroAbierto && !buscadorAbierto) {
-    e.preventDefault();
-    const carrito = ticketActivo().carrito;
-    const selIdx  = ticketActivo().itemSeleccionadoIdx;
-    if (selIdx !== null && carrito[selIdx]) {
-      carrito[selIdx].cantidad++;
-      evaluarPromo(carrito[selIdx]);
-      renderCarrito(); actualizarTotales();
-    }
-    return;
-  }
-
-  // - restar 1 unidad (eliminar si llega a 0)
-  if ((e.key === '-' || e.code === 'NumpadSubtract') && !modalCobroAbierto && !buscadorAbierto) {
-    e.preventDefault();
-    const carrito = ticketActivo().carrito;
-    const selIdx  = ticketActivo().itemSeleccionadoIdx;
-    if (selIdx !== null && carrito[selIdx]) {
-      const next = carrito[selIdx].cantidad - 1;
-      if (next <= 0) {
-        carrito.splice(selIdx, 1);
-        ticketActivo().itemSeleccionadoIdx = carrito.length > 0 ? Math.min(selIdx, carrito.length - 1) : null;
-      } else {
-        carrito[selIdx].cantidad = next;
-        evaluarPromo(carrito[selIdx]);
-      }
-      renderCarrito(); actualizarTotales();
-    }
-    return;
-  }
-
-  // Redirigir tipeo alfanumérico al campo de código
   if (!modalCobroAbierto && !buscadorAbierto) {
     if (e.key.length === 1 && !e.ctrlKey && !e.altKey && !e.metaKey) {
       elCampoCodigo.focus();
@@ -1880,7 +1905,7 @@ function mostrarToast(msg, tipo = 'success') {
   setTimeout(() => el.remove(), 3500);
 }
 
-// ── F1/F2 desde globalShortcut dentro del modal de cobro ─────────
+// ── F1/F2/F12 desde globalShortcut ──────────────────────────────
 if (window.api.onCobrarConTicket) {
   window.api.onCobrarConTicket(() => {
     if (elModalCobro.classList.contains('visible')) ejecutarCobro(true);
@@ -1889,5 +1914,11 @@ if (window.api.onCobrarConTicket) {
 if (window.api.onCobrarSinTicket) {
   window.api.onCobrarSinTicket(() => {
     if (elModalCobro.classList.contains('visible')) ejecutarCobro(false);
+  });
+}
+// F12 desde main process (funciona aunque haya input con foco)
+if (window.api.onAbrirCobro) {
+  window.api.onAbrirCobro(() => {
+    if (!elModalCobro.classList.contains('visible')) abrirModalCobro();
   });
 }
