@@ -222,7 +222,14 @@ function registerAuthHandlers() {
 }
 
 // ── Auto-updater ───────────────────────────────────────────────
-autoUpdater.autoDownload = false;
+// Repo público: nunca usar token — clientes instalados no tienen .env
+const log = require('electron-log');
+autoUpdater.logger                    = log;
+log.transports.file.level             = 'info';
+
+autoUpdater.autoDownload    = false;
+autoUpdater.allowPrerelease = false;
+autoUpdater.allowDowngrade  = false;
 
 autoUpdater.on('update-available', (info) => {
   if (mainWindow && !mainWindow.isDestroyed()) {
@@ -335,6 +342,9 @@ app.whenReady().then(async () => {
     if (BrowserWindow.getAllWindows().length === 0) createWindow();
   });
 
+  // Limpiar cualquier token que haya cargado dotenv: el repo es público
+  // y electron-updater falla silenciosamente si intenta auth con token vacío/inválido
+  process.env.GH_TOKEN = '';
   autoUpdater.checkForUpdatesAndNotify();
 });
 

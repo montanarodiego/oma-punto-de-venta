@@ -1,6 +1,6 @@
 {
   "name": "oma-punto-de-venta",
-  "version": "1.7.3",
+  "version": "1.7.4",
   "description": "Sistema POS híbrido offline/online para Oma",
   "author": "OmaTech",
   "main": "src/main/main.js",
@@ -17,6 +17,7 @@
     "better-sqlite3": "^9.4.3",
     "chart.js": "^4.5.1",
     "dotenv": "^17.4.2",
+    "electron-log": "^5.4.4",
     "electron-updater": "^6.8.3",
     "firebase": "^10.9.0",
     "nodemailer": "^8.0.8"
@@ -57,7 +58,7 @@
       "provider": "github",
       "owner": "montanarodiego",
       "repo": "oma-punto-de-venta",
-      "private": true
+      "private": false
     }
   }
 }
