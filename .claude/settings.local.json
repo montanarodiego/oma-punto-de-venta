@@ -61,7 +61,10 @@
       "Bash(node -e \"const m = require\\('./src/main/models/informes'\\); console.log\\(Object.keys\\(m\\).join\\(', '\\)\\);\")",
       "Bash(gh release create v1.6.0 'dist/OmaTech POS Setup 1.6.0.exe' 'dist/OmaTech POS Setup 1.6.0.exe.blockmap' dist/latest.yml --title 'OmaTech POS v1.6.0' --notes '- Dashboard de informes rediseñado con estadísticas avanzadas *)",
       "Bash(start /B npm start)",
-      "Bash(node -e \"require\\('dotenv'\\))"
+      "Bash(node -e \"require\\('dotenv'\\))",
+      "Bash(gh release create v1.7.0 'dist/OmaTech POS Setup 1.7.0.exe' 'dist/OmaTech POS Setup 1.7.0.exe.blockmap' dist/latest.yml --title 'OmaTech POS v1.7.0' --notes '- Actualizaciones con progreso visible *)",
+      "Bash(dir dist *)",
+      "Bash(gh release *)"
     ]
   }
 }
