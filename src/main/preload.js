@@ -128,6 +128,8 @@ contextBridge.exposeInMainWorld('api', {
     marcarEnviado: (id)         => ipcRenderer.invoke('pedidosCompra:marcarEnviado', id),
     recibir:       (id, items)  => ipcRenderer.invoke('pedidosCompra:recibir', id, items),
     cancelar:      (id)         => ipcRenderer.invoke('pedidosCompra:cancelar', id),
+    exportarPDF:   (id)         => ipcRenderer.invoke('pedidosCompra:exportarPDF', id),
+    exportarCSV:   (id)         => ipcRenderer.invoke('pedidosCompra:exportarCSV', id),
   },
 
   // Recepciones

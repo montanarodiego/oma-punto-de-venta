@@ -1,5 +1,7 @@
-const { ipcMain, shell } = require('electron');
+const { ipcMain, shell, dialog, BrowserWindow, app } = require('electron');
 const path           = require('path');
+const fs             = require('fs');
+const os             = require('os');
 const { version }    = require('../../package.json');
 const { enviarReporte } = require('./mailer');
 const Usuarios       = require('./models/usuarios');
@@ -25,6 +27,258 @@ let currentUserRole = null;
 
 function onlyAdmin() {
   if (currentUserRole !== 'admin') throw new Error('Acción restringida a administradores');
+}
+
+// ── Exportación de órdenes de compra ──────────────────────────
+function generarHTMLOrden(orden, cfg, proveedorData) {
+  const fmtMoney = (n) =>
+    new Intl.NumberFormat('es-AR', { style: 'currency', currency: 'ARS', minimumFractionDigits: 2 }).format(parseFloat(n) || 0);
+
+  const fmtNum = (n) => {
+    const num = parseFloat(n) || 0;
+    return num % 1 === 0 ? String(num) : num.toFixed(3).replace(/\.?0+$/, '');
+  };
+
+  const esc = (str) => String(str ?? '')
+    .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+
+  const ESTADO_LABEL = { borrador: 'Borrador', enviado: 'Enviado', recibido: 'Recibido', cancelado: 'Cancelado' };
+  const ESTADO_CLS   = { borrador: 'estado-borrador', enviado: 'estado-enviado', recibido: 'estado-recibido', cancelado: 'estado-cancelado' };
+
+  const total = (orden.items || []).reduce(
+    (s, it) => s + (parseFloat(it.cantidad_pedida) || 0) * (parseFloat(it.costo_unitario) || 0), 0
+  );
+  const fecha = (orden.fecha_creacion || '').slice(0, 10) || '—';
+
+  const itemRows = (orden.items || []).map(it => {
+    const codigo      = it.articulo_codigo || '—';
+    const desc        = it.articulo_nombre || it.descripcion_libre || '—';
+    const um          = it.unidad_medida ? ` ${esc(it.unidad_medida)}` : '';
+    const cantRec     = (it.cantidad_recibida !== null && it.cantidad_recibida !== undefined)
+      ? fmtNum(it.cantidad_recibida) + um : '—';
+    const importe     = (parseFloat(it.cantidad_pedida) || 0) * (parseFloat(it.costo_unitario) || 0);
+    return `
+      <tr>
+        <td>${esc(codigo)}</td>
+        <td>${esc(desc)}</td>
+        <td class="center">${esc(fmtNum(it.cantidad_pedida) + um)}</td>
+        <td class="center">${esc(cantRec)}</td>
+        <td class="right">${fmtMoney(it.costo_unitario)}</td>
+        <td class="right">${fmtMoney(importe)}</td>
+      </tr>`;
+  }).join('');
+
+  const contactoProveedor = proveedorData
+    ? [proveedorData.telefono, proveedorData.email].filter(Boolean).map(esc).join(' &nbsp;·&nbsp; ') || '—'
+    : '—';
+
+  return `<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8"/>
+  <style>
+    * { box-sizing:border-box; margin:0; padding:0; }
+    body { font-family:Arial,Helvetica,sans-serif; font-size:12px; color:#111; background:#fff; padding:30px 36px; }
+    .header { display:flex; justify-content:space-between; align-items:flex-start; border-bottom:2.5px solid #2563eb; padding-bottom:14px; margin-bottom:22px; }
+    .brand { color:#2563eb; font-size:24px; font-weight:800; letter-spacing:-0.5px; }
+    .brand-sub { font-size:10px; color:#6b7280; margin-top:2px; }
+    .biz { text-align:right; font-size:11px; color:#4b5563; line-height:1.7; }
+    .biz-name { font-size:14px; font-weight:700; color:#111; }
+    .doc-title { font-size:20px; font-weight:800; color:#1e3a8a; letter-spacing:-0.5px; margin-bottom:18px; }
+    .meta { display:grid; grid-template-columns:1fr 1fr; gap:10px; margin-bottom:22px; }
+    .meta-box { background:#f8fafc; border:1px solid #e2e8f0; border-radius:5px; padding:9px 13px; }
+    .meta-lbl { font-size:10px; font-weight:700; text-transform:uppercase; letter-spacing:.07em; color:#94a3b8; margin-bottom:3px; }
+    .meta-val { font-size:13px; font-weight:600; color:#111; }
+    table { width:100%; border-collapse:collapse; }
+    thead th { background:#1e3a8a; color:#fff; font-size:10px; font-weight:700; text-transform:uppercase; letter-spacing:.06em; padding:9px 10px; text-align:left; }
+    tbody td { padding:7px 10px; border-bottom:1px solid #e2e8f0; font-size:12px; vertical-align:middle; }
+    tbody tr:nth-child(even) td { background:#f8fafc; }
+    td.center { text-align:center; }
+    td.right  { text-align:right; }
+    th.center { text-align:center; }
+    th.right  { text-align:right; }
+    .total-row { margin-top:14px; text-align:right; }
+    .total-lbl { font-size:12px; color:#64748b; }
+    .total-amt { font-size:22px; font-weight:800; color:#1e3a8a; font-variant-numeric:tabular-nums; margin-left:8px; }
+    .notes { margin-top:16px; padding:10px 14px; background:#fefce8; border:1px solid #fde047; border-radius:5px; }
+    .notes-lbl { font-size:11px; font-weight:700; color:#a16207; margin-bottom:3px; }
+    .notes-txt { font-size:12px; color:#78350f; }
+    .footer { margin-top:30px; border-top:1px solid #e2e8f0; padding-top:9px; text-align:center; font-size:10px; color:#94a3b8; }
+    .badge { display:inline-block; padding:2px 10px; border-radius:999px; font-size:11px; font-weight:700; }
+    .estado-borrador { background:#fef3c7; color:#d97706; }
+    .estado-enviado  { background:#dbeafe; color:#2563eb; }
+    .estado-recibido { background:#dcfce7; color:#16a34a; }
+    .estado-cancelado{ background:#f1f5f9; color:#64748b; }
+  </style>
+</head>
+<body>
+  <div class="header">
+    <div>
+      <div class="brand">OmaTech</div>
+      <div class="brand-sub">Sistema de Punto de Venta</div>
+    </div>
+    <div class="biz">
+      <div class="biz-name">${esc(cfg.nombreNegocio)}</div>
+      ${cfg.direccion ? `<div>${esc(cfg.direccion)}</div>` : ''}
+      ${cfg.telefono  ? `<div>Tel: ${esc(cfg.telefono)}</div>` : ''}
+      ${cfg.cuit      ? `<div>CUIT: ${esc(cfg.cuit)}</div>` : ''}
+    </div>
+  </div>
+
+  <div class="doc-title">ORDEN DE COMPRA #${orden.id}</div>
+
+  <div class="meta">
+    <div class="meta-box">
+      <div class="meta-lbl">Fecha de creación</div>
+      <div class="meta-val">${esc(fecha)}</div>
+    </div>
+    <div class="meta-box">
+      <div class="meta-lbl">Estado</div>
+      <div class="meta-val">
+        <span class="badge ${ESTADO_CLS[orden.estado] || 'estado-cancelado'}">${esc(ESTADO_LABEL[orden.estado] || orden.estado)}</span>
+      </div>
+    </div>
+    <div class="meta-box">
+      <div class="meta-lbl">Proveedor</div>
+      <div class="meta-val">${esc(orden.proveedor_label || '—')}</div>
+    </div>
+    <div class="meta-box">
+      <div class="meta-lbl">Contacto proveedor</div>
+      <div class="meta-val" style="font-size:12px;">${contactoProveedor}</div>
+    </div>
+  </div>
+
+  <table>
+    <thead>
+      <tr>
+        <th>Código</th>
+        <th>Descripción</th>
+        <th class="center">Cant. pedida</th>
+        <th class="center">Cant. recibida</th>
+        <th class="right">Costo u.</th>
+        <th class="right">Importe</th>
+      </tr>
+    </thead>
+    <tbody>${itemRows}</tbody>
+  </table>
+
+  <div class="total-row">
+    <span class="total-lbl">Total de la orden:</span>
+    <span class="total-amt">${fmtMoney(total)}</span>
+  </div>
+
+  ${orden.notas ? `<div class="notes"><div class="notes-lbl">Notas:</div><div class="notes-txt">${esc(orden.notas)}</div></div>` : ''}
+
+  <div class="footer">Generado por OmaTech POS &nbsp;•&nbsp; ${esc(new Date().toLocaleString('es-AR'))}</div>
+</body>
+</html>`;
+}
+
+async function exportarOrdenPDF(e, id) {
+  const db    = getDb();
+  const orden = PedidosCompra.getById(id);
+  if (!orden) return { ok: false, error: 'Orden no encontrada' };
+
+  const getCfg = (clave, def = '') => {
+    const row = db.prepare('SELECT valor FROM configuracion WHERE clave = ?').get(clave);
+    return (row && row.valor) ? row.valor : def;
+  };
+
+  const cfg = {
+    nombreNegocio: getCfg('nombre_negocio', 'Mi Negocio'),
+    direccion:     getCfg('direccion'),
+    telefono:      getCfg('telefono'),
+    cuit:          getCfg('cuit'),
+  };
+
+  const proveedorData = orden.proveedor_id
+    ? db.prepare('SELECT telefono, email FROM proveedores WHERE id = ?').get(orden.proveedor_id)
+    : null;
+
+  const html    = generarHTMLOrden(orden, cfg, proveedorData);
+  const tmpFile = path.join(os.tmpdir(), `orden-compra-${id}-${Date.now()}.html`);
+  fs.writeFileSync(tmpFile, html, 'utf8');
+
+  let win;
+  try {
+    win = new BrowserWindow({ show: false, webPreferences: { nodeIntegration: false, contextIsolation: true } });
+    await win.loadFile(tmpFile);
+
+    const pdfBuffer = await win.webContents.printToPDF({
+      printBackground: true,
+      landscape:       false,
+      paperWidth:      8.27,
+      paperHeight:     11.69,
+      marginTop:       0,
+      marginBottom:    0,
+      marginLeft:      0,
+      marginRight:     0,
+    });
+
+    const ownerWin = e.sender.getOwnerBrowserWindow();
+    const result   = await dialog.showSaveDialog(ownerWin, {
+      title:       `Guardar Orden de Compra #${id}`,
+      defaultPath: path.join(app.getPath('downloads'), `orden-compra-${id}.pdf`),
+      filters:     [{ name: 'Documento PDF', extensions: ['pdf'] }],
+    });
+
+    if (!result.canceled && result.filePath) {
+      fs.writeFileSync(result.filePath, pdfBuffer);
+      return { ok: true, filePath: result.filePath };
+    }
+    return { ok: false, canceled: true };
+
+  } catch (err) {
+    return { ok: false, error: err.message };
+  } finally {
+    try { if (win && !win.isDestroyed()) win.destroy(); } catch {}
+    try { fs.unlinkSync(tmpFile); } catch {}
+  }
+}
+
+async function exportarOrdenCSV(e, id) {
+  const orden = PedidosCompra.getById(id);
+  if (!orden) return { ok: false, error: 'Orden no encontrada' };
+
+  const fecha = (orden.fecha_creacion || '').slice(0, 10) || new Date().toISOString().slice(0, 10);
+
+  const csvEsc = (v) => {
+    const s = String(v ?? '');
+    return (s.includes(',') || s.includes('"') || s.includes('\n') || s.includes('\r'))
+      ? `"${s.replace(/"/g, '""')}"` : s;
+  };
+
+  const rows = [
+    ['codigo', 'descripcion', 'cantidad_pedida', 'cantidad_recibida', 'costo_unitario', 'importe_total'],
+    ...(orden.items || []).map(it => [
+      it.articulo_codigo || '',
+      it.articulo_nombre || it.descripcion_libre || '',
+      it.cantidad_pedida ?? 0,
+      (it.cantidad_recibida !== null && it.cantidad_recibida !== undefined) ? it.cantidad_recibida : '',
+      it.costo_unitario ?? 0,
+      ((parseFloat(it.cantidad_pedida) || 0) * (parseFloat(it.costo_unitario) || 0)).toFixed(2),
+    ]),
+  ];
+
+  const csvContent = '﻿' + rows.map(row => row.map(csvEsc).join(',')).join('\r\n');
+
+  try {
+    const ownerWin = e.sender.getOwnerBrowserWindow();
+    const result   = await dialog.showSaveDialog(ownerWin, {
+      title:       `Guardar CSV — Orden de Compra #${id}`,
+      defaultPath: path.join(app.getPath('downloads'), `orden-compra-${id}-${fecha}.csv`),
+      filters:     [{ name: 'CSV', extensions: ['csv'] }],
+    });
+
+    if (!result.canceled && result.filePath) {
+      fs.writeFileSync(result.filePath, csvContent, 'utf8');
+      return { ok: true, filePath: result.filePath };
+    }
+    return { ok: false, canceled: true };
+
+  } catch (err) {
+    return { ok: false, error: err.message };
+  }
 }
 
 function registerHandlers() {
@@ -143,6 +397,8 @@ function registerHandlers() {
   ipcMain.handle('pedidosCompra:marcarEnviado', (_e, id)             => { onlyAdmin(); return PedidosCompra.marcarEnviado(id); });
   ipcMain.handle('pedidosCompra:recibir',       (_e, id, items)      => { onlyAdmin(); return PedidosCompra.recibir(id, items); });
   ipcMain.handle('pedidosCompra:cancelar',      (_e, id)             => { onlyAdmin(); return PedidosCompra.cancelar(id); });
+  ipcMain.handle('pedidosCompra:exportarPDF',   (e, id)              => exportarOrdenPDF(e, id));
+  ipcMain.handle('pedidosCompra:exportarCSV',   (e, id)              => exportarOrdenCSV(e, id));
 
   // ── Recepciones ────────────────────────────────────────────
   ipcMain.handle('recepciones:crear',   (_e, data) => { onlyAdmin(); return Recepciones.crear(data); });

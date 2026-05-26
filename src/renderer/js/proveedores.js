@@ -499,6 +499,43 @@ function mostrarToast(msg) {
   setTimeout(() => toast.remove(), 3500);
 }
 
+// ── Exportar PDF / CSV ────────────────────────────────────────
+async function exportarOrdenPDF(id) {
+  const btn = document.querySelector(`button[data-action="exportar-pdf"][data-id="${id}"]`);
+  const textoOrig = btn ? btn.textContent : null;
+  if (btn) { btn.disabled = true; btn.textContent = '...'; }
+  try {
+    const result = await window.api.pedidosCompra.exportarPDF(id);
+    if (result.ok) {
+      mostrarToast(`PDF de Orden #${id} guardado.`);
+    } else if (!result.canceled) {
+      mostrarToast('Error al exportar PDF: ' + (result.error || 'Error desconocido'));
+    }
+  } catch (err) {
+    mostrarToast('Error al exportar PDF: ' + (err.message || err));
+  } finally {
+    if (btn) { btn.disabled = false; btn.textContent = textoOrig; }
+  }
+}
+
+async function exportarOrdenCSV(id) {
+  const btn = document.querySelector(`button[data-action="exportar-csv"][data-id="${id}"]`);
+  const textoOrig = btn ? btn.textContent : null;
+  if (btn) { btn.disabled = true; btn.textContent = '...'; }
+  try {
+    const result = await window.api.pedidosCompra.exportarCSV(id);
+    if (result.ok) {
+      mostrarToast(`CSV de Orden #${id} guardado.`);
+    } else if (!result.canceled) {
+      mostrarToast('Error al exportar CSV: ' + (result.error || 'Error desconocido'));
+    }
+  } catch (err) {
+    mostrarToast('Error al exportar CSV: ' + (err.message || err));
+  } finally {
+    if (btn) { btn.disabled = false; btn.textContent = textoOrig; }
+  }
+}
+
 // ═══════════════════════════════════════════════════════════════
 // RECEPCIONES
 // ═══════════════════════════════════════════════════════════════
@@ -971,6 +1008,17 @@ function renderTablaOrdenes() {
         <button data-action="ver-orden" data-id="${o.id}" style="color:var(--text-subtle);font-size:12px;background:none;border:none;cursor:pointer;padding:2px 6px;border-radius:var(--r-in);" onmouseover="this.style.background='var(--surface-2)'" onmouseout="this.style.background='none'">Ver detalle</button>`;
     }
 
+    const exportBtns = `
+      <span style="display:inline-block;width:1px;height:14px;background:var(--border);margin:0 3px;align-self:center;flex-shrink:0;"></span>
+      <button data-action="exportar-pdf" data-id="${o.id}" title="Exportar PDF"
+        style="font-size:11px;font-weight:600;padding:2px 7px;border-radius:var(--r-in);border:1px solid rgba(239,68,68,.3);background:rgba(239,68,68,.07);color:#f87171;cursor:pointer;flex-shrink:0;">
+        PDF
+      </button>
+      <button data-action="exportar-csv" data-id="${o.id}" title="Exportar CSV"
+        style="font-size:11px;font-weight:600;padding:2px 7px;border-radius:var(--r-in);border:1px solid rgba(74,222,128,.3);background:rgba(74,222,128,.07);color:#4ade80;cursor:pointer;flex-shrink:0;">
+        CSV
+      </button>`;
+
     return `
       <tr>
         <td style="padding:8px 12px;font-family:monospace;font-size:12px;color:var(--text-muted);">#${o.id}</td>
@@ -980,7 +1028,7 @@ function renderTablaOrdenes() {
         <td style="padding:8px 12px;">
           <span style="display:inline-block;padding:2px 9px;border-radius:999px;font-size:11px;font-weight:600;${st}">${lbl}</span>
         </td>
-        <td style="padding:8px 12px;text-align:center;display:flex;gap:2px;justify-content:center;align-items:center;">${acciones}</td>
+        <td style="padding:8px 12px;text-align:center;display:flex;gap:2px;justify-content:center;align-items:center;flex-wrap:wrap;">${acciones}${exportBtns}</td>
       </tr>`;
   }).join('');
 }
@@ -1013,6 +1061,8 @@ document.getElementById('tabla-ordenes').addEventListener('click', async e => {
   if (action === 'recibir-orden')  await abrirRecibirOrden(id, false);
   if (action === 'cancelar-orden') abrirCancelarOrden(id);
   if (action === 'ver-orden')      await abrirRecibirOrden(id, true);
+  if (action === 'exportar-pdf')   exportarOrdenPDF(id);
+  if (action === 'exportar-csv')   exportarOrdenCSV(id);
 });
 
 document.getElementById('btn-nueva-orden').addEventListener('click', () => abrirModalOrden(null));
