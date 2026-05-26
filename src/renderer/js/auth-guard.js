@@ -40,11 +40,94 @@
     _resolverTurno = resolve;
   });
 
-  /* ── 3. Inyectar updater UI ───────────────────────────────────── */
-  (function injectUpdaterUI() {
-    var s = document.createElement('script');
-    s.src = '../js/updater-ui.js';
-    document.head.appendChild(s);
+  /* ── 3. Overlay de actualización ─────────────────────────────── */
+  (function initUpdaterUI() {
+    var overlay = document.createElement('div');
+    overlay.id = 'update-overlay';
+    overlay.style.cssText =
+      'display:none;position:fixed;inset:0;' +
+      'background:rgba(0,0,0,0.85);z-index:99999;' +
+      'align-items:center;justify-content:center;' +
+      'flex-direction:column;gap:24px;';
+
+    overlay.innerHTML =
+      '<div style="text-align:center;max-width:480px;padding:40px;' +
+        'background:#1e2535;border-radius:16px;border:1px solid rgba(59,130,246,0.3);' +
+        'box-shadow:0 20px 60px rgba(0,0,0,0.6);">' +
+        '<div id="upd-icon" style="font-size:48px;margin-bottom:16px;">🚀</div>' +
+        '<div id="upd-title" style="font-size:22px;font-weight:700;color:#fff;margin-bottom:8px;">Nueva versión disponible</div>' +
+        '<div id="upd-subtitle" style="font-size:14px;color:#93c5fd;margin-bottom:24px;"></div>' +
+        '<div id="upd-progress-wrap" style="display:none;margin-bottom:20px;">' +
+          '<div style="display:flex;justify-content:space-between;margin-bottom:8px;">' +
+            '<span style="color:#94a3b8;font-size:13px;">Descargando...</span>' +
+            '<span id="upd-percent" style="color:#60a5fa;font-weight:700;font-size:13px;">0%</span>' +
+          '</div>' +
+          '<div style="background:rgba(255,255,255,0.1);border-radius:999px;height:8px;overflow:hidden;">' +
+            '<div id="upd-bar" style="height:100%;background:linear-gradient(90deg,#3b82f6,#60a5fa);' +
+              'border-radius:999px;transition:width 0.3s;width:0%;"></div>' +
+          '</div>' +
+          '<div id="upd-speed" style="color:#64748b;font-size:12px;margin-top:6px;text-align:right;"></div>' +
+        '</div>' +
+        '<div id="upd-buttons" style="display:flex;gap:12px;justify-content:center;">' +
+          '<button id="upd-btn-download" style="background:#3b82f6;color:#fff;border:none;' +
+            'padding:12px 28px;border-radius:8px;font-weight:600;font-size:15px;cursor:pointer;">' +
+            'Descargar ahora' +
+          '</button>' +
+          '<button id="upd-btn-later" style="background:transparent;color:#94a3b8;' +
+            'border:1px solid rgba(148,163,184,0.3);padding:12px 20px;border-radius:8px;' +
+            'cursor:pointer;font-size:14px;">' +
+            'Más tarde' +
+          '</button>' +
+        '</div>' +
+        '<button id="upd-btn-install" style="display:none;background:#22c55e;color:#fff;' +
+          'border:none;padding:12px 28px;border-radius:8px;font-weight:600;font-size:15px;' +
+          'cursor:pointer;width:100%;">' +
+          '✅ Reiniciar e instalar ahora' +
+        '</button>' +
+      '</div>';
+
+    document.body.appendChild(overlay);
+
+    window.api.onUpdateAvailable(function (info) {
+      document.getElementById('upd-subtitle').textContent = 'Versión ' + info.version + ' lista para descargar';
+      overlay.style.display = 'flex';
+    });
+
+    window.api.onUpdateProgress(function (progress) {
+      document.getElementById('upd-progress-wrap').style.display = 'block';
+      document.getElementById('upd-buttons').style.display = 'none';
+      document.getElementById('upd-bar').style.width = progress.percent + '%';
+      document.getElementById('upd-percent').textContent = progress.percent + '%';
+      var bps = progress.bytesPerSecond;
+      document.getElementById('upd-speed').textContent = bps > 1048576
+        ? (bps / 1048576).toFixed(1) + ' MB/s'
+        : (bps / 1024).toFixed(0) + ' KB/s';
+      overlay.style.display = 'flex';
+    });
+
+    window.api.onUpdateDownloaded(function () {
+      document.getElementById('upd-icon').textContent = '✅';
+      document.getElementById('upd-title').textContent = '¡Actualización lista!';
+      document.getElementById('upd-subtitle').textContent = 'La app se reiniciará para instalar la nueva versión';
+      document.getElementById('upd-progress-wrap').style.display = 'none';
+      document.getElementById('upd-buttons').style.display = 'none';
+      document.getElementById('upd-btn-install').style.display = 'block';
+      overlay.style.display = 'flex';
+    });
+
+    document.addEventListener('click', function (e) {
+      if (e.target.id === 'upd-btn-download') {
+        document.getElementById('upd-buttons').style.display = 'none';
+        document.getElementById('upd-progress-wrap').style.display = 'block';
+        window.api.startDownload();
+      }
+      if (e.target.id === 'upd-btn-later') {
+        overlay.style.display = 'none';
+      }
+      if (e.target.id === 'upd-btn-install') {
+        window.api.installUpdate();
+      }
+    });
   }());
 
   /* ── 4. Inyectar CSS del modal ─────────────────────────────────── */
