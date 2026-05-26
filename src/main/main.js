@@ -1,7 +1,9 @@
 require('dotenv').config();
-const { app, BrowserWindow, Menu, ipcMain, dialog, globalShortcut } = require('electron');
+const { app, BrowserWindow, Menu, ipcMain, dialog, globalShortcut, net, shell } = require('electron');
 const { autoUpdater } = require('electron-updater');
 const path = require('path');
+const fs   = require('fs');
+const os   = require('os');
 const { initDatabase, getDb } = require('./database');
 const { registerHandlers }    = require('./ipc');
 const { hacerBackup }         = require('./backup');
@@ -222,14 +224,14 @@ function registerAuthHandlers() {
 }
 
 // ── Auto-updater ───────────────────────────────────────────────
-// Repo público: nunca usar token — clientes instalados no tienen .env
 const log = require('electron-log');
-autoUpdater.logger                    = log;
-log.transports.file.level             = 'info';
+autoUpdater.logger                = log;
+log.transports.file.level         = 'info';
 
-autoUpdater.autoDownload    = false;
-autoUpdater.allowPrerelease = false;
-autoUpdater.allowDowngrade  = false;
+autoUpdater.autoDownload          = false;
+autoUpdater.autoInstallOnAppQuit  = false;
+autoUpdater.allowPrerelease       = false;
+autoUpdater.allowDowngrade        = false;
 
 autoUpdater.on('update-available', (info) => {
   if (mainWindow && !mainWindow.isDestroyed()) {
@@ -240,32 +242,64 @@ autoUpdater.on('update-available', (info) => {
   }
 });
 
-autoUpdater.on('update-not-available', () => {
-  // silencioso
-});
-
-autoUpdater.on('download-progress', (progress) => {
-  if (mainWindow && !mainWindow.isDestroyed()) {
-    mainWindow.webContents.send('update-progress', {
-      percent:        Math.round(progress.percent),
-      transferred:    progress.transferred,
-      total:          progress.total,
-      bytesPerSecond: progress.bytesPerSecond,
-    });
-  }
-});
-
-autoUpdater.on('update-downloaded', () => {
-  if (mainWindow && !mainWindow.isDestroyed()) {
-    mainWindow.webContents.send('update-downloaded');
-  }
-});
+autoUpdater.on('update-not-available', () => { /* silencioso */ });
 
 autoUpdater.on('error', (err) => {
+  log.error('autoUpdater error:', err.message);
   if (mainWindow && !mainWindow.isDestroyed()) {
     mainWindow.webContents.send('update-error', err.message);
   }
 });
+
+// ── Descarga manual vía net.request (bypass del mecanismo interno) ──
+function downloadFile(url, dest, onProgress) {
+  return new Promise((resolve, reject) => {
+    const file    = fs.createWriteStream(dest);
+    let received  = 0;
+    let total     = 0;
+    let startTime = Date.now();
+
+    function doRequest(targetUrl) {
+      const request = net.request({ url: targetUrl, redirect: 'follow' });
+
+      request.on('response', (response) => {
+        if (response.statusCode === 301 || response.statusCode === 302) {
+          file.close();
+          const location = Array.isArray(response.headers.location)
+            ? response.headers.location[0]
+            : response.headers.location;
+          if (!location) return reject(new Error('Redirect sin Location header'));
+          return doRequest(location);
+        }
+
+        if (response.statusCode !== 200) {
+          file.close();
+          return reject(new Error(`HTTP ${response.statusCode} al descargar actualización`));
+        }
+
+        const cl = response.headers['content-length'];
+        total = parseInt(Array.isArray(cl) ? cl[0] : cl || '0', 10);
+
+        response.on('data', (chunk) => {
+          file.write(chunk);
+          received += chunk.length;
+          const elapsed        = (Date.now() - startTime) / 1000 || 0.001;
+          const bytesPerSecond = received / elapsed;
+          const percent        = total > 0 ? (received / total) * 100 : 0;
+          onProgress(percent, bytesPerSecond);
+        });
+
+        response.on('end',   () => { file.end(); resolve(); });
+        response.on('error', (err) => { file.close(); reject(err); });
+      });
+
+      request.on('error', (err) => { file.close(); reject(err); });
+      request.end();
+    }
+
+    doRequest(url);
+  });
+}
 
 // ── Inicio ─────────────────────────────────────────────────────
 app.whenReady().then(async () => {
@@ -273,8 +307,53 @@ app.whenReady().then(async () => {
   registerHandlers();
   registerAuthHandlers();
 
-  ipcMain.handle('updater:start-download', () => autoUpdater.downloadUpdate());
-  ipcMain.handle('updater:install',        () => autoUpdater.quitAndInstall());
+  ipcMain.handle('updater:start-download', async () => {
+    try {
+      // Limpiar token antes de cualquier request a GitHub
+      process.env.GH_TOKEN = '';
+      const info    = await autoUpdater.checkForUpdates();
+      const version = info.updateInfo.version;
+      // El nombre del exe en GitHub Releases usa espacios: "OmaTech POS Setup X.Y.Z.exe"
+      const fileName   = `OmaTech POS Setup ${version}.exe`;
+      const encoded    = encodeURIComponent(fileName);
+      const downloadUrl = `https://github.com/montanarodiego/oma-punto-de-venta/releases/download/v${version}/${encoded}`;
+      const destPath   = path.join(os.tmpdir(), fileName);
+
+      log.info(`Descargando desde: ${downloadUrl}`);
+      log.info(`Destino: ${destPath}`);
+
+      await downloadFile(downloadUrl, destPath, (percent, bytesPerSecond) => {
+        if (mainWindow && !mainWindow.isDestroyed()) {
+          mainWindow.webContents.send('update-progress', {
+            percent:        Math.round(percent),
+            bytesPerSecond: Math.round(bytesPerSecond),
+            transferred:    0,
+            total:          0,
+          });
+        }
+      });
+
+      log.info('Descarga completada:', destPath);
+      global.updateInstallerPath = destPath;
+      if (mainWindow && !mainWindow.isDestroyed()) {
+        mainWindow.webContents.send('update-downloaded');
+      }
+    } catch (err) {
+      log.error('Error en descarga manual:', err.message);
+      if (mainWindow && !mainWindow.isDestroyed()) {
+        mainWindow.webContents.send('update-error', err.message);
+      }
+    }
+  });
+
+  ipcMain.handle('updater:install', () => {
+    if (global.updateInstallerPath && fs.existsSync(global.updateInstallerPath)) {
+      shell.openPath(global.updateInstallerPath).then(() => {
+        forceClose = true;
+        app.quit();
+      });
+    }
+  });
 
   ipcMain.handle('caja:abrirComprobante', (_e, { transaccionId, montoRecibido, vuelto, propina }) => {
     const popup = new BrowserWindow({
@@ -342,8 +421,6 @@ app.whenReady().then(async () => {
     if (BrowserWindow.getAllWindows().length === 0) createWindow();
   });
 
-  // Limpiar cualquier token que haya cargado dotenv: el repo es público
-  // y electron-updater falla silenciosamente si intenta auth con token vacío/inválido
   process.env.GH_TOKEN = '';
   autoUpdater.checkForUpdatesAndNotify();
 });
