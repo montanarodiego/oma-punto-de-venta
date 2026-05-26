@@ -1160,8 +1160,8 @@ let mixtoClientesLista  = [];
 let _mixtoUpdating      = false;
 
 function abrirModalCobro() {
-  const carrito = ticketActivo().carrito;
-  if (carrito.length === 0) { mostrarToast('Agregá productos antes de cobrar', 'warning'); return; }
+  const carrito = ticketActivo()?.carrito;
+  if (!carrito || carrito.length === 0) { mostrarToast('Agregá productos antes de cobrar', 'warning'); return; }
   if (!turnoActivo) { mostrarToast('No hay turno activo. Abrí un turno desde el menú Turno.', 'error'); return; }
 
   const { total } = calcularTotales();
