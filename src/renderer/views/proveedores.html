@@ -364,6 +364,16 @@
       </div>
       <div class="modal-body" style="flex:1;min-height:0;overflow-y:auto;display:flex;flex-direction:column;gap:14px;">
 
+        <!-- Banner borrador persistente (oculto por defecto) -->
+        <div id="orden-draft-banner" class="hidden"
+          style="display:flex;align-items:center;justify-content:space-between;gap:12px;padding:9px 14px;background:rgba(251,191,36,.12);border:1px solid rgba(251,191,36,.4);border-radius:var(--r-in);font-size:13px;color:var(--text);">
+          <span>Tenés un borrador sin guardar de una orden anterior.</span>
+          <div style="display:flex;gap:8px;flex-shrink:0;">
+            <button id="btn-retomar-borrador" class="btn btn-ghost" style="font-size:12px;padding:4px 12px;">Retomar</button>
+            <button id="btn-descartar-borrador" style="font-size:12px;padding:4px 12px;background:none;border:none;color:#f87171;cursor:pointer;font-weight:500;">Descartar</button>
+          </div>
+        </div>
+
         <!-- Cabecera: proveedor + notas -->
         <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;">
           <div class="field" style="position:relative;">
@@ -484,6 +494,7 @@
   <script src="../js/proveedores.js"></script>
   <script src="../js/nav-badge.js"></script>
   <script src="../js/modal-tracker.js"></script>
+  <script src="../js/dropdown-keyboard.js"></script>
   <script src="../js/modal-keyboard.js"></script>
 </body>
 </html>

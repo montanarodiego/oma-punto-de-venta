@@ -20,6 +20,7 @@ let artsBusqOrden     = [];
 let ordenCancelarId   = null;
 let ordenRecibirId    = null;
 let ordenRecibirSoloLectura = false;
+const ORDEN_DRAFT_KEY = 'oma_borrador_orden_compra';
 
 // ── Estado recepciones ─────────────────────────────────────────
 let lineasRecepcion   = [];
@@ -42,6 +43,7 @@ const modalRecibido = document.getElementById('modal-recibido');
 // ── Init ───────────────────────────────────────────────────────
 document.addEventListener('DOMContentLoaded', async () => {
   await Promise.all([cargarProveedores(), cargarPedidos(), cargarRecepciones(), cargarOrdenes()]);
+  inputBusq.focus();
 });
 
 inputBusq.addEventListener('input', () => renderTabla(filtrar(inputBusq.value)));
@@ -77,6 +79,13 @@ tabla.addEventListener('click', e => {
   const action = btn.dataset.action;
   if (action === 'editar')   abrirModalEdicion(id);
   if (action === 'eliminar') abrirConfirm(id);
+});
+
+tabla.addEventListener('dblclick', e => {
+  if (e.target.closest('button')) return;
+  const row = e.target.closest('tr[data-id]');
+  if (!row) return;
+  abrirModalEdicion(parseInt(row.dataset.id, 10));
 });
 
 // Delegación de eventos en tabla de pedidos
@@ -138,7 +147,7 @@ function renderTabla(lista) {
   }
 
   tabla.innerHTML = lista.map(p => `
-    <tr class="hover:bg-gray-50 transition-colors">
+    <tr class="hover:bg-gray-50 transition-colors" data-id="${p.id}" style="cursor:pointer;">
       <td class="px-4 py-2.5 font-medium">${esc(p.nombre)}</td>
       <td class="px-4 py-2.5 text-gray-500">${esc(p.telefono || '—')}</td>
       <td class="px-4 py-2.5 text-gray-500 text-sm">${esc(p.email || '—')}</td>
@@ -1020,7 +1029,7 @@ function renderTablaOrdenes() {
       </button>`;
 
     return `
-      <tr>
+      <tr data-id="${o.id}" data-estado="${o.estado}" style="cursor:pointer;">
         <td style="padding:8px 12px;font-family:monospace;font-size:12px;color:var(--text-muted);">#${o.id}</td>
         <td style="padding:8px 12px;font-size:13px;">${fecha}</td>
         <td style="padding:8px 12px;font-weight:500;font-size:13px;">${esc(o.proveedor_label || '—')}</td>
@@ -1065,7 +1074,70 @@ document.getElementById('tabla-ordenes').addEventListener('click', async e => {
   if (action === 'exportar-csv')   exportarOrdenCSV(id);
 });
 
+document.getElementById('tabla-ordenes').addEventListener('dblclick', async e => {
+  if (e.target.closest('button')) return;
+  const row = e.target.closest('tr[data-id]');
+  if (!row) return;
+  const id     = parseInt(row.dataset.id, 10);
+  const estado = row.dataset.estado;
+  if (estado === 'borrador')       await abrirEditarOrden(id);
+  else if (estado === 'enviado')   await abrirRecibirOrden(id, false);
+  else                             await abrirRecibirOrden(id, true);
+});
+
 document.getElementById('btn-nueva-orden').addEventListener('click', () => abrirModalOrden(null));
+
+// ── Borrador local ─────────────────────────────────────────────
+function guardarBorradorLocal() {
+  if (!ordenItems.length) { limpiarBorradorLocal(); return; }
+  const draft = {
+    proveedorInput: document.getElementById('orden-proveedor-input')?.value || '',
+    proveedorId:    parseInt(document.getElementById('orden-proveedor-id')?.value) || null,
+    notas:          document.getElementById('orden-notas')?.value || '',
+    items: ordenItems.map(it => ({
+      articulo_id:    it.articulo_id,
+      descripcion:    it.descripcion,
+      cantidad:       it.cantidad,
+      costo_unitario: it.costo_unitario,
+    })),
+  };
+  try { localStorage.setItem(ORDEN_DRAFT_KEY, JSON.stringify(draft)); } catch {}
+}
+
+function limpiarBorradorLocal() {
+  try { localStorage.removeItem(ORDEN_DRAFT_KEY); } catch {}
+}
+
+function obtenerBorradorLocal() {
+  try {
+    const raw = localStorage.getItem(ORDEN_DRAFT_KEY);
+    return raw ? JSON.parse(raw) : null;
+  } catch { return null; }
+}
+
+function retomarBorrador() {
+  const draft = obtenerBorradorLocal();
+  if (!draft?.items?.length) return;
+  document.getElementById('orden-proveedor-input').value = draft.proveedorInput || '';
+  document.getElementById('orden-proveedor-id').value    = draft.proveedorId    || '';
+  document.getElementById('orden-notas').value           = draft.notas          || '';
+  ordenItems      = [];
+  nextOrdenItemId = 1;
+  for (const it of draft.items) {
+    ordenItems.push({
+      _id:            nextOrdenItemId++,
+      articulo_id:    it.articulo_id,
+      descripcion:    it.descripcion,
+      cantidad:       it.cantidad,
+      costo_unitario: it.costo_unitario,
+    });
+  }
+  renderOrdenItems();
+  document.getElementById('orden-draft-banner').classList.add('hidden');
+  requestAnimationFrame(() => {
+    document.querySelector('#orden-items-body input[data-ofield="art-nombre"]')?.focus();
+  });
+}
 
 // ── Modal crear / editar ───────────────────────────────────────
 function abrirModalOrden(pedido) {
@@ -1093,6 +1165,13 @@ function abrirModalOrden(pedido) {
   }
 
   renderOrdenItems();
+
+  const draftBanner = document.getElementById('orden-draft-banner');
+  if (draftBanner) {
+    const draft = !pedido ? obtenerBorradorLocal() : null;
+    draftBanner.classList.toggle('hidden', !(draft?.items?.length));
+  }
+
   document.getElementById('modal-orden').classList.remove('hidden');
   document.getElementById('orden-proveedor-input').focus();
 }
@@ -1103,6 +1182,7 @@ async function abrirEditarOrden(id) {
 }
 
 function cerrarModalOrden() {
+  if (ordenEditandoId === null && ordenItems.length > 0) guardarBorradorLocal();
   document.getElementById('modal-orden').classList.add('hidden');
   cerrarDropdownOrdenPrv();
   cerrarDropdownOrdenArt();
@@ -1259,6 +1339,7 @@ async function guardarOrden() {
       });
       mostrarToast(`Orden #${nueva.id} creada.`);
     }
+    limpiarBorradorLocal();
     cerrarModalOrden();
     await cargarOrdenes();
   } catch (err) {
@@ -1522,4 +1603,147 @@ document.addEventListener('click', e => {
       !e.target.closest('#orden-proveedor-input')) {
     cerrarDropdownOrdenPrv();
   }
+});
+
+// ── Navegación por teclado en modal orden ──────────────────────
+
+// Proveedor → notas con Enter
+document.getElementById('orden-proveedor-input').addEventListener('keydown', e => {
+  if (e.key !== 'Enter') return;
+  e.preventDefault();
+  cerrarDropdownOrdenPrv();
+  document.getElementById('orden-notas').focus();
+});
+
+// Notas → primer ítem (o agrega uno) con Enter
+document.getElementById('orden-notas').addEventListener('keydown', e => {
+  if (e.key !== 'Enter') return;
+  e.preventDefault();
+  const first = document.querySelector('#orden-items-body input[data-ofield="art-nombre"]');
+  if (first) {
+    first.focus();
+  } else {
+    agregarItemOrden();
+    requestAnimationFrame(() => {
+      document.querySelector('#orden-items-body input[data-ofield="art-nombre"]')?.focus();
+    });
+  }
+});
+
+// Navegación Enter / flechas dentro de los renglones de ítems
+document.getElementById('orden-items-body').addEventListener('keydown', e => {
+  const active = document.activeElement;
+  const field  = active?.dataset?.ofield;
+  if (!field || field === 'art-id') return;
+
+  const lid      = parseInt(active.dataset.ordLid, 10);
+  const row      = active.closest('tr[data-ord-lid]');
+  const dropdown = document.getElementById('orden-art-dropdown');
+  const dropOpen = dropdown?.style.display !== 'none';
+
+  if (field === 'art-nombre') {
+    // Flechas para navegar opciones del dropdown de artículos
+    if ((e.key === 'ArrowDown' || e.key === 'ArrowUp') && dropOpen) {
+      e.preventDefault();
+      const opts = [...dropdown.querySelectorAll('.orden-art-option')];
+      const cur  = dropdown.querySelector('.ord-art-kbd');
+      const idx  = cur ? opts.indexOf(cur) : -1;
+      if (cur) { cur.classList.remove('ord-art-kbd'); cur.style.removeProperty('background'); }
+      const next = e.key === 'ArrowDown'
+        ? opts[Math.min(idx + 1, opts.length - 1)]
+        : opts[Math.max(idx - 1, 0)];
+      if (next) { next.classList.add('ord-art-kbd'); next.style.background = 'rgba(96,165,250,.18)'; }
+      return;
+    }
+
+    // Escape cierra el dropdown
+    if (e.key === 'Escape' && dropOpen) {
+      e.preventDefault();
+      cerrarDropdownOrdenArt();
+      return;
+    }
+
+    if (e.key !== 'Enter') return;
+    e.preventDefault();
+
+    // Si hay opción seleccionada con teclado → aplicarla
+    const kbdFocus = dropOpen ? dropdown.querySelector('.ord-art-kbd') : null;
+    if (kbdFocus) {
+      const art = artsBusqOrden.find(a => a.id === parseInt(kbdFocus.dataset.artId, 10));
+      if (art) {
+        const item = ordenItems.find(i => i._id === lid);
+        if (item) { item.articulo_id = art.id; item.descripcion = art.nombre; item.costo_unitario = art.costo_unitario ?? 0; }
+        if (row) {
+          row.querySelector('[data-ofield="art-nombre"]').value = art.nombre;
+          row.querySelector('[data-ofield="art-id"]').value     = art.id;
+          const ci = row.querySelector('[data-ofield="costo"]');
+          if (ci) ci.value = art.costo_unitario ?? 0;
+        }
+      }
+    }
+    cerrarDropdownOrdenArt();
+    row?.querySelector('input[data-ofield="cantidad"]')?.focus();
+    return;
+  }
+
+  if (e.key !== 'Enter') return;
+  e.preventDefault();
+
+  if (field === 'cantidad') {
+    row?.querySelector('input[data-ofield="costo"]')?.focus();
+  } else if (field === 'costo') {
+    const allRows  = [...document.querySelectorAll('#orden-items-body tr[data-ord-lid]')];
+    const curIdx   = allRows.findIndex(r => parseInt(r.dataset.ordLid, 10) === lid);
+    const nextRow  = allRows[curIdx + 1];
+    if (nextRow) {
+      nextRow.querySelector('input[data-ofield="art-nombre"]')?.focus();
+    } else {
+      agregarItemOrden();
+      requestAnimationFrame(() => {
+        const rows = [...document.querySelectorAll('#orden-items-body tr[data-ord-lid]')];
+        rows[rows.length - 1]?.querySelector('input[data-ofield="art-nombre"]')?.focus();
+      });
+    }
+  }
+});
+
+// ── Borrador: botones retomar / descartar ──────────────────────
+document.getElementById('btn-retomar-borrador').addEventListener('click', retomarBorrador);
+
+document.getElementById('btn-descartar-borrador').addEventListener('click', () => {
+  limpiarBorradorLocal();
+  document.getElementById('orden-draft-banner').classList.add('hidden');
+});
+
+// Guardar borrador si el usuario navega a otro módulo con la orden a medio completar
+window.addEventListener('beforeunload', () => {
+  if (ordenEditandoId === null && ordenItems.length > 0) guardarBorradorLocal();
+});
+
+// ── Navegación por teclado en dropdowns de autocomplete ────────
+window.bindDropdownKeyboard({
+  inputEl:   document.getElementById('orden-proveedor-input'),
+  dropdownId:'orden-prv-dropdown',
+  optSel:    '.orden-prv-option',
+  onSelect:  item => {
+    const p = proveedores.find(x => x.id === parseInt(item.dataset.prvId, 10));
+    if (p) {
+      document.getElementById('orden-proveedor-input').value = p.nombre;
+      document.getElementById('orden-proveedor-id').value    = p.id;
+    }
+    cerrarDropdownOrdenPrv();
+  },
+  onClose: cerrarDropdownOrdenPrv,
+});
+
+window.bindDropdownKeyboard({
+  inputSel:  'input[data-field="art-nombre"]',
+  dropdownId:'recv-art-dropdown',
+  optSel:    '.recv-art-option',
+  onSelect:  item => {
+    const art = articulosBusqRecv.find(a => a.id === parseInt(item.dataset.artId, 10));
+    if (art && dropdownLineId !== null) seleccionarArticuloRecv(art, dropdownLineId);
+    cerrarDropdownRecv();
+  },
+  onClose: cerrarDropdownRecv,
 });

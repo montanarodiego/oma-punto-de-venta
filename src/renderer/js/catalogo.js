@@ -34,6 +34,7 @@ document.addEventListener('DOMContentLoaded', async () => {
   renderTabla(filtrarArticulos());
   poblarSelectDepartamento();
   bindEventos();
+  document.getElementById('busqueda').focus();
 });
 
 // ── Bind de eventos ───────────────────────────────────────────
@@ -92,6 +93,17 @@ function bindEventos() {
     document.getElementById('kit-buscar-comp').value = item.dataset.kitNombre;
     cerrarKitDropdown();
   });
+  window.bindDropdownKeyboard({
+    inputEl:   document.getElementById('kit-buscar-comp'),
+    dropdownId:'kit-search-dropdown',
+    optSel:    '[data-kit-id]',
+    onSelect:  item => {
+      kitCompSeleccionado = { id: parseInt(item.dataset.kitId), nombre: item.dataset.kitNombre };
+      document.getElementById('kit-buscar-comp').value = item.dataset.kitNombre;
+      cerrarKitDropdown();
+    },
+    onClose: cerrarKitDropdown,
+  });
   document.getElementById('btn-agregar-comp').addEventListener('click', agregarKitComp);
   document.getElementById('kit-comp-cantidad').addEventListener('keydown', e => {
     if (e.key === 'Enter') { e.preventDefault(); agregarKitComp(); }
@@ -139,6 +151,9 @@ function bindEventos() {
   // Modal ajuste stock
   document.getElementById('ajuste-cat-tipo').addEventListener('change', actualizarPreviewAjuste);
   document.getElementById('ajuste-cat-cantidad').addEventListener('input', actualizarPreviewAjuste);
+  document.getElementById('ajuste-cat-cantidad').addEventListener('keydown', e => {
+    if (e.key === 'Enter') { e.preventDefault(); confirmarAjuste(); }
+  });
   document.getElementById('btn-confirmar-ajuste').addEventListener('click', confirmarAjuste);
 
   // Promociones
@@ -159,6 +174,15 @@ function bindEventos() {
   // Delegación tabla — checkbox click
   document.getElementById('tabla-articulos').addEventListener('change', e => {
     if (e.target.dataset.chk) toggleSeleccion(parseInt(e.target.dataset.chk, 10));
+  });
+
+  // Doble click en fila → editar artículo (excepto en modo selección o botones)
+  document.getElementById('tabla-articulos').addEventListener('dblclick', e => {
+    if (modoSeleccion) return;
+    if (e.target.closest('button') || e.target.closest('input')) return;
+    const row = e.target.closest('tr[data-id]');
+    if (!row) return;
+    abrirModalEdicion(parseInt(row.dataset.id, 10));
   });
 }
 
@@ -296,7 +320,7 @@ function renderTabla(lista) {
       : '';
 
     return `
-      <tr style="${bajstock ? 'background:rgba(239,68,68,.06);' : ''}">
+      <tr data-id="${a.id}" style="${bajstock ? 'background:rgba(239,68,68,.06);' : ''}${modoSeleccion ? '' : 'cursor:pointer;'}">
         ${chkCell}
         <td style="padding:8px 10px;font-family:monospace;font-size:11px;color:var(--text-subtle);white-space:nowrap;">${esc(a.codigo)}</td>
         <td style="padding:8px 10px;">
@@ -1676,6 +1700,18 @@ function bindPromoGlobalForm() {
     document.getElementById('pg-art-busq').value = item.dataset.pgArtNombre;
     document.getElementById('pg-art-dropdown').style.display = 'none';
     document.getElementById('pg-promo-desde').focus();
+  });
+  window.bindDropdownKeyboard({
+    inputEl:   document.getElementById('pg-art-busq'),
+    dropdownId:'pg-art-dropdown',
+    optSel:    '[data-pg-art-id]',
+    onSelect:  item => {
+      pgArtSeleccionado = { id: parseInt(item.dataset.pgArtId), nombre: item.dataset.pgArtNombre };
+      document.getElementById('pg-art-busq').value = item.dataset.pgArtNombre;
+      document.getElementById('pg-art-dropdown').style.display = 'none';
+      document.getElementById('pg-promo-desde').focus();
+    },
+    onClose: () => { document.getElementById('pg-art-dropdown').style.display = 'none'; },
   });
 
   document.getElementById('pg-btn-agregar').addEventListener('click', agregarPromoGlobal);

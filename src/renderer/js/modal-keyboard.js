@@ -29,6 +29,7 @@
       if (active?.tagName === 'BUTTON') return;
       if (active?.tagName === 'INPUT' && active.closest('form')) return;
       if (active?.tagName === 'SELECT') return;
+      if (active?.closest('#modal-orden')) return; // navegación interna manejada en proveedores.js
 
       e.preventDefault();
       e.stopPropagation();

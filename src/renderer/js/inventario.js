@@ -53,6 +53,9 @@ function bindEventos() {
   });
   document.getElementById('ajuste-tipo').addEventListener('change', actualizarPreviewAjuste);
   document.getElementById('ajuste-cantidad').addEventListener('input', actualizarPreviewAjuste);
+  document.getElementById('ajuste-cantidad').addEventListener('keydown', e => {
+    if (e.key === 'Enter') { e.preventDefault(); ejecutarAjuste(); }
+  });
   document.getElementById('btn-ejecutar-ajuste').addEventListener('click', ejecutarAjuste);
 
   // Stock bajo
@@ -64,6 +67,22 @@ function bindEventos() {
       cerrarKardexDD();
     if (!e.target.closest('#ajuste-busqueda') && !e.target.closest('#ajuste-dropdown'))
       cerrarAjusteDD();
+  });
+
+  // Navegación por teclado en dropdowns de autocomplete
+  window.bindDropdownKeyboard({
+    inputEl:   document.getElementById('kardex-busqueda'),
+    dropdownId:'kardex-dropdown',
+    optSel:    '[data-art-id]',
+    onSelect:  item => seleccionarKardexArt(parseInt(item.dataset.artId)),
+    onClose:   cerrarKardexDD,
+  });
+  window.bindDropdownKeyboard({
+    inputEl:   document.getElementById('ajuste-busqueda'),
+    dropdownId:'ajuste-dropdown',
+    optSel:    '[data-art-id]',
+    onSelect:  item => seleccionarAjusteArt(parseInt(item.dataset.artId)),
+    onClose:   cerrarAjusteDD,
   });
 }
 

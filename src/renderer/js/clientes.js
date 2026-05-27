@@ -19,7 +19,7 @@ const confirmNombre = document.getElementById('confirm-nombre');
 const modalCuenta   = document.getElementById('modal-cuenta');
 
 // ── Init ───────────────────────────────────────────────────────
-document.addEventListener('DOMContentLoaded', cargarClientes);
+document.addEventListener('DOMContentLoaded', () => { cargarClientes(); inputBusq.focus(); });
 
 inputBusq.addEventListener('input', () => renderTabla(filtrar(inputBusq.value)));
 
@@ -28,6 +28,9 @@ document.getElementById('btn-cancelar-modal').addEventListener('click', cerrarMo
 document.getElementById('btn-cancelar-confirm').addEventListener('click', cerrarConfirm);
 document.getElementById('btn-cerrar-cuenta').addEventListener('click', cerrarCuenta);
 document.getElementById('btn-pagar').addEventListener('click', registrarPago);
+document.getElementById('monto-pago').addEventListener('keydown', e => {
+  if (e.key === 'Enter') { e.preventDefault(); registrarPago(); }
+});
 form.addEventListener('submit', guardar);
 
 
@@ -55,6 +58,13 @@ tabla.addEventListener('click', e => {
   if (action === 'editar')   abrirModalEdicion(id);
   if (action === 'eliminar') abrirConfirm(id);
   if (action === 'cuenta')   abrirCuenta(id);
+});
+
+tabla.addEventListener('dblclick', e => {
+  if (e.target.closest('button')) return;
+  const row = e.target.closest('tr[data-id]');
+  if (!row) return;
+  abrirModalEdicion(parseInt(row.dataset.id, 10));
 });
 
 // ── Carga ──────────────────────────────────────────────────────
@@ -89,7 +99,7 @@ function renderTabla(lista) {
     const saldoCls = conDeuda ? 'text-red-600 font-bold' : 'text-gray-700';
 
     return `
-      <tr class="${rowCls} transition-colors">
+      <tr class="${rowCls} transition-colors" data-id="${c.id}" style="cursor:pointer;">
         <td class="px-4 py-2.5">
           <span class="font-medium">${esc(c.nombre)}</span>
           ${conDeuda ? '<span class="ml-2 text-xs text-red-500 font-semibold">&#9888; Deuda</span>' : ''}

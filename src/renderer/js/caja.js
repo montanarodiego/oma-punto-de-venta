@@ -1862,6 +1862,28 @@ function seleccionarClienteMixto(cl) {
   document.getElementById('mixto-resultados-cliente').style.display = 'none';
 }
 
+// ── Navegación por teclado en dropdowns de autocomplete ────────
+window.bindDropdownKeyboard({
+  inputEl:    elCobrobuscCliente,
+  dropdownEl: elCobroResCliente,
+  optSel:     '[data-cli-id]',
+  onSelect:   item => {
+    const cl = clientesCobroLista.find(c => c.id === parseInt(item.dataset.cliId, 10));
+    if (cl) seleccionarClienteCobro(cl);
+  },
+  onClose: () => { elCobroResCliente.style.display = 'none'; },
+});
+window.bindDropdownKeyboard({
+  inputEl:   document.getElementById('mixto-buscar-cliente'),
+  dropdownId:'mixto-resultados-cliente',
+  optSel:    '[data-mixto-cli-id]',
+  onSelect:  item => {
+    const cl = mixtoClientesLista.find(c => c.id === parseInt(item.dataset.mixtoCliId, 10));
+    if (cl) seleccionarClienteMixto(cl);
+  },
+  onClose: () => { document.getElementById('mixto-resultados-cliente').style.display = 'none'; },
+});
+
 document.getElementById('mixto-btn-quitar-cliente').addEventListener('click', () => {
   mixtoClienteSelec = null;
   document.getElementById('mixto-cliente-badge').style.display = 'none';

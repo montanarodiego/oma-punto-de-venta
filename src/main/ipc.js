@@ -31,9 +31,6 @@ function onlyAdmin() {
 
 // ── Exportación de órdenes de compra ──────────────────────────
 function generarHTMLOrden(orden, cfg, proveedorData) {
-  const fmtMoney = (n) =>
-    new Intl.NumberFormat('es-AR', { style: 'currency', currency: 'ARS', minimumFractionDigits: 2 }).format(parseFloat(n) || 0);
-
   const fmtNum = (n) => {
     const num = parseFloat(n) || 0;
     return num % 1 === 0 ? String(num) : num.toFixed(3).replace(/\.?0+$/, '');
@@ -45,26 +42,15 @@ function generarHTMLOrden(orden, cfg, proveedorData) {
   const ESTADO_LABEL = { borrador: 'Borrador', enviado: 'Enviado', recibido: 'Recibido', cancelado: 'Cancelado' };
   const ESTADO_CLS   = { borrador: 'estado-borrador', enviado: 'estado-enviado', recibido: 'estado-recibido', cancelado: 'estado-cancelado' };
 
-  const total = (orden.items || []).reduce(
-    (s, it) => s + (parseFloat(it.cantidad_pedida) || 0) * (parseFloat(it.costo_unitario) || 0), 0
-  );
   const fecha = (orden.fecha_creacion || '').slice(0, 10) || '—';
 
   const itemRows = (orden.items || []).map(it => {
-    const codigo      = it.articulo_codigo || '—';
-    const desc        = it.articulo_nombre || it.descripcion_libre || '—';
-    const um          = it.unidad_medida ? ` ${esc(it.unidad_medida)}` : '';
-    const cantRec     = (it.cantidad_recibida !== null && it.cantidad_recibida !== undefined)
-      ? fmtNum(it.cantidad_recibida) + um : '—';
-    const importe     = (parseFloat(it.cantidad_pedida) || 0) * (parseFloat(it.costo_unitario) || 0);
+    const desc = it.articulo_nombre || it.descripcion_libre || '—';
+    const um   = it.unidad_medida ? ` ${esc(it.unidad_medida)}` : '';
     return `
       <tr>
-        <td>${esc(codigo)}</td>
         <td>${esc(desc)}</td>
         <td class="center">${esc(fmtNum(it.cantidad_pedida) + um)}</td>
-        <td class="center">${esc(cantRec)}</td>
-        <td class="right">${fmtMoney(it.costo_unitario)}</td>
-        <td class="right">${fmtMoney(importe)}</td>
       </tr>`;
   }).join('');
 
@@ -97,9 +83,6 @@ function generarHTMLOrden(orden, cfg, proveedorData) {
     td.right  { text-align:right; }
     th.center { text-align:center; }
     th.right  { text-align:right; }
-    .total-row { margin-top:14px; text-align:right; }
-    .total-lbl { font-size:12px; color:#64748b; }
-    .total-amt { font-size:22px; font-weight:800; color:#1e3a8a; font-variant-numeric:tabular-nums; margin-left:8px; }
     .notes { margin-top:16px; padding:10px 14px; background:#fefce8; border:1px solid #fde047; border-radius:5px; }
     .notes-lbl { font-size:11px; font-weight:700; color:#a16207; margin-bottom:3px; }
     .notes-txt { font-size:12px; color:#78350f; }
@@ -151,21 +134,12 @@ function generarHTMLOrden(orden, cfg, proveedorData) {
   <table>
     <thead>
       <tr>
-        <th>Código</th>
         <th>Descripción</th>
         <th class="center">Cant. pedida</th>
-        <th class="center">Cant. recibida</th>
-        <th class="right">Costo u.</th>
-        <th class="right">Importe</th>
       </tr>
     </thead>
     <tbody>${itemRows}</tbody>
   </table>
-
-  <div class="total-row">
-    <span class="total-lbl">Total de la orden:</span>
-    <span class="total-amt">${fmtMoney(total)}</span>
-  </div>
 
   ${orden.notas ? `<div class="notes"><div class="notes-lbl">Notas:</div><div class="notes-txt">${esc(orden.notas)}</div></div>` : ''}
 
