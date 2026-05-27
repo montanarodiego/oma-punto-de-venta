@@ -227,8 +227,9 @@ contextBridge.exposeInMainWorld('api', {
   },
 
   // Auto-updater
-  startDownload: () => ipcRenderer.invoke('updater:start-download'),
-  installUpdate: () => ipcRenderer.invoke('updater:install'),
+  startDownload:    () => ipcRenderer.invoke('updater:start-download'),
+  installUpdate:    () => ipcRenderer.invoke('updater:install'),
+  getPendingUpdate: () => ipcRenderer.invoke('updater:get-pending'),
   onUpdateAvailable:  (cb) => { ipcRenderer.on('update-available',  (_e, info)    => cb(info));    },
   onUpdateProgress:   (cb) => { ipcRenderer.on('update-progress',   (_e, data)    => cb(data));    },
   onUpdateDownloaded: (cb) => { ipcRenderer.on('update-downloaded', ()            => cb());        },

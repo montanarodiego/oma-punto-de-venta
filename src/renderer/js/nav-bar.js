@@ -28,6 +28,9 @@
     if (document.querySelector('#buscador-overlay.visible'))    return true;
     if (document.querySelector('#modal-cobro.visible'))         return true;
     if (document.querySelector('#modal-turno-inicio.visible'))  return true;
+    // Bloquear navegación si hay una descarga de actualización activa
+    var ussDown = document.getElementById('uss-downloading');
+    if (ussDown && ussDown.style.display !== 'none')             return true;
     return false;
   }
 

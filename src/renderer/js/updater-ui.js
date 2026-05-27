@@ -1,128 +1,212 @@
 (function () {
-  function formatBytes(bytes) {
-    if (bytes >= 1024 * 1024) return (bytes / (1024 * 1024)).toFixed(1) + ' MB/s';
-    if (bytes >= 1024)        return (bytes / 1024).toFixed(0) + ' KB/s';
+  var isDownloading = false;
+  var overlay;
+
+  function fmt(bytes) {
+    if (bytes >= 1048576) return (bytes / 1048576).toFixed(1) + ' MB/s';
+    if (bytes >= 1024)    return (bytes / 1024).toFixed(0)    + ' KB/s';
     return bytes + ' B/s';
   }
 
-  // Inyectar HTML del banner
-  var banner = document.createElement('div');
-  banner.id = 'update-banner';
-  banner.style.cssText =
-    'display:none;position:fixed;bottom:0;left:0;right:0;z-index:10000;' +
-    'background:linear-gradient(135deg,#1e3a5f,#1a2f4a);' +
-    'border-top:1px solid rgba(59,130,246,0.4);' +
-    'padding:14px 24px;box-shadow:0 -4px 20px rgba(0,0,0,0.4);';
+  // ── Inyectar overlay ────────────────────────────────────────────
+  overlay = document.createElement('div');
+  overlay.id = 'update-overlay';
+  overlay.style.cssText =
+    'display:none;position:fixed;inset:0;z-index:10000;' +
+    'background:rgba(0,0,0,.65);backdrop-filter:blur(4px);' +
+    'align-items:center;justify-content:center;';
 
-  banner.innerHTML =
-    // ── Estado: disponible ──
-    '<div id="update-state-available" style="display:none;align-items:center;gap:16px;">' +
-      '<div style="flex:1;">' +
-        '<div style="font-weight:700;color:#fff;font-size:15px;">Nueva versión disponible</div>' +
-        '<div id="update-version-text" style="color:#93c5fd;font-size:13px;margin-top:2px;"></div>' +
-      '</div>' +
-      '<button id="btn-download-update" style="background:#3b82f6;color:#fff;border:none;' +
-        'padding:9px 20px;border-radius:8px;font-weight:600;cursor:pointer;font-size:13px;' +
-        'font-family:inherit;transition:background 120ms;">' +
-        'Descargar ahora' +
-      '</button>' +
-      '<button id="btn-dismiss-update" style="background:transparent;color:#93c5fd;' +
-        'border:1px solid rgba(147,197,253,0.3);padding:9px 16px;border-radius:8px;' +
-        'cursor:pointer;font-size:13px;font-family:inherit;transition:background 120ms;">' +
-        'Más tarde' +
-      '</button>' +
-    '</div>' +
+  overlay.innerHTML =
+    '<div style="' +
+      'background:var(--surface-2,#1e2a3a);' +
+      'border:1px solid rgba(59,130,246,.35);' +
+      'border-radius:16px;padding:32px;' +
+      'max-width:420px;width:calc(100vw - 48px);' +
+      'box-shadow:0 20px 60px rgba(0,0,0,.65);">' +
 
-    // ── Estado: descargando ──
-    '<div id="update-state-downloading" style="display:none;">' +
-      '<div style="display:flex;align-items:center;gap:12px;margin-bottom:8px;">' +
-        '<div style="font-weight:700;color:#fff;font-size:14px;">Descargando actualización...</div>' +
-        '<div id="update-percent" style="color:#93c5fd;font-weight:700;font-size:14px;"></div>' +
-        '<div id="update-speed" style="color:#64748b;font-size:12px;margin-left:auto;"></div>' +
+      // ── disponible ──
+      '<div id="uss-available" style="display:none;">' +
+        '<div style="display:flex;align-items:center;gap:14px;margin-bottom:18px;">' +
+          '<div style="width:44px;height:44px;border-radius:12px;flex-shrink:0;' +
+            'background:rgba(59,130,246,.15);display:flex;align-items:center;justify-content:center;">' +
+            '<svg width="22" height="22" fill="none" stroke="#60a5fa" stroke-width="2" stroke-linecap="round" viewBox="0 0 24 24">' +
+              '<polyline points="16 16 12 20 8 16"/><line x1="12" y1="4" x2="12" y2="20"/>' +
+            '</svg>' +
+          '</div>' +
+          '<div>' +
+            '<div style="font-weight:700;font-size:16px;color:#f1f5f9;">Nueva versión disponible</div>' +
+            '<div id="uss-version" style="color:#93c5fd;font-size:13px;margin-top:2px;"></div>' +
+          '</div>' +
+        '</div>' +
+        '<p style="font-size:13px;color:#94a3b8;line-height:1.6;margin:0 0 22px;">' +
+          'Hay una nueva versión de Oma POS. La descarga es rápida y no afecta tus datos.' +
+        '</p>' +
+        '<div style="display:flex;gap:10px;justify-content:flex-end;">' +
+          '<button id="uss-btn-later" style="background:transparent;border:1px solid rgba(148,163,184,.3);' +
+            'color:#94a3b8;padding:9px 18px;border-radius:8px;cursor:pointer;font-size:13px;font-family:inherit;">' +
+            'Más tarde' +
+          '</button>' +
+          '<button id="uss-btn-download" style="background:#3b82f6;color:#fff;border:none;' +
+            'padding:9px 22px;border-radius:8px;font-weight:600;cursor:pointer;font-size:13px;font-family:inherit;">' +
+            'Descargar ahora' +
+          '</button>' +
+        '</div>' +
       '</div>' +
-      '<div style="background:rgba(255,255,255,0.12);border-radius:999px;height:5px;overflow:hidden;">' +
-        '<div id="update-progress-bar" style="height:100%;background:linear-gradient(90deg,#3b82f6,#60a5fa);' +
-          'border-radius:999px;transition:width 0.3s ease;width:0%;"></div>' +
-      '</div>' +
-    '</div>' +
 
-    // ── Estado: listo para instalar ──
-    '<div id="update-state-ready" style="display:none;align-items:center;gap:16px;">' +
-      '<div style="flex:1;">' +
-        '<div style="font-weight:700;color:#fff;font-size:15px;">Actualización lista para instalar</div>' +
-        '<div style="color:#86efac;font-size:13px;margin-top:2px;">La app se reiniciará para aplicar los cambios</div>' +
+      // ── descargando ──
+      '<div id="uss-downloading" style="display:none;">' +
+        '<div style="display:flex;align-items:center;gap:14px;margin-bottom:22px;">' +
+          '<div style="width:44px;height:44px;border-radius:12px;flex-shrink:0;' +
+            'background:rgba(59,130,246,.15);display:flex;align-items:center;justify-content:center;">' +
+            '<svg width="22" height="22" fill="none" stroke="#60a5fa" stroke-width="2" stroke-linecap="round" viewBox="0 0 24 24">' +
+              '<polyline points="16 16 12 20 8 16"/><line x1="12" y1="4" x2="12" y2="20"/>' +
+            '</svg>' +
+          '</div>' +
+          '<div style="flex:1;min-width:0;">' +
+            '<div style="font-weight:700;font-size:15px;color:#f1f5f9;">Descargando actualización…</div>' +
+            '<div style="display:flex;justify-content:space-between;margin-top:3px;">' +
+              '<span id="uss-percent" style="color:#93c5fd;font-size:13px;font-weight:600;">0%</span>' +
+              '<span id="uss-speed"   style="color:#64748b;font-size:12px;"></span>' +
+            '</div>' +
+          '</div>' +
+        '</div>' +
+        '<div style="background:rgba(255,255,255,.1);border-radius:999px;height:7px;overflow:hidden;margin-bottom:14px;">' +
+          '<div id="uss-bar" style="height:100%;background:linear-gradient(90deg,#3b82f6,#60a5fa);' +
+            'border-radius:999px;transition:width .3s ease;width:0%;"></div>' +
+        '</div>' +
+        '<p style="font-size:12px;color:#64748b;margin:0;text-align:center;">' +
+          'No cierres la aplicación durante la descarga' +
+        '</p>' +
       '</div>' +
-      '<button id="btn-install-update" style="background:#22c55e;color:#fff;border:none;' +
-        'padding:9px 20px;border-radius:8px;font-weight:600;cursor:pointer;font-size:13px;' +
-        'font-family:inherit;transition:background 120ms;">' +
-        'Reiniciar e instalar' +
-      '</button>' +
-    '</div>' +
 
-    // ── Estado: error ──
-    '<div id="update-state-error" style="display:none;align-items:center;gap:12px;">' +
-      '<div style="color:#fca5a5;font-weight:600;font-size:13px;">Error al actualizar:</div>' +
-      '<div id="update-error-msg" style="color:#fca5a5;font-size:13px;"></div>' +
-      '<button id="btn-dismiss-error" style="background:transparent;color:#fca5a5;' +
-        'border:1px solid rgba(252,165,165,0.3);padding:6px 14px;border-radius:8px;' +
-        'cursor:pointer;font-size:12px;font-family:inherit;margin-left:auto;">' +
-        'Cerrar' +
-      '</button>' +
+      // ── listo ──
+      '<div id="uss-ready" style="display:none;">' +
+        '<div style="display:flex;align-items:center;gap:14px;margin-bottom:18px;">' +
+          '<div style="width:44px;height:44px;border-radius:12px;flex-shrink:0;' +
+            'background:rgba(34,197,94,.12);display:flex;align-items:center;justify-content:center;">' +
+            '<svg width="22" height="22" fill="none" stroke="#4ade80" stroke-width="2" stroke-linecap="round" viewBox="0 0 24 24">' +
+              '<path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/>' +
+            '</svg>' +
+          '</div>' +
+          '<div>' +
+            '<div style="font-weight:700;font-size:16px;color:#f1f5f9;">¡Actualización lista!</div>' +
+            '<div style="color:#86efac;font-size:13px;margin-top:2px;">La app se reiniciará para aplicar los cambios</div>' +
+          '</div>' +
+        '</div>' +
+        '<p style="font-size:13px;color:#94a3b8;line-height:1.6;margin:0 0 22px;">' +
+          'Todo tu trabajo está guardado. El reinicio tarda unos pocos segundos.' +
+        '</p>' +
+        '<div style="display:flex;justify-content:flex-end;">' +
+          '<button id="uss-btn-install" style="background:#22c55e;color:#fff;border:none;' +
+            'padding:10px 28px;border-radius:8px;font-weight:600;cursor:pointer;font-size:14px;font-family:inherit;">' +
+            'Reiniciar e instalar' +
+          '</button>' +
+        '</div>' +
+      '</div>' +
+
+      // ── error ──
+      '<div id="uss-error" style="display:none;">' +
+        '<div style="display:flex;align-items:center;gap:12px;margin-bottom:16px;">' +
+          '<div style="width:44px;height:44px;border-radius:12px;flex-shrink:0;' +
+            'background:rgba(239,68,68,.12);display:flex;align-items:center;justify-content:center;">' +
+            '<svg width="22" height="22" fill="none" stroke="#f87171" stroke-width="2" stroke-linecap="round" viewBox="0 0 24 24">' +
+              '<circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/>' +
+            '</svg>' +
+          '</div>' +
+          '<div style="font-weight:700;font-size:15px;color:#f1f5f9;">Error al actualizar</div>' +
+        '</div>' +
+        '<p id="uss-error-msg" style="font-size:13px;color:#fca5a5;margin:0 0 20px;word-break:break-word;"></p>' +
+        '<div style="display:flex;justify-content:flex-end;">' +
+          '<button id="uss-btn-close-error" style="background:transparent;' +
+            'border:1px solid rgba(252,165,165,.35);color:#fca5a5;' +
+            'padding:8px 18px;border-radius:8px;cursor:pointer;font-size:13px;font-family:inherit;">' +
+            'Cerrar' +
+          '</button>' +
+        '</div>' +
+      '</div>' +
+
     '</div>';
 
-  document.body.appendChild(banner);
+  document.body.appendChild(overlay);
 
+  // ── Helpers ─────────────────────────────────────────────────────
   function showState(state) {
-    ['available','downloading','ready','error'].forEach(function (s) {
-      var el = document.getElementById('update-state-' + s);
-      if (el) el.style.display = (s === state) ? 'flex' : 'none';
+    ['available', 'downloading', 'ready', 'error'].forEach(function (s) {
+      var el = document.getElementById('uss-' + s);
+      if (el) el.style.display = (s === state) ? 'block' : 'none';
     });
-    banner.style.display = '';
+    overlay.style.display = 'flex';
+    isDownloading = (state === 'downloading');
   }
 
-  function hideBanner() {
-    banner.style.display = 'none';
+  function hideModal() {
+    overlay.style.display = 'none';
+    isDownloading = false;
   }
 
-  // update-available
+  // ── Consultar actualización pendiente al cargar la página ───────
+  // Resuelve la race condition: update-available puede haberse disparado
+  // antes de que este renderer cargara y registrara los listeners IPC.
+  if (window.api && window.api.getPendingUpdate) {
+    window.api.getPendingUpdate().then(function (info) {
+      if (!info) return;
+      var vEl = document.getElementById('uss-version');
+      if (vEl) vEl.textContent = 'Versión ' + info.version;
+      showState('available');
+    });
+  }
+
+  // ── Eventos IPC ─────────────────────────────────────────────────
   window.api.onUpdateAvailable(function (info) {
-    var vEl = document.getElementById('update-version-text');
-    if (vEl) vEl.textContent = 'Versión ' + info.version + ' disponible';
+    var vEl = document.getElementById('uss-version');
+    if (vEl) vEl.textContent = 'Versión ' + info.version;
     showState('available');
   });
 
-  // update-progress
   window.api.onUpdateProgress(function (data) {
     showState('downloading');
-    var bar   = document.getElementById('update-progress-bar');
-    var pct   = document.getElementById('update-percent');
-    var speed = document.getElementById('update-speed');
-    if (bar)   bar.style.width   = data.percent + '%';
-    if (pct)   pct.textContent   = data.percent + '%';
-    if (speed) speed.textContent = formatBytes(data.bytesPerSecond);
+    var bar  = document.getElementById('uss-bar');
+    var pct  = document.getElementById('uss-percent');
+    var spd  = document.getElementById('uss-speed');
+    var p    = Math.min(100, Math.max(0, data.percent || 0));
+    if (bar) bar.style.width = p + '%';
+    if (pct) pct.textContent = p + '%';
+    if (spd) spd.textContent = data.bytesPerSecond ? fmt(data.bytesPerSecond) : '';
   });
 
-  // update-downloaded
   window.api.onUpdateDownloaded(function () {
     showState('ready');
   });
 
-  // update-error
-  window.api.onUpdateError(function (message) {
-    var el = document.getElementById('update-error-msg');
-    if (el) el.textContent = message;
+  window.api.onUpdateError(function (msg) {
+    var el = document.getElementById('uss-error-msg');
+    if (el) el.textContent = msg || 'Error desconocido';
     showState('error');
   });
 
-  // Botones
+  // ── Botones ─────────────────────────────────────────────────────
   document.addEventListener('click', function (e) {
-    if (e.target.id === 'btn-download-update') {
-      document.getElementById('update-state-available').style.display = 'none';
-      showState('downloading');
-      window.api.startDownload();
+    switch (e.target.id) {
+      case 'uss-btn-download':
+        showState('downloading');
+        window.api.startDownload();
+        break;
+      case 'uss-btn-later':
+        hideModal();
+        break;
+      case 'uss-btn-install':
+        window.api.installUpdate();
+        break;
+      case 'uss-btn-close-error':
+        hideModal();
+        break;
     }
-    if (e.target.id === 'btn-dismiss-update')  hideBanner();
-    if (e.target.id === 'btn-dismiss-error')   hideBanner();
-    if (e.target.id === 'btn-install-update')  window.api.installUpdate();
+  });
+
+  // ── Advertencia al cerrar/navegar mientras descarga ─────────────
+  window.addEventListener('beforeunload', function (e) {
+    if (!isDownloading) return;
+    e.preventDefault();
+    e.returnValue = '';
   });
 }());

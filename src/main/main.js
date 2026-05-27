@@ -25,6 +25,8 @@ let syncInterval      = null;
 let modalAbierto      = false;
 let modalCobroAbierto = false;
 let forceClose        = false;
+let pendingUpdate     = null; // cached update info for late-loading renderers
+let isDownloading     = false;
 
 // ── Menú (solo Ver / DevTools) ─────────────────────────────────
 function createMenu() {
@@ -78,6 +80,23 @@ function createWindow() {
 
   mainWindow.on('close', function (e) {
     if (forceClose) return;
+
+    if (isDownloading) {
+      e.preventDefault();
+      dialog.showMessageBox(mainWindow, {
+        type:      'warning',
+        title:     'Descarga en progreso',
+        message:   'Se está descargando una actualización',
+        detail:    '¿Cerrar de todos modos y cancelar la descarga?',
+        buttons:   ['Seguir esperando', 'Cerrar de todos modos'],
+        defaultId: 0,
+        cancelId:  1,
+      }).then(function ({ response }) {
+        if (response === 1) { forceClose = true; mainWindow.close(); }
+      });
+      return;
+    }
+
     let turno = null;
     try { turno = Turnos.obtenerActivo(); } catch { /* DB puede no estar lista aún */ }
     if (!turno) return;
@@ -234,11 +253,9 @@ autoUpdater.allowPrerelease       = false;
 autoUpdater.allowDowngrade        = false;
 
 autoUpdater.on('update-available', (info) => {
+  pendingUpdate = { version: info.version, releaseNotes: info.releaseNotes || null };
   if (mainWindow && !mainWindow.isDestroyed()) {
-    mainWindow.webContents.send('update-available', {
-      version:      info.version,
-      releaseNotes: info.releaseNotes || null,
-    });
+    mainWindow.webContents.send('update-available', pendingUpdate);
   }
 });
 
@@ -307,7 +324,10 @@ app.whenReady().then(async () => {
   registerHandlers();
   registerAuthHandlers();
 
+  ipcMain.handle('updater:get-pending', () => pendingUpdate || null);
+
   ipcMain.handle('updater:start-download', async () => {
+    isDownloading = true;
     try {
       // Limpiar token antes de cualquier request a GitHub
       process.env.GH_TOKEN = '';
@@ -333,12 +353,15 @@ app.whenReady().then(async () => {
         }
       });
 
+      isDownloading = false;
       log.info('Descarga completada:', destPath);
       global.updateInstallerPath = destPath;
+      pendingUpdate = null;
       if (mainWindow && !mainWindow.isDestroyed()) {
         mainWindow.webContents.send('update-downloaded');
       }
     } catch (err) {
+      isDownloading = false;
       log.error('Error en descarga manual:', err.message);
       if (mainWindow && !mainWindow.isDestroyed()) {
         mainWindow.webContents.send('update-error', err.message);
