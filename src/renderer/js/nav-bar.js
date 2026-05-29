@@ -235,8 +235,12 @@
 
   document.getElementById('btn-reporte-close').addEventListener('click', cerrarModalReporte);
   document.getElementById('btn-reporte-cancelar').addEventListener('click', cerrarModalReporte);
+  var _reporteMousedownTarget = null;
+  modalReporte.addEventListener('mousedown', function (e) {
+    _reporteMousedownTarget = e.target;
+  });
   modalReporte.addEventListener('click', function (e) {
-    if (e.target === modalReporte) cerrarModalReporte();
+    if (e.target === modalReporte && _reporteMousedownTarget === modalReporte) cerrarModalReporte();
   });
 
   document.getElementById('form-reporte-problema').addEventListener('submit', async function (e) {

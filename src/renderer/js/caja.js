@@ -1176,7 +1176,6 @@ function abrirModalCobro() {
   cobroFormaPago = 'efectivo';
   cobroFocusIdx  = 0;
   cobroClienteSeleccionado = null;
-  actualizarOpcionCobroActiva();
 
   // Reset cliente
   elCobrobuscCliente.value = '';
@@ -1204,7 +1203,7 @@ function abrirModalCobro() {
 
   elModalCobro.classList.add('visible');
   window.api.setModalCobro(true);
-  setTimeout(() => elCobroMontoRec.focus(), 50);
+  actualizarOpcionCobroActiva(true);
 }
 
 function cerrarModalCobro() {
@@ -1213,7 +1212,7 @@ function cerrarModalCobro() {
   recuperarFocoCodigo();
 }
 
-function actualizarOpcionCobroActiva() {
+function actualizarOpcionCobroActiva(skipFocus = false) {
   document.querySelectorAll('.forma-pago-opt').forEach((btn, i) => {
     btn.classList.toggle('active', i === cobroFocusIdx);
   });
@@ -1225,12 +1224,12 @@ function actualizarOpcionCobroActiva() {
   document.getElementById('cobro-seccion-mixto').style.display = esMixto ? 'flex' : 'none';
 
   if (cobroFormaPago === 'efectivo') {
-    setTimeout(() => elCobroMontoRec.focus(), 30);
     actualizarVueltoCobro();
+    if (!skipFocus) setTimeout(() => elCobroMontoRec.focus(), 30);
   } else if (cobroFormaPago === 'cuenta_corriente') {
-    setTimeout(() => elCobrobuscCliente.focus(), 30);
+    if (!skipFocus) setTimeout(() => elCobrobuscCliente.focus(), 30);
   } else if (esMixto) {
-    setTimeout(() => document.getElementById('mixto-monto-1').focus(), 30);
+    if (!skipFocus) setTimeout(() => document.getElementById('mixto-monto-1').focus(), 30);
   }
 }
 
