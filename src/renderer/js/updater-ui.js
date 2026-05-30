@@ -74,9 +74,16 @@
           '<div id="uss-bar" style="height:100%;background:linear-gradient(90deg,#3b82f6,#60a5fa);' +
             'border-radius:999px;transition:width .3s ease;width:0%;"></div>' +
         '</div>' +
-        '<p style="font-size:12px;color:#64748b;margin:0;text-align:center;">' +
+        '<p style="font-size:12px;color:#64748b;margin:0 0 14px;text-align:center;">' +
           'No cierres la aplicación durante la descarga' +
         '</p>' +
+        '<div style="text-align:center;">' +
+          '<button id="uss-btn-skip" style="background:transparent;border:none;' +
+            'color:#475569;font-size:12px;cursor:pointer;text-decoration:underline;' +
+            'font-family:inherit;padding:0;">' +
+            'Continuar sin actualizar' +
+          '</button>' +
+        '</div>' +
       '</div>' +
 
       // ── listo ──
@@ -196,6 +203,9 @@
         break;
       case 'uss-btn-install':
         window.api.installUpdate();
+        break;
+      case 'uss-btn-skip':
+        hideModal();
         break;
       case 'uss-btn-close-error':
         hideModal();

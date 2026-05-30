@@ -271,29 +271,45 @@ autoUpdater.on('error', (err) => {
 });
 
 // ── Descarga manual vía net.request (bypass del mecanismo interno) ──
-function downloadFile(url, dest, onProgress) {
+function downloadFile(url, dest, onProgress, timeoutMs = 90000) {
   return new Promise((resolve, reject) => {
     const file    = fs.createWriteStream(dest);
     let received  = 0;
     let total     = 0;
     let startTime = Date.now();
+    let activeReq = null;
+    let settled   = false;
+
+    const timer = setTimeout(() => {
+      if (settled) return;
+      settled = true;
+      try { if (activeReq) activeReq.abort(); } catch { /* ignorado */ }
+      file.close();
+      reject(new Error('Tiempo de descarga agotado (90 s)'));
+    }, timeoutMs);
+
+    function finish(err) {
+      if (settled) return;
+      settled = true;
+      clearTimeout(timer);
+      if (err) { file.close(); reject(err); } else { file.end(); resolve(); }
+    }
 
     function doRequest(targetUrl) {
       const request = net.request({ url: targetUrl, redirect: 'follow' });
+      activeReq = request;
 
       request.on('response', (response) => {
         if (response.statusCode === 301 || response.statusCode === 302) {
-          file.close();
           const location = Array.isArray(response.headers.location)
             ? response.headers.location[0]
             : response.headers.location;
-          if (!location) return reject(new Error('Redirect sin Location header'));
+          if (!location) return finish(new Error('Redirect sin Location header'));
           return doRequest(location);
         }
 
         if (response.statusCode !== 200) {
-          file.close();
-          return reject(new Error(`HTTP ${response.statusCode} al descargar actualización`));
+          return finish(new Error(`HTTP ${response.statusCode} al descargar actualización`));
         }
 
         const cl = response.headers['content-length'];
@@ -308,11 +324,11 @@ function downloadFile(url, dest, onProgress) {
           onProgress(percent, bytesPerSecond);
         });
 
-        response.on('end',   () => { file.end(); resolve(); });
-        response.on('error', (err) => { file.close(); reject(err); });
+        response.on('end',   () => finish(null));
+        response.on('error', (err) => finish(err));
       });
 
-      request.on('error', (err) => { file.close(); reject(err); });
+      request.on('error', (err) => finish(err));
       request.end();
     }
 
@@ -335,12 +351,11 @@ app.whenReady().then(async () => {
     try {
       // Limpiar token antes de cualquier request a GitHub
       process.env.GH_TOKEN = '';
-      const info    = await autoUpdater.checkForUpdates();
-      const version = info.updateInfo.version;
-      // El nombre del exe en GitHub Releases usa espacios: "OmaTech POS Setup X.Y.Z.exe"
-      const fileName   = `OmaTech POS Setup ${version}.exe`;
-      const encoded    = encodeURIComponent(fileName);
-      const downloadUrl = `https://github.com/montanarodiego/oma-punto-de-venta/releases/download/v${version}/${encoded}`;
+      const info     = await autoUpdater.checkForUpdates();
+      const version  = info.updateInfo.version;
+      // Usar el nombre exacto del archivo según latest.yml (evita discrepancias de naming)
+      const fileName    = info.updateInfo.path;
+      const downloadUrl = `https://github.com/montanarodiego/oma-punto-de-venta/releases/download/v${version}/${encodeURIComponent(fileName)}`;
       const destPath   = path.join(os.tmpdir(), fileName);
 
       log.info(`Descargando desde: ${downloadUrl}`);
