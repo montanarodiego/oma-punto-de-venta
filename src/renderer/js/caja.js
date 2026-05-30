@@ -1536,6 +1536,8 @@ async function ejecutarCobro(imprimir) {
         propina: totales.propina,
       });
     }
+    // Impresión térmica automática (fire-and-forget; silencioso si no hay impresora)
+    window.api.printer.imprimir(guardada.id, { montoRecibido, vuelto }).catch(() => {});
     cerrarModalCobro();
     limpiarCarritoActual();
   } catch (err) {

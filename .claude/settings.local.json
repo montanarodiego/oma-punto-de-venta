@@ -68,7 +68,15 @@
       "Bash(npx playwright *)",
       "Bash(node *)",
       "PowerShell(head *)",
-      "PowerShell(Stop-Process *)"
+      "PowerShell(Stop-Process *)",
+      "Bash(npm ls *)",
+      "Bash(Read \"C:\\\\Users\\\\diego\\\\AppData\\\\Local\\\\Temp\\\\claude\\\\C--Users-diego-Desktop-oma-punto-de-venta\\\\eec011dd-9cbc-40c6-adbd-a89a70e7b25c\\\\tasks\\\\bfex220xn.output\")",
+      "Bash(dir \"%APPDATA%\\\\OmaTech POS\" /s /b)",
+      "Bash(dir \"%APPDATA%\\\\Electron\" /s /b)",
+      "Bash(findstr /i \"log\")",
+      "Bash(dir \"%APPDATA%\\\\oma-punto-de-venta\" /b)",
+      "Bash(git fetch *)",
+      "Bash(git clone *)"
     ]
   }
 }

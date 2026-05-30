@@ -1,4 +1,4 @@
-const { ipcMain, shell, dialog, BrowserWindow, app } = require('electron');
+const { ipcMain, shell, dialog, BrowserWindow, app, safeStorage } = require('electron');
 const path           = require('path');
 const fs             = require('fs');
 const os             = require('os');
@@ -20,6 +20,8 @@ const Inventario     = require('./models/inventario');
 const PedidosCompra  = require('./models/pedidos');
 const Promociones    = require('./models/promociones');
 const Backup         = require('./backup');
+const Printer        = require('./printer');
+const ReportMailer   = require('./report-mailer');
 const { getDb }      = require('./database');
 
 // Rol del usuario activo — se actualiza en login y en cada carga de página
@@ -448,6 +450,94 @@ function registerHandlers() {
       .prepare('INSERT OR REPLACE INTO configuracion (clave, valor) VALUES (?, ?)')
       .run(clave, String(valor));
     return true;
+  });
+
+  // ── Impresora térmica ──────────────────────────────────────────
+  ipcMain.handle('printer:listarImpresoras', async () => {
+    try { return await Printer.listarImpresoras(); }
+    catch { return []; }
+  });
+
+  ipcMain.handle('printer:imprimir', async (_e, transaccionId, extra) => {
+    try {
+      const db = getDb();
+      const nombreImpresora = db
+        .prepare("SELECT valor FROM configuracion WHERE clave = 'impresora_nombre'")
+        .get()?.valor;
+      if (!nombreImpresora) return { ok: false, noImpresora: true };
+
+      const getCfg = (k, def = '') =>
+        db.prepare('SELECT valor FROM configuracion WHERE clave = ?').get(k)?.valor ?? def;
+
+      const cfg = {
+        nombreNegocio: getCfg('nombre_negocio', 'MI NEGOCIO'),
+        direccion:     getCfg('direccion'),
+        telefono:      getCfg('telefono'),
+        cuit:          getCfg('cuit'),
+        moneda:        getCfg('moneda', '$'),
+        mensajeTicket: getCfg('mensaje_ticket'),
+      };
+
+      const trans = Transacciones.getById(transaccionId);
+      if (!trans) return { ok: false, error: 'Transacción no encontrada' };
+      trans._montoRecibido = extra?.montoRecibido ?? null;
+      trans._vuelto        = extra?.vuelto        ?? 0;
+
+      const buf = Printer.buildTicketBuffer(trans, cfg);
+      return await Printer.enviarRaw(nombreImpresora, buf);
+    } catch (err) {
+      return { ok: false, error: err.message };
+    }
+  });
+
+  ipcMain.handle('printer:imprimirPrueba', async (_e, nombreImpresora) => {
+    try {
+      const db = getDb();
+      const getCfg = (k, def = '') =>
+        db.prepare('SELECT valor FROM configuracion WHERE clave = ?').get(k)?.valor ?? def;
+      const cfg = { nombreNegocio: getCfg('nombre_negocio', 'OmaTech POS') };
+      const buf = Printer.buildPruebaBuffer(cfg);
+      return await Printer.enviarRaw(nombreImpresora, buf);
+    } catch (err) {
+      return { ok: false, error: err.message };
+    }
+  });
+
+  // ── Reporte automático por email ───────────────────────────────
+  ipcMain.handle('reporteEmail:getConfig', () => {
+    const db  = getDb();
+    const get = k => db.prepare('SELECT valor FROM configuracion WHERE clave = ?').get(k)?.valor ?? '';
+    return {
+      activo:     get('reporte_email_activo')     || '0',
+      destino:    get('reporte_email_destino'),
+      frecuencia: get('reporte_email_frecuencia') || 'diario',
+      hora:       get('reporte_email_hora')       || '08:00',
+      diaSemana:  get('reporte_email_dia_semana') || '1',
+      diaMes:     get('reporte_email_dia_mes')    || '1',
+      ultimoEnvio:get('reporte_email_ultimo_envio'),
+    };
+  });
+
+  ipcMain.handle('reporteEmail:setConfig', (_e, data) => {
+    const db  = getDb();
+    const set = (k, v) =>
+      db.prepare('INSERT OR REPLACE INTO configuracion (clave, valor) VALUES (?, ?)').run(k, String(v ?? ''));
+    if ('activo'    in data) set('reporte_email_activo',     data.activo);
+    if ('destino'   in data) set('reporte_email_destino',    data.destino);
+    if ('frecuencia'in data) set('reporte_email_frecuencia', data.frecuencia);
+    if ('hora'      in data) set('reporte_email_hora',       data.hora);
+    if ('diaSemana' in data) set('reporte_email_dia_semana', data.diaSemana);
+    if ('diaMes'    in data) set('reporte_email_dia_mes',    data.diaMes);
+    return true;
+  });
+
+  ipcMain.handle('reporteEmail:enviarPrueba', async (_e, emailDestino, frecuencia) => {
+    try {
+      await ReportMailer.generarYEnviarReporte(emailDestino, frecuencia || 'diario', getDb());
+      return { ok: true };
+    } catch (err) {
+      return { ok: false, error: err.message };
+    }
   });
 }
 

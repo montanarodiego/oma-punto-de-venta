@@ -195,6 +195,20 @@ contextBridge.exposeInMainWorld('api', {
     enviarReporte: (datos) => ipcRenderer.invoke('soporte:enviarReporte', datos),
   },
 
+  // Reportes automáticos por email
+  reporteEmail: {
+    getConfig:    ()                   => ipcRenderer.invoke('reporteEmail:getConfig'),
+    setConfig:    (data)               => ipcRenderer.invoke('reporteEmail:setConfig', data),
+    enviarPrueba: (email, frecuencia)  => ipcRenderer.invoke('reporteEmail:enviarPrueba', email, frecuencia),
+  },
+
+  // Impresora térmica
+  printer: {
+    listarImpresoras: ()                       => ipcRenderer.invoke('printer:listarImpresoras'),
+    imprimir:         (transaccionId, extra)   => ipcRenderer.invoke('printer:imprimir', transaccionId, extra),
+    imprimirPrueba:   (nombreImpresora)        => ipcRenderer.invoke('printer:imprimirPrueba', nombreImpresora),
+  },
+
   // Navegación (main process loadFile — funciona aunque location.href falle en Electron)
   navegar: (file) => ipcRenderer.invoke('navegar', file),
 

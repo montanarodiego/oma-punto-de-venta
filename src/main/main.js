@@ -7,6 +7,7 @@ const os   = require('os');
 const { initDatabase, getDb } = require('./database');
 const { registerHandlers }    = require('./ipc');
 const { hacerBackup }         = require('./backup');
+const ReportScheduler         = require('./report-scheduler');
 const { auth, firestore }     = require('./firebase');
 const { loginConEmail, reautenticarDesdeToken } = require('./auth');
 const {
@@ -323,6 +324,7 @@ app.whenReady().then(async () => {
   initDatabase();
   registerHandlers();
   registerAuthHandlers();
+  ReportScheduler.iniciar();
 
   ipcMain.handle('updater:get-pending', () => pendingUpdate || null);
 

@@ -259,6 +259,109 @@
 
         </div><!-- /backup+sync grid -->
 
+        <!-- Reportes automáticos por email -->
+        <div class="card" id="card-reporte-email">
+          <div class="card-header">Reportes automáticos por email</div>
+          <div class="card-body" style="display:flex;flex-direction:column;gap:14px;">
+            <div style="display:flex;align-items:center;justify-content:space-between;">
+              <div>
+                <div class="field-label">Enviar reportes automáticamente</div>
+                <span class="field-hint">Recibí un resumen de ventas por email según la frecuencia configurada</span>
+              </div>
+              <label class="toggle-switch">
+                <input type="checkbox" id="toggle-reporte-email" />
+                <span class="toggle-track"></span>
+              </label>
+            </div>
+
+            <div id="reporte-email-opciones" style="display:none;flex-direction:column;gap:14px;padding-top:14px;border-top:1px solid var(--border);">
+
+              <div class="field">
+                <label class="field-label">Email destino</label>
+                <input type="email" id="inp-reporte-destino" class="inp" placeholder="ejemplo@gmail.com" autocomplete="off" />
+                <span class="field-hint">La dirección que recibirá el reporte</span>
+              </div>
+
+              <div style="display:grid;grid-template-columns:1fr 1fr;gap:14px;">
+                <div class="field" style="margin:0;">
+                  <label class="field-label">Frecuencia</label>
+                  <select id="sel-reporte-frecuencia" class="inp">
+                    <option value="diario">Diario</option>
+                    <option value="semanal">Semanal</option>
+                    <option value="mensual">Mensual</option>
+                  </select>
+                </div>
+                <div class="field" style="margin:0;">
+                  <label class="field-label">Hora de envío</label>
+                  <input type="time" id="inp-reporte-hora" class="inp" value="08:00" />
+                </div>
+              </div>
+
+              <!-- Día condicional -->
+              <div id="reporte-dia-semana-wrap" style="display:none;">
+                <div class="field" style="margin:0;">
+                  <label class="field-label">Día de la semana</label>
+                  <select id="sel-reporte-dia-semana" class="inp" style="max-width:220px;">
+                    <option value="1">Lunes</option>
+                    <option value="2">Martes</option>
+                    <option value="3">Miércoles</option>
+                    <option value="4">Jueves</option>
+                    <option value="5">Viernes</option>
+                    <option value="6">Sábado</option>
+                    <option value="0">Domingo</option>
+                  </select>
+                </div>
+              </div>
+              <div id="reporte-dia-mes-wrap" style="display:none;">
+                <div class="field" style="margin:0;">
+                  <label class="field-label">Día del mes</label>
+                  <select id="sel-reporte-dia-mes" class="inp" style="max-width:220px;">
+                    <!-- generado por JS -->
+                  </select>
+                  <span class="field-hint">Si el mes tiene menos días, se usa el último día disponible</span>
+                </div>
+              </div>
+
+              <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;">
+                <button type="button" id="btn-reporte-prueba" class="btn btn-ghost">
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"/><polyline points="22,6 12,13 2,6"/></svg>
+                  Enviar reporte de prueba ahora
+                </button>
+                <span id="reporte-resultado" style="font-size:12px;color:var(--text-muted);"></span>
+              </div>
+
+              <div id="reporte-ultimo-envio" style="font-size:12px;color:var(--text-subtle);display:none;"></div>
+
+            </div>
+          </div>
+        </div>
+
+        <!-- Impresora térmica -->
+        <div class="card" id="card-impresora">
+          <div class="card-header">Impresora térmica</div>
+          <div class="card-body" style="display:flex;flex-direction:column;gap:14px;">
+            <p style="font-size:12px;color:var(--text-muted);">Compatible con ESC/POS: Epson TM, Star, Bixolon y genéricas chinas. Conectá la impresora antes de seleccionarla. Si no configurás ninguna, las ventas siguen funcionando normalmente.</p>
+            <div style="display:flex;align-items:flex-end;gap:10px;">
+              <div class="field" style="flex:1;margin:0;">
+                <label class="field-label">Impresora</label>
+                <select id="sel-impresora" class="inp">
+                  <option value="">Cargando impresoras...</option>
+                </select>
+              </div>
+              <button type="button" id="btn-recargar-impresoras" class="btn btn-ghost" style="flex-shrink:0;" title="Recargar lista de impresoras">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="1 4 1 10 7 10"/><path d="M3.51 15a9 9 0 1 0 .49-3"/></svg>
+              </button>
+            </div>
+            <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;">
+              <button type="button" id="btn-prueba-impresora" class="btn btn-ghost">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 6 2 18 2 18 9"/><path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2"/><rect x="6" y="14" width="12" height="8"/></svg>
+                Imprimir ticket de prueba
+              </button>
+              <span id="impresora-resultado" style="font-size:12px;color:var(--text-muted);"></span>
+            </div>
+          </div>
+        </div>
+
         <!-- Usuarios del sistema — solo admin -->
         <div class="card" id="card-usuarios" style="display:none;">
           <div class="card-header" style="display:flex;align-items:center;justify-content:space-between;">

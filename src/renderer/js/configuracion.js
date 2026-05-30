@@ -422,6 +422,207 @@ async function toggleUsuario(id) {
   cargarUsuarios();
 }
 
+// ── Reporte automático por email ──────────────────────────────
+function mostrarOpcionesReporte(visible) {
+  document.getElementById('reporte-email-opciones').style.display = visible ? 'flex' : 'none';
+}
+
+function actualizarVisibilidadDia(frecuencia) {
+  document.getElementById('reporte-dia-semana-wrap').style.display = frecuencia === 'semanal' ? '' : 'none';
+  document.getElementById('reporte-dia-mes-wrap').style.display    = frecuencia === 'mensual' ? '' : 'none';
+}
+
+async function cargarConfigReporte() {
+  let cfg;
+  try {
+    cfg = await window.api.reporteEmail.getConfig();
+  } catch (err) {
+    console.error('[reporte] error al cargar config:', err);
+    return;
+  }
+
+  const activo = cfg.activo === '1';
+  document.getElementById('toggle-reporte-email').checked = activo;
+  mostrarOpcionesReporte(activo);
+
+  document.getElementById('inp-reporte-destino').value    = cfg.destino    || '';
+  document.getElementById('sel-reporte-frecuencia').value = cfg.frecuencia || 'diario';
+  document.getElementById('inp-reporte-hora').value       = cfg.hora       || '08:00';
+  document.getElementById('sel-reporte-dia-semana').value = cfg.diaSemana  || '1';
+  const selMes = document.getElementById('sel-reporte-dia-mes');
+  if (selMes.options.length > 0) selMes.value = String(cfg.diaMes || '1');
+
+  actualizarVisibilidadDia(cfg.frecuencia || 'diario');
+
+  const ultimoEl = document.getElementById('reporte-ultimo-envio');
+  if (cfg.ultimoEnvio) {
+    const d = new Date(cfg.ultimoEnvio).toLocaleString('es-AR', {
+      day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit',
+    });
+    ultimoEl.textContent   = `Último reporte enviado: ${d}`;
+    ultimoEl.style.display = '';
+  } else {
+    ultimoEl.style.display = 'none';
+  }
+}
+
+async function guardarReporteConfig(data) {
+  try {
+    await window.api.reporteEmail.setConfig(data);
+  } catch (err) {
+    console.error('[reporte] error al guardar:', err);
+  }
+}
+
+document.addEventListener('DOMContentLoaded', () => {
+  // Generar opciones de días del mes (1-28, compatible con todos los meses)
+  const selDiaMes = document.getElementById('sel-reporte-dia-mes');
+  for (let d = 1; d <= 28; d++) {
+    const opt = document.createElement('option');
+    opt.value = String(d);
+    opt.textContent = `Día ${d}`;
+    selDiaMes.appendChild(opt);
+  }
+
+  cargarConfigReporte();
+
+  // Toggle — actualizar display INMEDIATAMENTE, luego guardar en background
+  document.getElementById('toggle-reporte-email').addEventListener('change', e => {
+    const on = e.target.checked;
+    mostrarOpcionesReporte(on);
+    guardarReporteConfig({ activo: on ? '1' : '0' });
+  });
+
+  // Email destino — guardar en blur
+  document.getElementById('inp-reporte-destino').addEventListener('blur', e => {
+    guardarReporteConfig({ destino: e.target.value.trim() });
+  });
+
+  // Frecuencia — mostrar/ocultar selector de día condicionalmente
+  document.getElementById('sel-reporte-frecuencia').addEventListener('change', e => {
+    actualizarVisibilidadDia(e.target.value);
+    guardarReporteConfig({ frecuencia: e.target.value });
+  });
+
+  // Hora
+  document.getElementById('inp-reporte-hora').addEventListener('change', e => {
+    guardarReporteConfig({ hora: e.target.value });
+  });
+
+  // Día de la semana
+  document.getElementById('sel-reporte-dia-semana').addEventListener('change', e => {
+    guardarReporteConfig({ diaSemana: e.target.value });
+  });
+
+  // Día del mes
+  document.getElementById('sel-reporte-dia-mes').addEventListener('change', e => {
+    guardarReporteConfig({ diaMes: e.target.value });
+  });
+
+  // Botón prueba
+  document.getElementById('btn-reporte-prueba').addEventListener('click', async () => {
+    const email = document.getElementById('inp-reporte-destino').value.trim();
+    const freq  = document.getElementById('sel-reporte-frecuencia').value;
+    const resEl = document.getElementById('reporte-resultado');
+    const btn   = document.getElementById('btn-reporte-prueba');
+
+    if (!email) {
+      resEl.textContent = 'Ingresá un email destino primero.';
+      resEl.style.color = 'var(--danger)';
+      setTimeout(() => { resEl.textContent = ''; resEl.style.color = ''; }, 4000);
+      return;
+    }
+
+    btn.disabled      = true;
+    resEl.textContent = 'Generando reporte...';
+    resEl.style.color = 'var(--text-muted)';
+
+    try {
+      const res = await window.api.reporteEmail.enviarPrueba(email, freq);
+      if (res.ok) {
+        resEl.textContent = `Reporte enviado a ${email}`;
+        resEl.style.color = '#4ade80';
+      } else {
+        resEl.textContent = 'Error: ' + (res.error || 'error desconocido');
+        resEl.style.color = 'var(--danger)';
+      }
+    } catch (err) {
+      resEl.textContent = 'Error: ' + err.message;
+      resEl.style.color = 'var(--danger)';
+    }
+
+    btn.disabled = false;
+    setTimeout(() => { resEl.textContent = ''; resEl.style.color = ''; }, 6000);
+  });
+});
+
+// ── Impresora térmica ──────────────────────────────────────────
+async function cargarImpresoras() {
+  const sel = document.getElementById('sel-impresora');
+  sel.disabled = true;
+  sel.innerHTML = '<option value="">Cargando...</option>';
+
+  const [impresoras, actual] = await Promise.all([
+    window.api.printer.listarImpresoras(),
+    window.api.config.get('impresora_nombre'),
+  ]);
+
+  sel.innerHTML = '<option value="">— Sin impresora —</option>';
+  for (const name of impresoras) {
+    const opt = document.createElement('option');
+    opt.value = name;
+    opt.textContent = name;
+    sel.appendChild(opt);
+  }
+  if (actual) sel.value = actual;
+  sel.disabled = false;
+}
+
+document.addEventListener('DOMContentLoaded', () => {
+  cargarImpresoras();
+
+  document.getElementById('sel-impresora').addEventListener('change', async e => {
+    await window.api.config.set('impresora_nombre', e.target.value);
+    document.getElementById('impresora-resultado').textContent = e.target.value
+      ? 'Impresora guardada.'
+      : 'Sin impresora configurada.';
+    setTimeout(() => { document.getElementById('impresora-resultado').textContent = ''; }, 3000);
+  });
+
+  document.getElementById('btn-recargar-impresoras').addEventListener('click', async () => {
+    document.getElementById('impresora-resultado').textContent = '';
+    await cargarImpresoras();
+  });
+
+  document.getElementById('btn-prueba-impresora').addEventListener('click', async () => {
+    const nombre = document.getElementById('sel-impresora').value;
+    const resEl  = document.getElementById('impresora-resultado');
+    if (!nombre) {
+      resEl.textContent = 'Seleccioná una impresora primero.';
+      resEl.style.color = 'var(--danger)';
+      setTimeout(() => { resEl.textContent = ''; resEl.style.color = ''; }, 3000);
+      return;
+    }
+    const btn = document.getElementById('btn-prueba-impresora');
+    btn.disabled = true;
+    resEl.textContent = 'Imprimiendo...';
+    resEl.style.color = 'var(--text-muted)';
+    const res = await window.api.printer.imprimirPrueba(nombre);
+    if (res.ok) {
+      resEl.textContent = 'Ticket de prueba enviado correctamente.';
+      resEl.style.color = '#4ade80';
+    } else if (res.noImpresora) {
+      resEl.textContent = 'Sin impresora configurada.';
+      resEl.style.color = 'var(--danger)';
+    } else {
+      resEl.textContent = 'Error: ' + (res.error || 'error desconocido');
+      resEl.style.color = 'var(--danger)';
+    }
+    btn.disabled = false;
+    setTimeout(() => { resEl.textContent = ''; resEl.style.color = ''; }, 5000);
+  });
+});
+
 async function guardarUsuario(e) {
   e.preventDefault();
   const errEl  = document.getElementById('u-error');
