@@ -16,6 +16,7 @@ const {
   verificarLicencia,
   guardarTokenLocal,
   verificarTokenLocal,
+  leerTokenRaw,
 } = require('./sync');
 const Turnos = require('./models/turnos');
 
@@ -403,6 +404,41 @@ app.whenReady().then(async () => {
       }}
     );
   });
+
+  // Startup offline-first: si hay token local válido, cablear negocioIdActivo
+  // y reautenticar en background antes de que la ventana haga su primera sync.
+  const tokenRaw = leerTokenRaw();
+  if (tokenRaw) {
+    negocioIdActivo = tokenRaw.negocioId;
+    iniciarSyncInterval();
+    (async () => {
+      await reautenticarDesdeToken(auth, tokenRaw);
+      if (!auth.currentUser) return; // sin internet: aceptar token local, sync cuando vuelva
+
+      // Sync inmediata al arrancar con conexión (no esperar 30 min del timer)
+      syncPendientes(getDb(), firestore, negocioIdActivo, auth).catch(() => {});
+
+      const lic = await verificarLicencia(firestore, negocioIdActivo);
+      // Solo cerrar si el admin suspendió la licencia explícitamente.
+      // razon 'error' o 'no_existe' = problema transitorio o de datos → no bloquear.
+      if (lic.razon === 'inactiva') {
+        BrowserWindow.getAllWindows().forEach(w => w.close());
+        dialog.showErrorBox('Licencia suspendida', 'Tu licencia fue suspendida. Contactate con OmaTech.');
+        app.quit();
+        return;
+      }
+      if (lic.activa) {
+        guardarTokenLocal({
+          ...tokenRaw,
+          activa:      true,
+          vencimiento: lic.vencimiento instanceof Date
+            ? lic.vencimiento.getTime()
+            : Date.now() + 30 * 24 * 60 * 60 * 1000,
+          timestamp:   Date.now(),
+        });
+      }
+    })();
+  }
 
   // auth-guard.js en cada vista redirige a login.html si no hay sesión local
   createWindow();

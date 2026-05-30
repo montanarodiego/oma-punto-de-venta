@@ -124,6 +124,17 @@ function verificarTokenLocal() {
   }
 }
 
+// Retorna el token completo (incluyendo credenciales cifradas) si es válido, null si no.
+// Usar cuando se necesita reautenticar: verificarTokenLocal() descarta las credenciales.
+function leerTokenRaw() {
+  try {
+    const data = JSON.parse(fs.readFileSync(tokenPath(), 'utf8'));
+    return (data?.negocioId && data.vencimiento > Date.now()) ? data : null;
+  } catch {
+    return null;
+  }
+}
+
 module.exports = {
   encriptar,
   desencriptar,
@@ -132,4 +143,5 @@ module.exports = {
   verificarLicencia,
   guardarTokenLocal,
   verificarTokenLocal,
+  leerTokenRaw,
 };
