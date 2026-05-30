@@ -353,8 +353,9 @@ app.whenReady().then(async () => {
       process.env.GH_TOKEN = '';
       const info     = await autoUpdater.checkForUpdates();
       const version  = info.updateInfo.version;
-      // Usar el nombre exacto del archivo según latest.yml (evita discrepancias de naming)
-      const fileName    = info.updateInfo.path;
+      // electron-builder genera el .exe con espacios: "OmaTech POS Setup X.Y.Z.exe"
+      // latest.yml usa guiones (bug de electron-builder); NO usar info.updateInfo.path
+      const fileName    = `OmaTech POS Setup ${version}.exe`;
       const downloadUrl = `https://github.com/montanarodiego/oma-punto-de-venta/releases/download/v${version}/${encodeURIComponent(fileName)}`;
       const destPath   = path.join(os.tmpdir(), fileName);
 
