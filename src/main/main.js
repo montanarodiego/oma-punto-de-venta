@@ -330,6 +330,7 @@ app.whenReady().then(async () => {
   ipcMain.handle('updater:get-pending', () => pendingUpdate || null);
 
   ipcMain.handle('updater:start-download', async () => {
+    if (!app.isPackaged) return; // no descargar en dev
     isDownloading = true;
     try {
       // Limpiar token antes de cualquier request a GitHub
@@ -489,8 +490,11 @@ app.whenReady().then(async () => {
     if (BrowserWindow.getAllWindows().length === 0) createWindow();
   });
 
-  process.env.GH_TOKEN = '';
-  autoUpdater.checkForUpdatesAndNotify();
+  // Auto-updater solo en producción; en dev checkForUpdates falla o cuelga
+  if (app.isPackaged) {
+    process.env.GH_TOKEN = '';
+    autoUpdater.checkForUpdatesAndNotify();
+  }
 });
 
 app.on('will-quit', () => {
