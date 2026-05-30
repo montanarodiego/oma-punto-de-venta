@@ -353,9 +353,8 @@ app.whenReady().then(async () => {
       process.env.GH_TOKEN = '';
       const info     = await autoUpdater.checkForUpdates();
       const version  = info.updateInfo.version;
-      // electron-builder genera el .exe con espacios: "OmaTech POS Setup X.Y.Z.exe"
-      // latest.yml usa guiones (bug de electron-builder); NO usar info.updateInfo.path
-      const fileName    = `OmaTech POS Setup ${version}.exe`;
+      // GitHub convierte espacios a puntos en los asset names — siempre usar puntos
+      const fileName    = `OmaTech.POS.Setup.${version}.exe`;
       const downloadUrl = `https://github.com/montanarodiego/oma-punto-de-venta/releases/download/v${version}/${encodeURIComponent(fileName)}`;
       const destPath   = path.join(os.tmpdir(), fileName);
 
