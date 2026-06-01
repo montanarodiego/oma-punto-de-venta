@@ -157,6 +157,7 @@
   if (window.api && window.api.getPendingUpdate) {
     window.api.getPendingUpdate().then(function (info) {
       if (!info) return;
+      console.log('[updater] pendingUpdate al cargar:', info.version);
       var vEl = document.getElementById('uss-version');
       if (vEl) vEl.textContent = 'Versión ' + info.version;
       showState('available');
@@ -165,12 +166,14 @@
 
   // ── Eventos IPC ─────────────────────────────────────────────────
   window.api.onUpdateAvailable(function (info) {
+    console.log('[updater] update-available:', info.version);
     var vEl = document.getElementById('uss-version');
     if (vEl) vEl.textContent = 'Versión ' + info.version;
     showState('available');
   });
 
   window.api.onUpdateProgress(function (data) {
+    console.log('[updater] progress:', data.percent + '%', Math.round(data.bytesPerSecond / 1024) + ' KB/s', data.transferred + '/' + data.total + ' bytes');
     showState('downloading');
     var bar  = document.getElementById('uss-bar');
     var pct  = document.getElementById('uss-percent');
@@ -182,10 +185,12 @@
   });
 
   window.api.onUpdateDownloaded(function () {
+    console.log('[updater] download complete — listo para instalar');
     showState('ready');
   });
 
   window.api.onUpdateError(function (msg) {
+    console.error('[updater] error:', msg);
     var el = document.getElementById('uss-error-msg');
     if (el) el.textContent = msg || 'Error desconocido';
     showState('error');
@@ -195,6 +200,7 @@
   document.addEventListener('click', function (e) {
     switch (e.target.id) {
       case 'uss-btn-download':
+        console.log('[updater] iniciando descarga...');
         showState('downloading');
         window.api.startDownload();
         break;

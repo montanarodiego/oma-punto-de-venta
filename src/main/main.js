@@ -1,9 +1,7 @@
 require('dotenv').config();
-const { app, BrowserWindow, Menu, ipcMain, dialog, globalShortcut, net, shell } = require('electron');
+const { app, BrowserWindow, Menu, ipcMain, dialog, globalShortcut } = require('electron');
 const { autoUpdater } = require('electron-updater');
 const path = require('path');
-const fs   = require('fs');
-const os   = require('os');
 const { initDatabase, getDb } = require('./database');
 const { registerHandlers }    = require('./ipc');
 const { hacerBackup }         = require('./backup');
@@ -264,77 +262,36 @@ autoUpdater.on('update-available', (info) => {
 autoUpdater.on('update-not-available', () => { /* silencioso */ });
 
 autoUpdater.on('error', (err) => {
-  log.error('autoUpdater error:', err.message);
+  log.error('[updater] error:', err.message);
   if (mainWindow && !mainWindow.isDestroyed()) {
     mainWindow.webContents.send('update-error', err.message);
   }
 });
 
-// ── Descarga manual vía net.request (bypass del mecanismo interno) ──
-function downloadFile(url, dest, onProgress, timeoutMs = 90000) {
-  return new Promise((resolve, reject) => {
-    const file    = fs.createWriteStream(dest);
-    let received  = 0;
-    let total     = 0;
-    let startTime = Date.now();
-    let activeReq = null;
-    let settled   = false;
+autoUpdater.on('download-progress', (progressInfo) => {
+  log.info(
+    `[updater] download-progress: ${Math.round(progressInfo.percent)}%` +
+    ` @ ${Math.round(progressInfo.bytesPerSecond / 1024)} KB/s` +
+    ` — ${progressInfo.transferred}/${progressInfo.total} bytes`
+  );
+  if (mainWindow && !mainWindow.isDestroyed()) {
+    mainWindow.webContents.send('update-progress', {
+      percent:        Math.round(progressInfo.percent),
+      bytesPerSecond: Math.round(progressInfo.bytesPerSecond),
+      transferred:    progressInfo.transferred,
+      total:          progressInfo.total,
+    });
+  }
+});
 
-    const timer = setTimeout(() => {
-      if (settled) return;
-      settled = true;
-      try { if (activeReq) activeReq.abort(); } catch { /* ignorado */ }
-      file.close();
-      reject(new Error('Tiempo de descarga agotado (90 s)'));
-    }, timeoutMs);
-
-    function finish(err) {
-      if (settled) return;
-      settled = true;
-      clearTimeout(timer);
-      if (err) { file.close(); reject(err); } else { file.end(); resolve(); }
-    }
-
-    function doRequest(targetUrl) {
-      const request = net.request({ url: targetUrl, redirect: 'follow' });
-      activeReq = request;
-
-      request.on('response', (response) => {
-        if (response.statusCode === 301 || response.statusCode === 302) {
-          const location = Array.isArray(response.headers.location)
-            ? response.headers.location[0]
-            : response.headers.location;
-          if (!location) return finish(new Error('Redirect sin Location header'));
-          return doRequest(location);
-        }
-
-        if (response.statusCode !== 200) {
-          return finish(new Error(`HTTP ${response.statusCode} al descargar actualización`));
-        }
-
-        const cl = response.headers['content-length'];
-        total = parseInt(Array.isArray(cl) ? cl[0] : cl || '0', 10);
-
-        response.on('data', (chunk) => {
-          file.write(chunk);
-          received += chunk.length;
-          const elapsed        = (Date.now() - startTime) / 1000 || 0.001;
-          const bytesPerSecond = received / elapsed;
-          const percent        = total > 0 ? (received / total) * 100 : 0;
-          onProgress(percent, bytesPerSecond);
-        });
-
-        response.on('end',   () => finish(null));
-        response.on('error', (err) => finish(err));
-      });
-
-      request.on('error', (err) => finish(err));
-      request.end();
-    }
-
-    doRequest(url);
-  });
-}
+autoUpdater.on('update-downloaded', (info) => {
+  isDownloading = false;
+  pendingUpdate  = null;
+  log.info('[updater] update-downloaded: v' + info.version);
+  if (mainWindow && !mainWindow.isDestroyed()) {
+    mainWindow.webContents.send('update-downloaded');
+  }
+});
 
 // ── Inicio ─────────────────────────────────────────────────────
 app.whenReady().then(async () => {
@@ -346,42 +303,23 @@ app.whenReady().then(async () => {
   ipcMain.handle('updater:get-pending', () => pendingUpdate || null);
 
   ipcMain.handle('updater:start-download', async () => {
-    if (!app.isPackaged) return; // no descargar en dev
+    if (!app.isPackaged) {
+      log.info('[updater] start-download ignorado en dev (app no empaquetada)');
+      return;
+    }
+    if (isDownloading) {
+      log.info('[updater] start-download ignorado — descarga ya en curso');
+      return;
+    }
     isDownloading = true;
+    log.info('[updater] iniciando descarga con autoUpdater.downloadUpdate()...');
     try {
-      // Limpiar token antes de cualquier request a GitHub
-      process.env.GH_TOKEN = '';
-      const info     = await autoUpdater.checkForUpdates();
-      const version  = info.updateInfo.version;
-      // GitHub convierte espacios a puntos en los asset names — siempre usar puntos
-      const fileName    = `OmaTech.POS.Setup.${version}.exe`;
-      const downloadUrl = `https://github.com/montanarodiego/oma-punto-de-venta/releases/download/v${version}/${encodeURIComponent(fileName)}`;
-      const destPath   = path.join(os.tmpdir(), fileName);
-
-      log.info(`Descargando desde: ${downloadUrl}`);
-      log.info(`Destino: ${destPath}`);
-
-      await downloadFile(downloadUrl, destPath, (percent, bytesPerSecond) => {
-        if (mainWindow && !mainWindow.isDestroyed()) {
-          mainWindow.webContents.send('update-progress', {
-            percent:        Math.round(percent),
-            bytesPerSecond: Math.round(bytesPerSecond),
-            transferred:    0,
-            total:          0,
-          });
-        }
-      });
-
-      isDownloading = false;
-      log.info('Descarga completada:', destPath);
-      global.updateInstallerPath = destPath;
-      pendingUpdate = null;
-      if (mainWindow && !mainWindow.isDestroyed()) {
-        mainWindow.webContents.send('update-downloaded');
-      }
+      await autoUpdater.downloadUpdate();
+      // El evento update-downloaded ya disparó y manejó isDownloading + IPC al renderer
+      log.info('[updater] downloadUpdate() resolvió correctamente');
     } catch (err) {
       isDownloading = false;
-      log.error('Error en descarga manual:', err.message);
+      log.error('[updater] error en descarga:', err.message);
       if (mainWindow && !mainWindow.isDestroyed()) {
         mainWindow.webContents.send('update-error', err.message);
       }
@@ -389,12 +327,9 @@ app.whenReady().then(async () => {
   });
 
   ipcMain.handle('updater:install', () => {
-    if (global.updateInstallerPath && fs.existsSync(global.updateInstallerPath)) {
-      shell.openPath(global.updateInstallerPath).then(() => {
-        forceClose = true;
-        app.quit();
-      });
-    }
+    log.info('[updater] instalando con autoUpdater.quitAndInstall()');
+    forceClose = true;
+    autoUpdater.quitAndInstall(false, true);
   });
 
   ipcMain.handle('caja:abrirComprobante', (_e, { transaccionId, montoRecibido, vuelto, propina }) => {

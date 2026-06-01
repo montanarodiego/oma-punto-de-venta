@@ -58,6 +58,9 @@ let clientesCobroLista = [];
 // ── Promo cache ─────────────────────────────────────────────────
 const promoCache = new Map();
 
+// ── Dropdown keyboard bindings — registrado una sola vez ─────────
+let _dropdownKeyboardBound = false;
+
 // ── Anular modal state ──────────────────────────────────────────
 let anularTransaccionSeleccionada = null;
 let anularPasoActual              = 1;
@@ -128,6 +131,34 @@ function inicializarCaja() {
   restaurarEstadoUI();
   bindearEventos();
   recuperarFocoCodigo();
+
+  // Registrar navegación de teclado en dropdowns de autocomplete del modal cobro.
+  // Se hace aquí (dentro de DOMContentLoaded / inicializarCaja) y no al top-level
+  // para garantizar que dropdown-keyboard.js ya ejecutó sin importar el order de
+  // carga que el browser haya elegido.
+  if (!_dropdownKeyboardBound && typeof window.bindDropdownKeyboard === 'function') {
+    _dropdownKeyboardBound = true;
+    window.bindDropdownKeyboard({
+      inputEl:    elCobrobuscCliente,
+      dropdownEl: elCobroResCliente,
+      optSel:     '[data-cli-id]',
+      onSelect:   item => {
+        const cl = clientesCobroLista.find(c => c.id === parseInt(item.dataset.cliId, 10));
+        if (cl) seleccionarClienteCobro(cl);
+      },
+      onClose: () => { elCobroResCliente.style.display = 'none'; },
+    });
+    window.bindDropdownKeyboard({
+      inputEl:   document.getElementById('mixto-buscar-cliente'),
+      dropdownId:'mixto-resultados-cliente',
+      optSel:    '[data-mixto-cli-id]',
+      onSelect:  item => {
+        const cl = mixtoClientesLista.find(c => c.id === parseInt(item.dataset.mixtoCliId, 10));
+        if (cl) seleccionarClienteMixto(cl);
+      },
+      onClose: () => { document.getElementById('mixto-resultados-cliente').style.display = 'none'; },
+    });
+  }
 }
 
 function recuperarFocoCodigo() {
@@ -1863,27 +1894,6 @@ function seleccionarClienteMixto(cl) {
   document.getElementById('mixto-resultados-cliente').style.display = 'none';
 }
 
-// ── Navegación por teclado en dropdowns de autocomplete ────────
-window.bindDropdownKeyboard({
-  inputEl:    elCobrobuscCliente,
-  dropdownEl: elCobroResCliente,
-  optSel:     '[data-cli-id]',
-  onSelect:   item => {
-    const cl = clientesCobroLista.find(c => c.id === parseInt(item.dataset.cliId, 10));
-    if (cl) seleccionarClienteCobro(cl);
-  },
-  onClose: () => { elCobroResCliente.style.display = 'none'; },
-});
-window.bindDropdownKeyboard({
-  inputEl:   document.getElementById('mixto-buscar-cliente'),
-  dropdownId:'mixto-resultados-cliente',
-  optSel:    '[data-mixto-cli-id]',
-  onSelect:  item => {
-    const cl = mixtoClientesLista.find(c => c.id === parseInt(item.dataset.mixtoCliId, 10));
-    if (cl) seleccionarClienteMixto(cl);
-  },
-  onClose: () => { document.getElementById('mixto-resultados-cliente').style.display = 'none'; },
-});
 
 document.getElementById('mixto-btn-quitar-cliente').addEventListener('click', () => {
   mixtoClienteSelec = null;
