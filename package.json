@@ -37,7 +37,8 @@
     },
     "win": {
       "target": "nsis",
-      "icon": "assets/icon.ico"
+      "icon": "assets/icon.ico",
+      "artifactName": "OmaTech.POS.Setup.${version}.exe"
     },
     "nsis": {
       "oneClick": false,
