@@ -83,6 +83,53 @@
   sep.className = 'nav-sep';
   nav.appendChild(sep);
 
+  // Botón toggle de tema (luna = oscuro activo / sol = claro activo)
+  var ICON_LUNA = '<svg viewBox="0 0 24 24"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/></svg>';
+  var ICON_SOL  = '<svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="5"/>' +
+    '<line x1="12" y1="1" x2="12" y2="3"/><line x1="12" y1="21" x2="12" y2="23"/>' +
+    '<line x1="4.22" y1="4.22" x2="5.64" y2="5.64"/><line x1="18.36" y1="18.36" x2="19.78" y2="19.78"/>' +
+    '<line x1="1" y1="12" x2="3" y2="12"/><line x1="21" y1="12" x2="23" y2="12"/>' +
+    '<line x1="4.22" y1="19.78" x2="5.64" y2="18.36"/><line x1="18.36" y1="5.64" x2="19.78" y2="4.22"/></svg>';
+
+  var _temaActual = localStorage.getItem('oma_theme') || 'dark';
+
+  var btnTema = document.createElement('button');
+  btnTema.id    = 'btn-nav-tema';
+  btnTema.className = 'btn-nav-tema';
+  btnTema.title = _temaActual === 'dark' ? 'Cambiar a tema claro' : 'Cambiar a tema oscuro';
+  btnTema.innerHTML = _temaActual === 'dark' ? ICON_LUNA : ICON_SOL;
+
+  btnTema.addEventListener('click', function () {
+    var esClaro   = document.documentElement.classList.contains('theme-light');
+    var nuevoTema = esClaro ? 'dark' : 'light';
+
+    document.documentElement.classList.remove('theme-light');
+    if (nuevoTema === 'light') document.documentElement.classList.add('theme-light');
+
+    localStorage.setItem('oma_theme', nuevoTema);
+    btnTema.innerHTML = nuevoTema === 'dark' ? ICON_LUNA : ICON_SOL;
+    btnTema.title     = nuevoTema === 'dark' ? 'Cambiar a tema claro' : 'Cambiar a tema oscuro';
+
+    if (window.api && window.api.config) {
+      window.api.config.set('tema_ui', nuevoTema).catch(function () {});
+    }
+  });
+
+  nav.appendChild(btnTema);
+
+  // Sincronizar tema con SQLite al cargar (cubre reinstalaciones o limpieza de localStorage)
+  if (window.api && window.api.config) {
+    window.api.config.get('tema_ui').then(function (val) {
+      if (!val || val === localStorage.getItem('oma_theme')) return;
+      var tema = val === 'light' ? 'light' : 'dark';
+      localStorage.setItem('oma_theme', tema);
+      document.documentElement.classList.remove('theme-light');
+      if (tema === 'light') document.documentElement.classList.add('theme-light');
+      btnTema.innerHTML = tema === 'dark' ? ICON_LUNA : ICON_SOL;
+      btnTema.title     = tema === 'dark' ? 'Cambiar a tema claro' : 'Cambiar a tema oscuro';
+    }).catch(function () {});
+  }
+
   // Chip de usuario
   var userChip = document.createElement('div');
   userChip.className = 'nav-user';

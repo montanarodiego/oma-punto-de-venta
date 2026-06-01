@@ -1109,3 +1109,72 @@ html.hud-gigante  { font-size: 21px; }
 #total      { font-size: 2rem; }
 .pago-btn   { min-height: 3rem; }
 #btn-cobrar { min-height: 3.5rem; }
+
+/* ── Tema claro ────────────────────────────────────────────────── */
+html.theme-light {
+  --bg:        #f1f5f9;
+  --surface:   #ffffff;
+  --surface-2: #f8fafc;
+  --surface-3: #e2e8f0;
+  --border:    #e2e8f0;
+  --border-sub:#f1f5f9;
+
+  --text:        #0f172a;
+  --text-muted:  #475569;
+  --text-subtle: #94a3b8;
+
+  --shadow:    0 1px 3px rgba(0,0,0,.06), 0 1px 2px rgba(0,0,0,.04);
+  --shadow-lg: 0 10px 30px rgba(0,0,0,.1), 0 4px 10px rgba(0,0,0,.06);
+  --shadow-sm: 0 1px 2px rgba(0,0,0,.04);
+  --shadow-md: 0 4px 12px rgba(0,0,0,.08);
+  --shadow-glow: 0 0 0 3px rgba(59,130,246,.18);
+
+  --surface-1:      rgba(0,0,0,.02);
+  --border-subtle:  rgba(0,0,0,.05);
+  --border-default: rgba(0,0,0,.09);
+}
+
+/* Nav shadow más suave en tema claro */
+html.theme-light #app-nav {
+  box-shadow: 0 1px 4px rgba(0,0,0,.08);
+}
+
+/* Hover de filas en tablas — el rgba oscuro se vería muy oscuro en claro */
+html.theme-light .carrito-tabla tbody tr:hover {
+  background: rgba(15,23,42,.04);
+}
+html.theme-light .carrito-tabla tbody tr.selected {
+  background: rgba(59,130,246,.1);
+}
+html.theme-light .trans-row:hover {
+  background: rgba(15,23,42,.04);
+}
+
+/* ── Botón toggle de tema en el nav ────────────────────────────── */
+.btn-nav-tema {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 34px;
+  height: 34px;
+  padding: 0;
+  border-radius: var(--r);
+  border: 1.5px solid var(--border);
+  background: transparent;
+  color: var(--text-muted);
+  cursor: pointer;
+  flex-shrink: 0;
+  transition: color 150ms ease, border-color 150ms ease, background 150ms ease;
+  margin-left: 4px;
+}
+.btn-nav-tema svg {
+  width: 15px; height: 15px;
+  stroke: currentColor; fill: none;
+  stroke-width: 2; stroke-linecap: round; stroke-linejoin: round;
+  pointer-events: none;
+}
+.btn-nav-tema:hover {
+  color: var(--accent);
+  border-color: rgba(59,130,246,.35);
+  background: rgba(59,130,246,.07);
+}

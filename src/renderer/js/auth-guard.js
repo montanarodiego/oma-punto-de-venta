@@ -31,6 +31,11 @@
   var _hud = localStorage.getItem('oma_hud') || 'normal';
   document.documentElement.classList.add('hud-' + _hud);
 
+  // Tema inmediato (evita flash al navegar)
+  if (localStorage.getItem('oma_theme') === 'light') {
+    document.documentElement.classList.add('theme-light');
+  }
+
   /* ── 2. TURNO_GUARD_PROMISE ────────────────────────────────────── */
   // Se crea de forma síncrona aquí; caja.js (y otras vistas) la awaitan
   // en su propio DOMContentLoaded para obtener el turno activo sin llamar
