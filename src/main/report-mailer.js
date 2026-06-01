@@ -1,6 +1,7 @@
 'use strict';
 const nodemailer   = require('nodemailer');
 const Informes     = require('./models/informes');
+const credentials  = require('./credentials');
 
 // ── Helpers ──────────────────────────────────────────────────────
 function esc(s) {
@@ -264,8 +265,8 @@ function generarHTML(datos, cfg) {
 async function generarYEnviarReporte(emailDestino, frecuencia, db) {
   const getCfg = (k, def = '') => db.prepare('SELECT valor FROM configuracion WHERE clave = ?').get(k)?.valor ?? def;
 
-  const remitente = process.env.GMAIL_USER;
-  const password  = process.env.GMAIL_APP_PASSWORD;
+  const remitente = credentials.GMAIL_USER;
+  const password  = credentials.GMAIL_APP_PASSWORD;
 
   if (!remitente || !password) {
     throw new Error('Las credenciales de envío no están configuradas. Contactá al soporte de OmaTech.');
