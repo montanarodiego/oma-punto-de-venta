@@ -76,7 +76,13 @@
       "Bash(findstr /i \"log\")",
       "Bash(dir \"%APPDATA%\\\\oma-punto-de-venta\" /b)",
       "Bash(git fetch *)",
-      "Bash(git clone *)"
+      "Bash(git clone *)",
+      "Bash(awk \"NR>=1 && NR<=5\" src/renderer/js/catalogo.js)",
+      "Bash(awk \"NR>=1 && NR<=5\" src/renderer/js/inventario.js)",
+      "Bash(awk \"NR>=1 && NR<=5\" src/renderer/js/proveedores.js)",
+      "Bash(python -c \"import sys,json; b=json.load\\(sys.stdin\\)['build']; print\\('artifactName nsis:', b.get\\('nsis',{}\\).get\\('artifactName','NO CONFIGURADO'\\)\\); print\\('artifactName raiz:', b.get\\('artifactName','NO CONFIGURADO'\\)\\)\")",
+      "Bash(curl -sI \"https://github.com/montanarodiego/oma-punto-de-venta/releases/download/v1.8.2/OmaTech%20POS%20Setup%201.8.2.exe\")",
+      "Bash(gh api *)"
     ]
   }
 }
