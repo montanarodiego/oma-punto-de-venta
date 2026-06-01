@@ -33,4 +33,29 @@ async function enviarReporte({ tipo, modulo, descripcion, nombre, version, negoc
   });
 }
 
-module.exports = { enviarReporte };
+async function enviarCodigoReset({ email, nombre, codigo }) {
+  await transporter.sendMail({
+    from:    'OmaTech POS <oma.technologies.venta@gmail.com>',
+    to:      email,
+    subject: 'Código de recuperación — OmaTech POS',
+    html: `
+      <div style="font-family:sans-serif;max-width:480px;margin:0 auto;background:#f8fafc;border-radius:12px;padding:32px;">
+        <div style="text-align:center;margin-bottom:24px;">
+          <div style="font-size:22px;font-weight:800;color:#2563eb;letter-spacing:-.5px;">OmaTech POS</div>
+          <div style="font-size:13px;color:#6b7280;margin-top:4px;">Recuperación de contraseña</div>
+        </div>
+        <p style="color:#374151;font-size:14px;margin:0 0 10px;">Hola <strong>${nombre}</strong>,</p>
+        <p style="color:#374151;font-size:14px;margin:0 0 20px;">Tu código de verificación es:</p>
+        <div style="background:#1e3a8a;border-radius:12px;padding:24px;text-align:center;margin-bottom:20px;">
+          <span style="font-size:40px;font-weight:900;color:#fff;letter-spacing:12px;font-family:monospace;">${codigo}</span>
+        </div>
+        <p style="color:#6b7280;font-size:13px;margin:0 0 6px;">Este código vence en <strong>15 minutos</strong>.</p>
+        <p style="color:#9ca3af;font-size:12px;margin:0;">Si no solicitaste el cambio, ignorá este mensaje.</p>
+        <hr style="border:none;border-top:1px solid #e5e7eb;margin:24px 0 12px;" />
+        <p style="color:#9ca3af;font-size:11px;text-align:center;margin:0;">OmaTech POS — Sistema de Punto de Venta</p>
+      </div>
+    `,
+  });
+}
+
+module.exports = { enviarReporte, enviarCodigoReset };

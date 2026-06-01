@@ -19,21 +19,33 @@ function listar() {
 function crear(data) {
   const db   = getDb();
   const hash  = bcrypt.hashSync(data.password, 10);
+  const email = data.email ? data.email.trim().toLowerCase() : null;
   const res   = db.prepare(
-    'INSERT INTO usuarios (nombre, usuario, password_hash, rol, activo) VALUES (?, ?, ?, ?, 1)'
-  ).run(data.nombre.trim(), data.usuario.trim(), hash, data.rol);
+    'INSERT INTO usuarios (nombre, usuario, password_hash, rol, activo, email) VALUES (?, ?, ?, ?, 1, ?)'
+  ).run(data.nombre.trim(), data.usuario.trim(), hash, data.rol, email);
   return res.lastInsertRowid;
 }
 
 function actualizar(id, data) {
-  const db = getDb();
+  const db    = getDb();
+  const email = data.email !== undefined ? (data.email ? data.email.trim().toLowerCase() : null) : undefined;
   if (data.password) {
     const hash = bcrypt.hashSync(data.password, 10);
-    db.prepare('UPDATE usuarios SET nombre = ?, usuario = ?, password_hash = ?, rol = ? WHERE id = ?')
-      .run(data.nombre.trim(), data.usuario.trim(), hash, data.rol, id);
+    if (email !== undefined) {
+      db.prepare('UPDATE usuarios SET nombre = ?, usuario = ?, password_hash = ?, rol = ?, email = ? WHERE id = ?')
+        .run(data.nombre.trim(), data.usuario.trim(), hash, data.rol, email, id);
+    } else {
+      db.prepare('UPDATE usuarios SET nombre = ?, usuario = ?, password_hash = ?, rol = ? WHERE id = ?')
+        .run(data.nombre.trim(), data.usuario.trim(), hash, data.rol, id);
+    }
   } else {
-    db.prepare('UPDATE usuarios SET nombre = ?, usuario = ?, rol = ? WHERE id = ?')
-      .run(data.nombre.trim(), data.usuario.trim(), data.rol, id);
+    if (email !== undefined) {
+      db.prepare('UPDATE usuarios SET nombre = ?, usuario = ?, rol = ?, email = ? WHERE id = ?')
+        .run(data.nombre.trim(), data.usuario.trim(), data.rol, email, id);
+    } else {
+      db.prepare('UPDATE usuarios SET nombre = ?, usuario = ?, rol = ? WHERE id = ?')
+        .run(data.nombre.trim(), data.usuario.trim(), data.rol, id);
+    }
   }
 }
 

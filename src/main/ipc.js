@@ -3,7 +3,8 @@ const path           = require('path');
 const fs             = require('fs');
 const os             = require('os');
 const { version }    = require('../../package.json');
-const { enviarReporte } = require('./mailer');
+const { enviarReporte, enviarCodigoReset } = require('./mailer');
+const PasswordReset  = require('./models/password-reset');
 const Usuarios       = require('./models/usuarios');
 const Articulos      = require('./models/articulos');
 const Transacciones  = require('./models/transacciones');
@@ -264,6 +265,38 @@ function registerHandlers() {
   });
 
   // ── Usuarios ───────────────────────────────────────────────
+  // ── Recuperación de contraseña ────────────────────────────────
+  ipcMain.handle('auth:solicitarReset', async (_e, email) => {
+    try {
+      const usuario = PasswordReset.buscarPorEmail(email);
+      if (usuario && usuario.email) {
+        const codigo = PasswordReset.crearToken(usuario.id);
+        await enviarCodigoReset({ email: usuario.email, nombre: usuario.nombre, codigo });
+      }
+      // Siempre devuelve ok: true para no revelar si el email existe
+      return { ok: true };
+    } catch (err) {
+      return { ok: false, error: err.message };
+    }
+  });
+
+  ipcMain.handle('auth:verificarCodigo', (_e, email, codigo) => {
+    try {
+      return { ok: PasswordReset.verificarToken(email, codigo) };
+    } catch (err) {
+      return { ok: false, error: err.message };
+    }
+  });
+
+  ipcMain.handle('auth:resetearPassword', (_e, email, codigo, nuevaPassword) => {
+    try {
+      const ok = PasswordReset.consumirToken(email, codigo, nuevaPassword);
+      return { ok };
+    } catch (err) {
+      return { ok: false, error: err.message };
+    }
+  });
+
   ipcMain.handle('usuarios:login', (_e, usuario, password) => {
     try {
       const user = Usuarios.login(usuario, password);

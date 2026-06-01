@@ -178,8 +178,11 @@ contextBridge.exposeInMainWorld('api', {
 
   // Autenticación / licencia
   auth: {
-    login:      (email, password) => ipcRenderer.invoke('auth:login', email, password),
-    setSession: (session)         => ipcRenderer.invoke('auth:setSession', session),
+    login:            (email, password)          => ipcRenderer.invoke('auth:login', email, password),
+    setSession:       (session)                  => ipcRenderer.invoke('auth:setSession', session),
+    solicitarReset:   (email)                    => ipcRenderer.invoke('auth:solicitarReset', email),
+    verificarCodigo:  (email, codigo)            => ipcRenderer.invoke('auth:verificarCodigo', email, codigo),
+    resetearPassword: (email, codigo, password)  => ipcRenderer.invoke('auth:resetearPassword', email, codigo, password),
   },
 
   // Inventario

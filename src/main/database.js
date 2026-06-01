@@ -517,6 +517,26 @@ function runMigrations(db) {
     )
   `);
 
+  // ── Feature: email en usuarios (para recuperación de contraseña) ─
+  {
+    const cols = db.prepare('PRAGMA table_info(usuarios)').all();
+    if (!cols.some(c => c.name === 'email')) {
+      db.exec('ALTER TABLE usuarios ADD COLUMN email TEXT');
+    }
+  }
+
+  // ── Feature: tokens de recuperación de contraseña ─────────────
+  db.exec(`
+    CREATE TABLE IF NOT EXISTS password_reset_tokens (
+      id         INTEGER PRIMARY KEY AUTOINCREMENT,
+      usuario_id INTEGER NOT NULL REFERENCES usuarios(id),
+      codigo     TEXT    NOT NULL,
+      expires_at INTEGER NOT NULL,
+      usado      INTEGER NOT NULL DEFAULT 0,
+      created_at TEXT    NOT NULL DEFAULT (datetime('now'))
+    )
+  `);
+
   // ── Índices para performance ──────────────────────────────────
   db.exec(`
     CREATE INDEX IF NOT EXISTS idx_articulos_codigo      ON articulos(codigo);

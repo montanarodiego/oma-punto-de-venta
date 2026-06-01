@@ -398,6 +398,7 @@ function abrirModalUsuario(id, datos) {
   document.getElementById('modal-usuario-titulo').textContent = id ? 'Editar usuario' : 'Nuevo usuario';
   document.getElementById('u-nombre').value   = datos?.nombre   || '';
   document.getElementById('u-usuario').value  = datos?.usuario  || '';
+  document.getElementById('u-email').value    = datos?.email    || '';
   document.getElementById('u-password').value = '';
   document.getElementById('u-password').placeholder = id ? 'Dejar vacío para no cambiar' : '••••••••';
   document.getElementById('u-rol').value      = datos?.rol || 'cajero';
@@ -630,6 +631,7 @@ async function guardarUsuario(e) {
 
   const nombre   = document.getElementById('u-nombre').value.trim();
   const usuario  = document.getElementById('u-usuario').value.trim();
+  const email    = document.getElementById('u-email').value.trim() || null;
   const password = document.getElementById('u-password').value;
   const rol      = document.getElementById('u-rol').value;
 
@@ -649,9 +651,9 @@ async function guardarUsuario(e) {
 
   try {
     if (editandoUsuarioId) {
-      await window.api.usuarios.actualizar(editandoUsuarioId, { nombre, usuario, password: password || undefined, rol });
+      await window.api.usuarios.actualizar(editandoUsuarioId, { nombre, usuario, email, password: password || undefined, rol });
     } else {
-      await window.api.usuarios.crear({ nombre, usuario, password, rol });
+      await window.api.usuarios.crear({ nombre, usuario, email, password, rol });
     }
     cerrarModalUsuario();
     cargarUsuarios();

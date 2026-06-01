@@ -329,7 +329,7 @@ app.whenReady().then(async () => {
   ipcMain.handle('updater:install', () => {
     log.info('[updater] instalando con autoUpdater.quitAndInstall()');
     forceClose = true;
-    autoUpdater.quitAndInstall(false, true);
+    autoUpdater.quitAndInstall(true, true);
   });
 
   ipcMain.handle('caja:abrirComprobante', (_e, { transaccionId, montoRecibido, vuelto, propina }) => {

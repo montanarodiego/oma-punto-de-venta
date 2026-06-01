@@ -165,6 +165,83 @@
       box-shadow: none;
     }
     .btn-login:disabled { opacity: .5; cursor: not-allowed; }
+
+    /* Link olvidé contraseña */
+    .link-forgot {
+      display: block;
+      text-align: center;
+      font-size: 12px;
+      color: #475569;
+      margin-top: 2px;
+      cursor: pointer;
+      background: none;
+      border: none;
+      font-family: inherit;
+      text-decoration: underline;
+      text-underline-offset: 3px;
+      transition: color 150ms;
+      padding: 0;
+    }
+    .link-forgot:hover { color: #94a3b8; }
+
+    /* Botón secundario (volver) */
+    .btn-back {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      background: none;
+      border: none;
+      color: #475569;
+      font-size: 12px;
+      cursor: pointer;
+      font-family: inherit;
+      padding: 0;
+      margin-bottom: -12px;
+    }
+    .btn-back:hover { color: #94a3b8; }
+
+    /* Input de código */
+    .code-input {
+      width: 100%;
+      background: rgba(15,23,42,.55);
+      border: 1px solid rgba(255,255,255,.1);
+      border-radius: 12px;
+      color: #f1f5f9;
+      padding: 14px;
+      font-size: 28px;
+      font-family: monospace;
+      font-weight: 700;
+      letter-spacing: 14px;
+      text-align: center;
+      outline: none;
+      transition: border-color 150ms ease, box-shadow 150ms ease;
+    }
+    .code-input:focus {
+      border-color: #3b82f6;
+      box-shadow: 0 0 0 3px rgba(59,130,246,.16);
+    }
+    .code-input::placeholder { color: #334155; letter-spacing: 10px; }
+
+    /* Hint de expiración */
+    .reset-hint {
+      font-size: 12px;
+      color: #475569;
+      text-align: center;
+      line-height: 1.5;
+    }
+
+    /* Mensaje OK (contraseña cambiada) */
+    #reset-ok-msg {
+      padding: 10px 14px;
+      border-radius: 10px;
+      font-size: 13px;
+      background: rgba(34,197,94,.1);
+      border: 1px solid rgba(34,197,94,.25);
+      color: #86efac;
+      line-height: 1.45;
+      margin-top: -8px;
+    }
+
     .btn-login::after {
       content: '';
       position: absolute;
@@ -188,27 +265,124 @@
       <div class="login-sub">Ingresá con tu cuenta</div>
     </div>
 
-    <form id="form-login" style="display:flex;flex-direction:column;gap:16px;" novalidate>
+    <!-- ── Panel: Login ──────────────────────────────────── -->
+    <div id="panel-login">
+      <form id="form-login" style="display:flex;flex-direction:column;gap:16px;" novalidate>
 
-      <div class="float-field">
-        <input id="usuario" type="text" autocomplete="username"
-               placeholder=" " class="float-inp" />
-        <label for="usuario" class="float-label">Usuario</label>
+        <div class="float-field">
+          <input id="usuario" type="text" autocomplete="username"
+                 placeholder=" " class="float-inp" />
+          <label for="usuario" class="float-label">Usuario</label>
+        </div>
+
+        <div class="float-field">
+          <input id="password" type="password" autocomplete="current-password"
+                 placeholder=" " class="float-inp" />
+          <label for="password" class="float-label">Contraseña</label>
+        </div>
+
+        <div id="error-msg" class="hidden"></div>
+        <div id="reset-ok-msg" class="hidden"></div>
+
+        <button type="submit" id="btn-ingresar" class="btn-login" style="margin-top:4px;">
+          Ingresar
+        </button>
+
+        <button type="button" id="btn-forgot" class="link-forgot">
+          ¿Olvidaste tu contraseña?
+        </button>
+
+      </form>
+    </div>
+
+    <!-- ── Panel: Ingresá tu email ────────────────────────── -->
+    <div id="panel-reset-email" style="display:none;">
+      <div style="display:flex;flex-direction:column;gap:16px;">
+
+        <button type="button" class="btn-back" id="btn-back-from-email">
+          <svg width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" viewBox="0 0 24 24">
+            <polyline points="15 18 9 12 15 6"/>
+          </svg>
+          Volver al login
+        </button>
+
+        <div style="font-size:15px;font-weight:700;color:#f1f5f9;">Recuperar contraseña</div>
+        <p style="font-size:13px;color:#64748b;margin:0;">Ingresá el email asociado a tu usuario y te enviaremos un código de verificación.</p>
+
+        <div class="float-field">
+          <input id="reset-email" type="email" autocomplete="email"
+                 placeholder=" " class="float-inp" />
+          <label for="reset-email" class="float-label">Email</label>
+        </div>
+
+        <div id="reset-email-error" class="hidden"
+             style="padding:10px 14px;border-radius:10px;font-size:13px;background:rgba(239,68,68,.1);border:1px solid rgba(239,68,68,.25);color:#fca5a5;line-height:1.45;"></div>
+
+        <button type="button" id="btn-enviar-codigo" class="btn-login" style="margin-top:4px;">
+          Enviar código
+        </button>
+
       </div>
+    </div>
 
-      <div class="float-field">
-        <input id="password" type="password" autocomplete="current-password"
-               placeholder=" " class="float-inp" />
-        <label for="password" class="float-label">Contraseña</label>
+    <!-- ── Panel: Ingresá el código ───────────────────────── -->
+    <div id="panel-reset-codigo" style="display:none;">
+      <div style="display:flex;flex-direction:column;gap:16px;">
+
+        <button type="button" class="btn-back" id="btn-back-from-codigo">
+          <svg width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" viewBox="0 0 24 24">
+            <polyline points="15 18 9 12 15 6"/>
+          </svg>
+          Volver
+        </button>
+
+        <div style="font-size:15px;font-weight:700;color:#f1f5f9;">Ingresá el código</div>
+        <p id="reset-codigo-hint" class="reset-hint"></p>
+
+        <input id="reset-codigo" type="text" inputmode="numeric" maxlength="6"
+               placeholder="······" class="code-input" autocomplete="one-time-code" />
+
+        <div id="reset-codigo-error" class="hidden"
+             style="padding:10px 14px;border-radius:10px;font-size:13px;background:rgba(239,68,68,.1);border:1px solid rgba(239,68,68,.25);color:#fca5a5;line-height:1.45;"></div>
+
+        <p class="reset-hint">El código vence a los 15 minutos.</p>
+
+        <button type="button" id="btn-verificar-codigo" class="btn-login">
+          Verificar código
+        </button>
+
       </div>
+    </div>
 
-      <div id="error-msg" class="hidden"></div>
+    <!-- ── Panel: Nueva contraseña ───────────────────────── -->
+    <div id="panel-reset-pass" style="display:none;">
+      <div style="display:flex;flex-direction:column;gap:16px;">
 
-      <button type="submit" id="btn-ingresar" class="btn-login" style="margin-top:4px;">
-        Ingresar
-      </button>
+        <div style="font-size:15px;font-weight:700;color:#f1f5f9;">Nueva contraseña</div>
+        <p style="font-size:13px;color:#64748b;margin:0;">Elegí una contraseña nueva para tu cuenta.</p>
 
-    </form>
+        <div class="float-field">
+          <input id="reset-nueva-pass" type="password" autocomplete="new-password"
+                 placeholder=" " class="float-inp" />
+          <label for="reset-nueva-pass" class="float-label">Nueva contraseña</label>
+        </div>
+
+        <div class="float-field">
+          <input id="reset-confirmar-pass" type="password" autocomplete="new-password"
+                 placeholder=" " class="float-inp" />
+          <label for="reset-confirmar-pass" class="float-label">Confirmar contraseña</label>
+        </div>
+
+        <div id="reset-pass-error" class="hidden"
+             style="padding:10px 14px;border-radius:10px;font-size:13px;background:rgba(239,68,68,.1);border:1px solid rgba(239,68,68,.25);color:#fca5a5;line-height:1.45;"></div>
+
+        <button type="button" id="btn-cambiar-pass" class="btn-login">
+          Cambiar contraseña
+        </button>
+
+      </div>
+    </div>
+
   </div>
 
   <script src="../js/login.js"></script>
