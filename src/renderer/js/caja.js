@@ -51,6 +51,12 @@ let timerBuscador = null;
 let buscadorItems = [];
 let buscadorIdx   = -1;
 
+// ── Scanner state (detección de lector de código de barras) ─────
+// Los scanners escriben a >20 chars/s (< 50 ms entre teclas).
+// Se necesitan ≥ 3 chars rápidos para distinguirlos del teclado.
+let _scannerLastMs  = 0;
+let _scannerCharCnt = 0;
+
 // ── Clientes cobro ──────────────────────────────────────────────
 let timerClienteCobro = null;
 let clientesCobroLista = [];
@@ -331,12 +337,56 @@ function abrirModalRenombrar(idx) {
 elTicketNombreLabel.addEventListener('dblclick', () => abrirModalRenombrar(ticketActivoIdx));
 
 // ── Campo de código ─────────────────────────────────────────────
+// ── Feedback de scanner ──────────────────────────────────────────
+// Audio: Web Audio API, sin archivos externos
+const scanFeedback = (() => {
+  let ctx = null;
+  function tono(freq, dur, type = 'sine', vol = 0.28) {
+    try {
+      if (!ctx) ctx = new (window.AudioContext || window.webkitAudioContext)();
+      const osc = ctx.createOscillator();
+      const g   = ctx.createGain();
+      osc.connect(g);
+      g.connect(ctx.destination);
+      osc.type = type;
+      osc.frequency.value = freq;
+      g.gain.setValueAtTime(vol, ctx.currentTime);
+      g.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + dur / 1000);
+      osc.start(ctx.currentTime);
+      osc.stop(ctx.currentTime + dur / 1000);
+    } catch {}
+  }
+  return {
+    ok()    { tono(1047, 70);                    },  // Do5, corto y limpio
+    error() { tono(200, 260, 'sawtooth', 0.18); },   // Grave y áspero
+  };
+})();
+
+// Visual: flash de color en el campo
+function flashCampoCodigo(tipo) {
+  elCampoCodigo.classList.remove('scan-ok', 'scan-error');
+  void elCampoCodigo.offsetWidth; // reiniciar animación CSS
+  elCampoCodigo.classList.add(tipo === 'ok' ? 'scan-ok' : 'scan-error');
+  setTimeout(() => elCampoCodigo.classList.remove('scan-ok', 'scan-error'), 550);
+}
+
+// Limpieza: elimina caracteres no imprimibles que algunos scanners agregan
+function limpiarCodigo(str) {
+  return str.replace(/[\x00-\x1F\x7F]/g, '').trim();
+}
+
 elCampoCodigo.addEventListener('keydown', e => {
   if (e.key === 'Enter') {
     e.preventDefault();
     clearTimeout(timerCodigo);
-    const q = elCampoCodigo.value.trim();
-    if (q) buscarYAgregar(q);
+    const q         = limpiarCodigo(elCampoCodigo.value.trim());
+    const esScanner = _scannerCharCnt >= 3;
+    _scannerCharCnt = 0;
+    if (q) buscarYAgregar(q, esScanner);
+  } else if (e.key.length === 1) {
+    const ahora    = Date.now();
+    _scannerCharCnt = (ahora - _scannerLastMs) < 50 ? _scannerCharCnt + 1 : 1;
+    _scannerLastMs  = ahora;
   }
 });
 
@@ -353,20 +403,39 @@ async function intentarAgregarPorCodigo(q) {
   const exacto = resultados.find(a => a.codigo.toLowerCase() === q.toLowerCase());
   if (exacto) {
     await agregarAlCarrito(exacto);
+    scanFeedback.ok();
+    flashCampoCodigo('ok');
     elCampoCodigo.value = '';
     recuperarFocoCodigo();
   }
 }
 
-async function buscarYAgregar(q) {
+// esScanner: si vino de un lector físico solo se acepta código exacto
+async function buscarYAgregar(q, esScanner = false) {
   const resultados = await window.api.articulos.search(q);
+
   if (resultados.length === 0) {
-    mostrarToast(`No se encontró: "${q}"`, 'error');
+    scanFeedback.error();
+    flashCampoCodigo('error');
+    mostrarToast(`Código no encontrado: "${q}"`, 'error');
     elCampoCodigo.select();
     return;
   }
+
   const exacto = resultados.find(a => a.codigo.toLowerCase() === q.toLowerCase());
+
+  // Scanner solo acepta coincidencia exacta por código
+  if (esScanner && !exacto) {
+    scanFeedback.error();
+    flashCampoCodigo('error');
+    mostrarToast(`Código no encontrado: "${q}"`, 'warning');
+    elCampoCodigo.select();
+    return;
+  }
+
   await agregarAlCarrito(exacto ?? resultados[0]);
+  scanFeedback.ok();
+  flashCampoCodigo('ok');
   elCampoCodigo.value = '';
   recuperarFocoCodigo();
 }

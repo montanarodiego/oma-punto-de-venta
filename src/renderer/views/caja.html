@@ -114,6 +114,19 @@
     }
     #campo-codigo:focus { box-shadow: 0 0 0 3px rgba(59,130,246,.2); }
     #campo-codigo::placeholder { color:var(--text-subtle); font-weight:400; font-size:14px; }
+    @keyframes scanOk {
+      0%   { border-color:#22c55e; box-shadow:0 0 0 4px rgba(34,197,94,.3); }
+      100% { border-color:var(--accent); box-shadow:0 0 0 3px rgba(59,130,246,.2); }
+    }
+    @keyframes scanError {
+      0%,100% { transform:translateX(0);  border-color:#ef4444; box-shadow:0 0 0 3px rgba(239,68,68,.25); }
+      20%      { transform:translateX(-7px); }
+      40%      { transform:translateX(7px);  }
+      60%      { transform:translateX(-5px); }
+      80%      { transform:translateX(5px);  }
+    }
+    #campo-codigo.scan-ok    { animation:scanOk    .5s ease forwards; }
+    #campo-codigo.scan-error { animation:scanError .45s ease; }
 
     /* ── Tabla del carrito ── */
     .carrito-tabla {
