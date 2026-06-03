@@ -417,4 +417,141 @@ function buildCorteZBuffer(resumen, cfg) {
   return Buffer.concat(parts);
 }
 
-module.exports = { listarImpresoras, buildTicketBuffer, buildPruebaBuffer, buildCorteZBuffer, enviarRaw };
+// ── Estado de cuenta corriente ────────────────────────────────────
+function buildEstadoCuentaBuffer(cliente, transacciones, pagos, cfg) {
+  const parts = [];
+  const cmd = (...b) => parts.push(Buffer.from(b));
+  const txt = s  => parts.push(enc(s));
+  const sep = () => txt('='.repeat(COLS) + '\n');
+  const lin = () => txt('-'.repeat(COLS) + '\n');
+
+  const mon = cfg.moneda || '$';
+  const fmt = n => {
+    const num = parseFloat(n || 0);
+    const abs = Math.abs(num).toFixed(2);
+    const [ent, dec] = abs.split('.');
+    const entF = ent.replace(/\B(?=(\d{3})+(?!\d))/g, '.');
+    return (num < 0 ? '-' : '') + mon + entF + ',' + dec;
+  };
+  const der = (label, valor) => {
+    const l = String(label), v = String(valor);
+    return l + ' '.repeat(Math.max(1, COLS - l.length - v.length)) + v + '\n';
+  };
+  const fmtFecha = iso => {
+    if (!iso) return '—';
+    const d = new Date(iso.replace(' ', 'T'));
+    return d.toLocaleString('es-AR', { day: '2-digit', month: '2-digit', year: '2-digit' });
+  };
+
+  const FORMA = {
+    efectivo: 'Efectivo', transferencia: 'Transfer.', tarjeta_debito: 'Tje. débito',
+    tarjeta_credito: 'Tje. crédito', cuenta_corriente: 'Cta. cte.',
+  };
+
+  // Init + code page 850
+  cmd(ESC, 0x40);
+  cmd(ESC, 0x74, 0x02);
+
+  // Header centrado
+  cmd(ESC, 0x61, 0x01);
+  cmd(ESC, 0x21, 0x30);
+  txt((cfg.nombreNegocio || 'MI NEGOCIO').toUpperCase() + '\n');
+  cmd(ESC, 0x21, 0x00);
+  if (cfg.direccion) txt(cfg.direccion + '\n');
+  if (cfg.telefono)  txt('Tel: ' + cfg.telefono + '\n');
+  if (cfg.cuit)      txt('CUIT: ' + cfg.cuit + '\n');
+  cmd(ESC, 0x61, 0x00);
+
+  txt('\n');
+  sep();
+  cmd(ESC, 0x61, 0x01);
+  cmd(ESC, 0x45, 0x01);
+  txt('ESTADO DE CUENTA CORRIENTE\n');
+  cmd(ESC, 0x45, 0x00);
+  cmd(ESC, 0x61, 0x00);
+  sep();
+
+  // Datos del cliente
+  txt(rpad('Cliente:', 12) + String(cliente.nombre || '—').slice(0, COLS - 12) + '\n');
+  if (cliente.telefono)  txt(rpad('Teléfono:', 12) + cliente.telefono + '\n');
+  if (cliente.direccion) txt(rpad('Dirección:', 12) + String(cliente.direccion).slice(0, COLS - 12) + '\n');
+  const ahora = new Date().toLocaleString('es-AR', {
+    day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit',
+  });
+  txt(der('Fecha:', ahora));
+  if (parseFloat(cliente.limite_credito || 0) > 0)
+    txt(der('Límite de crédito:', fmt(cliente.limite_credito)));
+  lin();
+
+  // Compras a crédito
+  cmd(ESC, 0x45, 0x01);
+  txt('COMPRAS A CREDITO\n');
+  cmd(ESC, 0x45, 0x00);
+  lin();
+
+  const MAX = 15;
+  const txsActivas  = transacciones.filter(t => t.estado !== 'cancelada');
+  const txsMostrar  = txsActivas.slice(0, MAX);
+  const totalCompras = txsActivas.reduce((s, t) => s + parseFloat(t.monto_total || 0), 0);
+
+  if (txsMostrar.length === 0) {
+    txt('Sin compras a crédito.\n');
+  } else {
+    // Cabecera de columnas: fecha(8) + ticket#(8) + forma(12) + monto(derecha)
+    for (const t of txsMostrar) {
+      const fecha  = fmtFecha(t.created_at);
+      const ticket = '#' + t.id;
+      const forma  = FORMA[t.forma_pago] || t.forma_pago || '';
+      const monto  = fmt(t.monto_total);
+      const izq    = fecha + '  ' + ticket + '  ' + forma;
+      txt(izq + ' '.repeat(Math.max(1, COLS - izq.length - monto.length)) + monto + '\n');
+    }
+    if (txsActivas.length > MAX) txt(`... y ${txsActivas.length - MAX} compras anteriores\n`);
+  }
+  txt(der('Total compras:', fmt(totalCompras)));
+  lin();
+
+  // Abonos
+  cmd(ESC, 0x45, 0x01);
+  txt('ABONOS REALIZADOS\n');
+  cmd(ESC, 0x45, 0x00);
+  lin();
+
+  const pagosActivos  = pagos.filter(p => p.estado !== 'cancelado' && p.tipo === 'abono');
+  const pagosMostrar  = pagosActivos.slice(0, MAX);
+  const totalAbonos   = pagosActivos.reduce((s, p) => s + parseFloat(p.monto || 0), 0);
+
+  if (pagosMostrar.length === 0) {
+    txt('Sin abonos registrados.\n');
+  } else {
+    for (const p of pagosMostrar) {
+      const fecha = fmtFecha(p.created_at);
+      const forma = FORMA[p.forma_pago] || p.forma_pago || '';
+      const monto = '-' + fmt(p.monto);
+      const izq   = fecha + '  ' + forma;
+      txt(izq + ' '.repeat(Math.max(1, COLS - izq.length - monto.length)) + monto + '\n');
+    }
+    if (pagosActivos.length > MAX) txt(`... y ${pagosActivos.length - MAX} abonos anteriores\n`);
+  }
+  txt(der('Total abonos:', '-' + fmt(totalAbonos)));
+  sep();
+
+  // Saldo final
+  cmd(ESC, 0x45, 0x01);
+  cmd(ESC, 0x21, 0x10);
+  txt(der('SALDO PENDIENTE:', fmt(cliente.saldo_vencido)));
+  cmd(ESC, 0x21, 0x00);
+  cmd(ESC, 0x45, 0x00);
+  sep();
+
+  cmd(ESC, 0x61, 0x01);
+  txt('Firma: ' + '_'.repeat(24) + '\n\n');
+  txt('OmaTech POS\n');
+  cmd(ESC, 0x61, 0x00);
+  parts.push(Buffer.from([0x0A, 0x0A, 0x0A]));
+  cmd(GS, 0x56, 0x42, 0x00);
+
+  return Buffer.concat(parts);
+}
+
+module.exports = { listarImpresoras, buildTicketBuffer, buildPruebaBuffer, buildCorteZBuffer, buildEstadoCuentaBuffer, enviarRaw };

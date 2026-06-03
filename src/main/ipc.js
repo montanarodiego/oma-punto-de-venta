@@ -545,6 +545,37 @@ function registerHandlers() {
     }
   });
 
+  ipcMain.handle('printer:imprimirEstadoCuenta', async (_e, clienteId) => {
+    try {
+      const db = getDb();
+      const nombreImpresora = db
+        .prepare("SELECT valor FROM configuracion WHERE clave = 'impresora_nombre'")
+        .get()?.valor;
+      if (!nombreImpresora) return { ok: false, noImpresora: true };
+
+      const getCfg = (k, def = '') =>
+        db.prepare('SELECT valor FROM configuracion WHERE clave = ?').get(k)?.valor ?? def;
+
+      const cfg = {
+        nombreNegocio: getCfg('nombre_negocio', 'MI NEGOCIO'),
+        direccion:     getCfg('direccion'),
+        telefono:      getCfg('telefono'),
+        cuit:          getCfg('cuit'),
+        moneda:        getCfg('moneda', '$'),
+      };
+
+      const cliente       = Clientes.getById(clienteId);
+      if (!cliente) return { ok: false, error: 'Cliente no encontrado' };
+      const transacciones = Clientes.getTransacciones(clienteId);
+      const pagos         = Clientes.listarPagos(clienteId);
+
+      const buf = Printer.buildEstadoCuentaBuffer(cliente, transacciones, pagos, cfg);
+      return await Printer.enviarRaw(nombreImpresora, buf);
+    } catch (err) {
+      return { ok: false, error: err.message };
+    }
+  });
+
   ipcMain.handle('printer:imprimirCorteZ', async (_e, turnoId) => {
     try {
       const db = getDb();

@@ -27,6 +27,15 @@ document.getElementById('btn-nuevo').addEventListener('click', abrirModalNuevo);
 document.getElementById('btn-cancelar-modal').addEventListener('click', cerrarModal);
 document.getElementById('btn-cancelar-confirm').addEventListener('click', cerrarConfirm);
 document.getElementById('btn-cerrar-cuenta').addEventListener('click', cerrarCuenta);
+document.getElementById('btn-imprimir-estado-cuenta').addEventListener('click', async () => {
+  if (!cuentaClienteId) return;
+  const res = await window.api.printer.imprimirEstadoCuenta(cuentaClienteId);
+  if (res?.noImpresora) {
+    alert('No hay impresora térmica configurada.\nConfigurala en Configuración → Impresora térmica.');
+  } else if (!res?.ok) {
+    alert('No se pudo imprimir el estado de cuenta.\n' + (res?.error || ''));
+  }
+});
 document.getElementById('btn-pagar').addEventListener('click', registrarPago);
 document.getElementById('monto-pago').addEventListener('keydown', e => {
   if (e.key === 'Enter') { e.preventDefault(); registrarPago(); }
