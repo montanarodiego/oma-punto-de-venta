@@ -38,12 +38,12 @@ function ventasPorPeriodo(desde, hasta) {
       AND estado != 'cancelada'
   `).get(d, h);
 
-  // Ganancia bruta: (precio_al_momento - costo_unitario) × cantidad.
-  // Nota: no descuenta descuentos por ítem (ver ítem 2 de mejoras).
+  // Ganancia bruta: (precio_efectivo - costo) × cantidad.
+  // precio_efectivo = precio_al_momento × (1 - descuento_porcentaje / 100)
   const gananciaBruta = db.prepare(`
     SELECT COALESCE(SUM(
       CASE WHEN dt.articulo_id IS NOT NULL
-        THEN dt.cantidad * (dt.precio_al_momento - a.costo_unitario)
+        THEN dt.cantidad * (dt.precio_al_momento * (1.0 - dt.descuento_porcentaje / 100.0) - a.costo_unitario)
         ELSE 0 END
     ), 0) AS ganancia_bruta
     FROM detalle_transaccion dt
@@ -91,7 +91,7 @@ function articulosMasVendidos(desde, hasta) {
       a.nombre,
       CAST(SUM(dt.cantidad) AS REAL)       AS cantidad_total,
       COALESCE(SUM(dt.importe_total), 0)   AS importe_total,
-      COALESCE(SUM(dt.cantidad * (dt.precio_al_momento - a.costo_unitario)), 0)
+      COALESCE(SUM(dt.cantidad * (dt.precio_al_momento * (1.0 - dt.descuento_porcentaje / 100.0) - a.costo_unitario)), 0)
                                            AS ganancia
     FROM detalle_transaccion dt
     JOIN articulos    a ON a.id = dt.articulo_id
@@ -114,7 +114,7 @@ function utilidadBruta(desde, hasta) {
       a.costo_unitario,
       CAST(SUM(dt.cantidad) AS REAL)                                  AS cantidad_total,
       AVG(dt.precio_al_momento)                                       AS precio_venta_promedio,
-      COALESCE(SUM(dt.cantidad * (dt.precio_al_momento - a.costo_unitario)), 0)
+      COALESCE(SUM(dt.cantidad * (dt.precio_al_momento * (1.0 - dt.descuento_porcentaje / 100.0) - a.costo_unitario)), 0)
                                                                       AS utilidad_total
     FROM detalle_transaccion dt
     JOIN articulos    a ON a.id = dt.articulo_id
@@ -150,7 +150,7 @@ function ventasPorDia(desde, hasta) {
     WITH g AS (
       SELECT dt.transaccion_id,
         SUM(CASE WHEN dt.articulo_id IS NOT NULL
-          THEN dt.cantidad * (dt.precio_al_momento - a.costo_unitario)
+          THEN dt.cantidad * (dt.precio_al_momento * (1.0 - dt.descuento_porcentaje / 100.0) - a.costo_unitario)
           ELSE 0 END) AS ganancia
       FROM detalle_transaccion dt
       LEFT JOIN articulos a ON a.id = dt.articulo_id
@@ -221,7 +221,7 @@ function resumenRapido(desde, hasta) {
   const gan = db.prepare(`
     SELECT COALESCE(SUM(
       CASE WHEN dt.articulo_id IS NOT NULL
-        THEN dt.cantidad * (dt.precio_al_momento - a.costo_unitario)
+        THEN dt.cantidad * (dt.precio_al_momento * (1.0 - dt.descuento_porcentaje / 100.0) - a.costo_unitario)
         ELSE 0 END
     ), 0) AS ganancia_bruta
     FROM detalle_transaccion dt
@@ -251,7 +251,7 @@ function ventasPorCliente(desde, hasta) {
     LEFT JOIN (
       SELECT dt.transaccion_id,
         SUM(CASE WHEN dt.articulo_id IS NOT NULL
-              THEN dt.cantidad * (dt.precio_al_momento - a.costo_unitario)
+              THEN dt.cantidad * (dt.precio_al_momento * (1.0 - dt.descuento_porcentaje / 100.0) - a.costo_unitario)
               ELSE 0 END) AS ganancia
       FROM detalle_transaccion dt
       LEFT JOIN articulos a ON a.id = dt.articulo_id
@@ -273,7 +273,7 @@ function ventasPorMes(desde, hasta) {
     WITH g AS (
       SELECT dt.transaccion_id,
         SUM(CASE WHEN dt.articulo_id IS NOT NULL
-          THEN dt.cantidad * (dt.precio_al_momento - a.costo_unitario)
+          THEN dt.cantidad * (dt.precio_al_momento * (1.0 - dt.descuento_porcentaje / 100.0) - a.costo_unitario)
           ELSE 0 END) AS ganancia
       FROM detalle_transaccion dt
       LEFT JOIN articulos a ON a.id = dt.articulo_id
@@ -303,7 +303,7 @@ function ventasPorDepartamento(desde, hasta) {
       COALESCE(dep.nombre, 'Sin departamento') AS departamento,
       COUNT(DISTINCT t.id)                      AS cantidad,
       COALESCE(SUM(dt.importe_total), 0)        AS total,
-      COALESCE(SUM(dt.cantidad * (dt.precio_al_momento - a.costo_unitario)), 0) AS ganancia
+      COALESCE(SUM(dt.cantidad * (dt.precio_al_momento * (1.0 - dt.descuento_porcentaje / 100.0) - a.costo_unitario)), 0) AS ganancia
     FROM detalle_transaccion dt
     JOIN transacciones t ON t.id = dt.transaccion_id
     LEFT JOIN articulos a ON a.id = dt.articulo_id
