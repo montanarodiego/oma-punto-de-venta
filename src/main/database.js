@@ -320,6 +320,7 @@ function runMigrations(db) {
     const names = new Set(cols.map(c => c.name));
     if (!names.has('cancelado'))        db.exec('ALTER TABLE movimientos_caja ADD COLUMN cancelado INTEGER NOT NULL DEFAULT 0');
     if (!names.has('cancelado_motivo')) db.exec('ALTER TABLE movimientos_caja ADD COLUMN cancelado_motivo TEXT');
+    if (!names.has('categoria'))        db.exec('ALTER TABLE movimientos_caja ADD COLUMN categoria TEXT');
   }
 
   // ── Feature: devoluciones tables ─────────────────────────────

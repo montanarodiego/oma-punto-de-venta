@@ -936,12 +936,16 @@
             </div>
           </div>
           <div class="field">
+            <label class="field-label">Categoría <span style="color:var(--danger)">*</span></label>
+            <select id="mov-categoria" class="inp" style="cursor:pointer;"></select>
+          </div>
+          <div class="field">
             <label class="field-label">Monto <span style="color:var(--danger)">*</span></label>
             <input id="mov-monto" type="number" step="0.01" min="0.01" placeholder="0,00" class="inp" />
           </div>
           <div class="field">
-            <label class="field-label">Descripción / Motivo <span style="color:var(--danger)">*</span></label>
-            <input id="mov-descripcion" type="text" placeholder="Ej: Fondo inicial, pago proveedor..." class="inp" />
+            <label class="field-label">Detalle adicional</label>
+            <input id="mov-descripcion" type="text" placeholder="Opcional: proveedor, número de factura..." class="inp" />
           </div>
         </form>
       </div>

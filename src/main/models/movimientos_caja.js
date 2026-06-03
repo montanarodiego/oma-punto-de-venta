@@ -1,11 +1,11 @@
 const { getDb } = require('../database');
 
-function registrar({ turnoId, tipo, monto, descripcion }) {
+function registrar({ turnoId, tipo, monto, descripcion, categoria }) {
   const db   = getDb();
   const info = db.prepare(`
-    INSERT INTO movimientos_caja (turno_id, tipo, monto, descripcion)
-    VALUES (?, ?, ?, ?)
-  `).run(turnoId, tipo, monto, descripcion);
+    INSERT INTO movimientos_caja (turno_id, tipo, monto, descripcion, categoria)
+    VALUES (?, ?, ?, ?, ?)
+  `).run(turnoId, tipo, monto, descripcion, categoria ?? null);
   return db.prepare('SELECT * FROM movimientos_caja WHERE id = ?').get(info.lastInsertRowid);
 }
 

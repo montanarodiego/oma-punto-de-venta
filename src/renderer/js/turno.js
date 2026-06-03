@@ -1,5 +1,20 @@
 // Módulo Turno — apertura / cierre de caja
 
+// Mapa de valores internos de categoría a etiquetas legibles
+const CAT_LABELS = {
+  fondo_cambio:    'Fondo de cambio',
+  retiro_banco:    'Retiro de banco',
+  cobro_deuda:     'Cobro de deuda',
+  devol_proveedor: 'Devol. proveedor',
+  retiro_dueno:    'Retiro del dueño',
+  pago_proveedor:  'Pago proveedor',
+  gasto_operativo: 'Gasto operativo',
+  pago_servicio:   'Pago servicio',
+  deposito_banco:  'Depósito banco',
+  devol_cliente:   'Devol. cliente',
+  otro:            'Otro',
+};
+
 let turnoActivo = null;
 let _cancelarMovId = null;
 
@@ -279,6 +294,7 @@ function renderMovimientos(lista) {
               ${fmt(m.monto)}
             </span>
             <span style="font-size:11px;color:var(--text-subtle);">${labelTipo}</span>
+            ${m.categoria ? `<span style="font-size:10px;font-weight:600;letter-spacing:.04em;padding:1px 7px;border-radius:100px;background:rgba(99,102,241,.15);color:#a5b4fc;">${esc(CAT_LABELS[m.categoria] || m.categoria)}</span>` : ''}
             ${cancelado ? '<span style="font-size:10px;font-weight:700;letter-spacing:.06em;padding:1px 6px;border-radius:100px;background:rgba(239,68,68,.15);color:#f87171;">CANCELADO</span>' : ''}
           </div>
           <div style="font-size:12px;color:var(--text-muted);margin-top:2px;${cancelado ? 'text-decoration:line-through;' : ''}">${esc(m.descripcion)}</div>

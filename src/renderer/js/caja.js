@@ -1043,12 +1043,46 @@ elFormLibre.addEventListener('submit', e => {
 });
 
 // ── Modal: Movimiento de caja ────────────────────────────────────
+// ── Categorías de movimientos de caja ───────────────────────────
+const MOV_CATEGORIAS = {
+  entrada: [
+    { value: 'fondo_cambio',    label: 'Fondo de cambio' },
+    { value: 'retiro_banco',    label: 'Retiro de banco' },
+    { value: 'cobro_deuda',     label: 'Cobro de deuda' },
+    { value: 'devol_proveedor', label: 'Devolución de proveedor' },
+    { value: 'otro',            label: 'Otro ingreso' },
+  ],
+  salida: [
+    { value: 'retiro_dueno',    label: 'Retiro del dueño' },
+    { value: 'pago_proveedor',  label: 'Pago a proveedor' },
+    { value: 'gasto_operativo', label: 'Gasto operativo' },
+    { value: 'pago_servicio',   label: 'Pago de servicio' },
+    { value: 'deposito_banco',  label: 'Depósito bancario' },
+    { value: 'devol_cliente',   label: 'Devolución a cliente' },
+    { value: 'otro',            label: 'Otro gasto' },
+  ],
+};
+
+function actualizarCategoriasMovimiento(tipo) {
+  const sel  = document.getElementById('mov-categoria');
+  const cats = MOV_CATEGORIAS[tipo] || [];
+  sel.innerHTML = cats.map(c => `<option value="${c.value}">${c.label}</option>`).join('');
+}
+
 document.getElementById('btn-movimiento').addEventListener('click', () => {
   if (!turnoActivo) { mostrarToast('No hay turno activo para registrar movimientos.', 'error'); return; }
   document.getElementById('error-movimiento').classList.add('hidden');
   document.getElementById('form-movimiento').reset();
+  actualizarCategoriasMovimiento('entrada');
   document.getElementById('modal-movimiento').classList.remove('hidden');
   document.getElementById('mov-monto').focus();
+});
+
+document.querySelectorAll('input[name="mov-tipo"]').forEach(radio => {
+  radio.addEventListener('change', () => {
+    actualizarCategoriasMovimiento(radio.value);
+    document.getElementById('mov-descripcion').value = '';
+  });
 });
 
 ['btn-cerrar-movimiento', 'btn-cancelar-movimiento'].forEach(id => {
@@ -1057,18 +1091,23 @@ document.getElementById('btn-movimiento').addEventListener('click', () => {
 
 document.getElementById('form-movimiento').addEventListener('submit', async e => {
   e.preventDefault();
-  const errEl       = document.getElementById('error-movimiento');
-  const tipo        = document.querySelector('input[name="mov-tipo"]:checked')?.value;
-  const monto       = parseFloat(document.getElementById('mov-monto').value);
-  const descripcion = document.getElementById('mov-descripcion').value.trim();
+  const errEl    = document.getElementById('error-movimiento');
+  const tipo     = document.querySelector('input[name="mov-tipo"]:checked')?.value;
+  const categoria = document.getElementById('mov-categoria').value;
+  const monto    = parseFloat(document.getElementById('mov-monto').value);
+  const detalle  = document.getElementById('mov-descripcion').value.trim();
 
   errEl.classList.add('hidden');
-  if (!tipo) { errEl.textContent = 'Seleccioná un tipo.'; errEl.classList.remove('hidden'); return; }
+  if (!tipo)                       { errEl.textContent = 'Seleccioná un tipo.'; errEl.classList.remove('hidden'); return; }
+  if (!categoria)                  { errEl.textContent = 'Seleccioná una categoría.'; errEl.classList.remove('hidden'); return; }
   if (isNaN(monto) || monto <= 0) { errEl.textContent = 'El monto debe ser mayor a 0.'; errEl.classList.remove('hidden'); return; }
-  if (!descripcion) { errEl.textContent = 'La descripción es obligatoria.'; errEl.classList.remove('hidden'); return; }
+
+  // Descripción final: "Etiqueta de categoría: detalle adicional" o solo la etiqueta
+  const catLabel   = (MOV_CATEGORIAS[tipo] || []).find(c => c.value === categoria)?.label ?? categoria;
+  const descripcion = detalle ? `${catLabel}: ${detalle}` : catLabel;
 
   try {
-    await window.api.movimientos.registrar({ turnoId: turnoActivo.id, tipo, monto, descripcion });
+    await window.api.movimientos.registrar({ turnoId: turnoActivo.id, tipo, monto, descripcion, categoria });
     document.getElementById('modal-movimiento').classList.add('hidden');
     mostrarToast(`${tipo === 'entrada' ? 'Entrada' : 'Salida'} de ${fmt(monto)} registrada.`);
     recuperarFocoCodigo();
