@@ -404,14 +404,6 @@ function runMigrations(db) {
         activo        INTEGER NOT NULL DEFAULT 1
       )
     `);
-    const count = db.prepare('SELECT COUNT(*) as n FROM usuarios').get().n;
-    if (count === 0) {
-      const bcrypt = require('bcryptjs');
-      const hash   = bcrypt.hashSync('1234', 10);
-      db.prepare(
-        "INSERT INTO usuarios (nombre, usuario, password_hash, rol) VALUES ('Administrador', 'admin', ?, 'admin')"
-      ).run(hash);
-    }
   }
 
   // ── Feature: articulo_id nullable + descripcion_libre en detalle_transaccion

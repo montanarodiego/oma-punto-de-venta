@@ -4,9 +4,13 @@ const passEl    = document.getElementById('password');
 const errorEl   = document.getElementById('error-msg');
 const btn       = document.getElementById('btn-ingresar');
 
-// Si ya hay sesión activa, ir directo a caja
+// Si ya hay sesión activa, ir directo a caja; si no hay usuarios, setup
 if (localStorage.getItem('oma_session')) {
   window.api.navegar('caja.html');
+} else {
+  window.api.usuarios.hayUsuarios().then(function (hay) {
+    if (!hay) window.api.navegar('setup.html');
+  });
 }
 
 form.addEventListener('submit', async (e) => {

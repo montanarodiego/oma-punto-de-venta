@@ -297,6 +297,11 @@ function registerHandlers() {
     }
   });
 
+  ipcMain.handle('usuarios:hayUsuarios', () => {
+    const n = getDb().prepare('SELECT COUNT(*) as n FROM usuarios WHERE activo = 1').get().n;
+    return n > 0;
+  });
+
   ipcMain.handle('usuarios:login', (_e, usuario, password) => {
     try {
       const user = Usuarios.login(usuario, password);
@@ -307,7 +312,11 @@ function registerHandlers() {
     }
   });
   ipcMain.handle('usuarios:listar',       ()              => Usuarios.listar());
-  ipcMain.handle('usuarios:crear',        (_e, data)      => { onlyAdmin(); return Usuarios.crear(data); });
+  ipcMain.handle('usuarios:crear', (_e, data) => {
+    const sinUsuarios = getDb().prepare('SELECT COUNT(*) as n FROM usuarios WHERE activo = 1').get().n === 0;
+    if (!sinUsuarios) onlyAdmin();
+    return Usuarios.crear(data);
+  });
   ipcMain.handle('usuarios:actualizar',   (_e, id, data)  => { onlyAdmin(); return Usuarios.actualizar(id, data); });
   ipcMain.handle('usuarios:toggleActivo', (_e, id)        => { onlyAdmin(); return Usuarios.toggleActivo(id); });
 
