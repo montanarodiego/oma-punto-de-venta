@@ -1,6 +1,18 @@
 const { getDb } = require('../database');
 const { registrarMovimiento } = require('./inventario');
 
+function calcularMontoCuentaCorriente(trans) {
+  if (!trans.cuenta_cliente_id) return 0;
+  const fp  = trans.forma_pago;
+  const fp2 = trans.forma_pago_2 ?? null;
+  const m2  = trans.monto_pago_2 ?? 0;
+  const mt  = trans.monto_total  ?? 0;
+  if (fp === 'cuenta_corriente' && !fp2) return mt;
+  if (fp === 'cuenta_corriente' && fp2)  return mt - m2;
+  if (fp2 === 'cuenta_corriente')        return m2;
+  return 0;
+}
+
 function cancelarTransaccion({ transaccionId, turnoId, motivo }) {
   const db    = getDb();
   const trans = db.prepare('SELECT * FROM transacciones WHERE id = ?').get(transaccionId);
@@ -68,6 +80,19 @@ function cancelarTransaccion({ transaccionId, turnoId, motivo }) {
       WHERE id = ?
     `).run(motivo, transaccionId);
 
+    // Revertir saldo_vencido si la venta era en cuenta corriente
+    if (trans.cuenta_cliente_id) {
+      const montoCC = calcularMontoCuentaCorriente(trans);
+      if (montoCC > 0) {
+        db.prepare(`
+          UPDATE clientes
+          SET saldo_vencido = MAX(0, saldo_vencido - ?),
+              updated_at    = datetime('now')
+          WHERE id = ?
+        `).run(montoCC, trans.cuenta_cliente_id);
+      }
+    }
+
     return db.prepare('SELECT * FROM devoluciones WHERE id = ?').get(dvInfo.lastInsertRowid);
   });
 
@@ -133,6 +158,20 @@ function devolucionParcial({ transaccionId, turnoId, motivo, items }) {
       UPDATE transacciones SET estado = 'devolucion_parcial'
       WHERE id = ? AND estado = 'vigente'
     `).run(transaccionId);
+
+    // Reducir saldo_vencido por el monto devuelto si era cuenta corriente
+    if (trans.cuenta_cliente_id) {
+      const montoCC = calcularMontoCuentaCorriente(trans);
+      if (montoCC > 0) {
+        const reduccion = Math.min(montoDevuelto, montoCC);
+        db.prepare(`
+          UPDATE clientes
+          SET saldo_vencido = MAX(0, saldo_vencido - ?),
+              updated_at    = datetime('now')
+          WHERE id = ?
+        `).run(reduccion, trans.cuenta_cliente_id);
+      }
+    }
 
     return db.prepare('SELECT * FROM devoluciones WHERE id = ?').get(dvInfo.lastInsertRowid);
   });

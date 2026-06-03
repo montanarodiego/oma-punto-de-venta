@@ -136,9 +136,8 @@
 
     if (session.rol === 'cajero') {
       var OCULTAR = ['catalogo.html', 'inventario.html', 'proveedores.html', 'informes.html', 'configuracion.html'];
-      document.querySelectorAll('.nav-item').forEach(function (item) {
-        var href = item.getAttribute('href') || '';
-        if (OCULTAR.some(function (p) { return href.includes(p); })) item.style.display = 'none';
+      document.querySelectorAll('.nav-tab[data-file]').forEach(function (btn) {
+        if (OCULTAR.includes(btn.dataset.file)) btn.style.display = 'none';
       });
     }
 

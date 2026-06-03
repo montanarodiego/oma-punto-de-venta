@@ -166,6 +166,33 @@ function create({ transaccion, detalle }) {
       }
     }
 
+    // Actualizar saldo_vencido del cliente cuando hay pago en cuenta corriente
+    if (transaccion.cuenta_cliente_id) {
+      const fp  = transaccion.forma_pago;
+      const fp2 = transaccion.forma_pago_2  ?? null;
+      const m2  = transaccion.monto_pago_2  ?? 0;
+      const mt  = transaccion.monto_total   ?? 0;
+      let montoCuentaCorriente = 0;
+
+      if (fp === 'cuenta_corriente' && !fp2) {
+        montoCuentaCorriente = mt;
+      } else if (fp === 'cuenta_corriente' && fp2) {
+        montoCuentaCorriente = mt - m2;
+      } else if (fp2 === 'cuenta_corriente') {
+        montoCuentaCorriente = m2;
+      }
+
+      if (montoCuentaCorriente > 0) {
+        db.prepare(`
+          UPDATE clientes
+          SET saldo_vencido = saldo_vencido + ?,
+              sync_status   = 'pending',
+              updated_at    = datetime('now')
+          WHERE id = ?
+        `).run(montoCuentaCorriente, transaccion.cuenta_cliente_id);
+      }
+    }
+
     return lastInsertRowid;
   });
 

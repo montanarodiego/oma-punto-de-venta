@@ -64,6 +64,7 @@
   tabs.forEach(function (tab) {
     var btn = document.createElement('button');
     btn.className = 'nav-tab' + (tab.file === currentFile ? ' active' : '');
+    btn.dataset.file = tab.file;
 
     btn.innerHTML = (ICONS[tab.file] || '') +
       '<span>' + tab.label + '</span>' +
