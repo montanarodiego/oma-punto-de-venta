@@ -33,7 +33,8 @@ contextBridge.exposeInMainWorld('api', {
     create:      (data)       => ipcRenderer.invoke('articulos:create', data),
     update:      (id, data)   => ipcRenderer.invoke('articulos:update', id, data),
     delete:      (id)         => ipcRenderer.invoke('articulos:delete', id),
-    search:      (query)      => ipcRenderer.invoke('articulos:search', query),
+    search:          (query)  => ipcRenderer.invoke('articulos:search', query),
+    precioHistorial: (id)     => ipcRenderer.invoke('articulos:precioHistorial', id),
   },
 
   // Clientes

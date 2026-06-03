@@ -25,8 +25,9 @@ const Printer        = require('./printer');
 const ReportMailer   = require('./report-mailer');
 const { getDb }      = require('./database');
 
-// Rol del usuario activo — se actualiza en login y en cada carga de página
+// Usuario activo — se actualiza en login y en cada carga de página
 let currentUserRole = null;
+let currentUser     = null; // { id, nombre }
 
 function onlyAdmin() {
   if (currentUserRole !== 'admin') throw new Error('Acción restringida a administradores');
@@ -262,6 +263,7 @@ function registerHandlers() {
   // ── Sesión (renderer sincroniza rol en cada carga de página) ──
   ipcMain.handle('auth:setSession', (_e, session) => {
     currentUserRole = session?.rol ?? null;
+    currentUser = session ? { id: session.id, nombre: session.nombre } : null;
   });
 
   // ── Usuarios ───────────────────────────────────────────────
@@ -306,6 +308,7 @@ function registerHandlers() {
     try {
       const user = Usuarios.login(usuario, password);
       currentUserRole = user.rol;
+      currentUser = { id: user.id, nombre: user.nombre };
       return { ok: true, user };
     } catch (err) {
       return { ok: false, error: err.message };
@@ -335,9 +338,10 @@ function registerHandlers() {
   ipcMain.handle('articulos:getById', (_e, id) => Articulos.getById(id));
   ipcMain.handle('articulos:getByCodigo', (_e, codigo) => Articulos.getByCodigo(codigo));
   ipcMain.handle('articulos:create', (_e, data) => { onlyAdmin(); return Articulos.create(data); });
-  ipcMain.handle('articulos:update', (_e, id, data) => { onlyAdmin(); return Articulos.update(id, data); });
+  ipcMain.handle('articulos:update', (_e, id, data) => { onlyAdmin(); return Articulos.update(id, data, currentUser); });
   ipcMain.handle('articulos:delete', (_e, id) => { onlyAdmin(); return Articulos.remove(id); });
-  ipcMain.handle('articulos:search', (_e, query) => Articulos.search(query));
+  ipcMain.handle('articulos:search',         (_e, query) => Articulos.search(query));
+  ipcMain.handle('articulos:precioHistorial', (_e, id)    => Articulos.getPrecioHistorial(id));
 
   // ── Clientes ───────────────────────────────────────────────
   ipcMain.handle('clientes:getAll', () => Clientes.getAll());

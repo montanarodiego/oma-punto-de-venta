@@ -6,6 +6,8 @@ const CAMPOS_EDITABLES = [
   'departamento_id', 'es_kit', 'usa_inventario',
 ];
 
+const CAMPOS_PRECIO = ['precio_unitario', 'costo_unitario', 'precio_mayoreo'];
+
 const SEL = `
   SELECT a.*,
     d.nombre AS departamento_nombre,
@@ -63,18 +65,47 @@ function create(data) {
   return getById(result.lastInsertRowid);
 }
 
-function update(id, data) {
+function update(id, data, usuario = null) {
   const campos = Object.keys(data).filter(k => CAMPOS_EDITABLES.includes(k));
   if (campos.length === 0) throw new Error('Sin campos válidos para actualizar');
+
+  const db    = getDb();
+  const antes = db.prepare('SELECT precio_unitario, costo_unitario, precio_mayoreo FROM articulos WHERE id = ?').get(id);
+
   const set = campos.map(k => `${k} = @${k}`).join(', ');
-  getDb()
-    .prepare(`UPDATE articulos SET ${set}, sync_status = 'pending', updated_at = datetime('now') WHERE id = @id`)
+  db.prepare(`UPDATE articulos SET ${set}, sync_status = 'pending', updated_at = datetime('now') WHERE id = @id`)
     .run({ ...data, id });
+
+  if (antes) {
+    const stmtHist = db.prepare(`
+      INSERT INTO precio_historial (articulo_id, campo, valor_anterior, valor_nuevo, usuario_id, usuario_nombre)
+      VALUES (@articulo_id, @campo, @valor_anterior, @valor_nuevo, @usuario_id, @usuario_nombre)
+    `);
+    for (const campo of CAMPOS_PRECIO) {
+      if (data[campo] !== undefined && Number(data[campo]) !== Number(antes[campo])) {
+        stmtHist.run({
+          articulo_id:    id,
+          campo,
+          valor_anterior: Number(antes[campo] ?? 0),
+          valor_nuevo:    Number(data[campo]),
+          usuario_id:     usuario?.id     ?? null,
+          usuario_nombre: usuario?.nombre ?? null,
+        });
+      }
+    }
+  }
+
   return getById(id);
+}
+
+function getPrecioHistorial(articulo_id) {
+  return getDb()
+    .prepare('SELECT * FROM precio_historial WHERE articulo_id = ? ORDER BY created_at DESC LIMIT 100')
+    .all(articulo_id);
 }
 
 function remove(id) {
   return getDb().prepare('DELETE FROM articulos WHERE id = ?').run(id);
 }
 
-module.exports = { getAll, getById, getByCodigo, search, create, update, remove };
+module.exports = { getAll, getById, getByCodigo, search, create, update, remove, getPrecioHistorial };

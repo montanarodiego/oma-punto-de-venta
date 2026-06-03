@@ -215,6 +215,17 @@ function initDatabase() {
       fecha               TEXT NOT NULL DEFAULT (datetime('now'))
     );
 
+    CREATE TABLE IF NOT EXISTS precio_historial (
+      id             INTEGER PRIMARY KEY AUTOINCREMENT,
+      articulo_id    INTEGER NOT NULL REFERENCES articulos(id),
+      campo          TEXT NOT NULL,
+      valor_anterior REAL NOT NULL,
+      valor_nuevo    REAL NOT NULL,
+      usuario_id     INTEGER REFERENCES usuarios(id),
+      usuario_nombre TEXT,
+      created_at     TEXT NOT NULL DEFAULT (datetime('now'))
+    );
+
     INSERT OR IGNORE INTO configuracion (clave, valor) VALUES
       ('nombre_negocio',     'Mi Negocio'),
       ('direccion',          ''),
@@ -530,6 +541,20 @@ function runMigrations(db) {
     )
   `);
 
+  // ── Feature: precio_historial ────────────────────────────────
+  db.exec(`
+    CREATE TABLE IF NOT EXISTS precio_historial (
+      id             INTEGER PRIMARY KEY AUTOINCREMENT,
+      articulo_id    INTEGER NOT NULL REFERENCES articulos(id),
+      campo          TEXT NOT NULL,
+      valor_anterior REAL NOT NULL,
+      valor_nuevo    REAL NOT NULL,
+      usuario_id     INTEGER REFERENCES usuarios(id),
+      usuario_nombre TEXT,
+      created_at     TEXT NOT NULL DEFAULT (datetime('now'))
+    )
+  `);
+
   // ── Índices para performance ──────────────────────────────────
   db.exec(`
     CREATE INDEX IF NOT EXISTS idx_articulos_codigo      ON articulos(codigo);
@@ -546,6 +571,7 @@ function runMigrations(db) {
     CREATE INDEX IF NOT EXISTS idx_turnos_estado         ON turnos(estado);
     CREATE INDEX IF NOT EXISTS idx_pagos_cliente         ON pagos_clientes(cliente_id);
     CREATE INDEX IF NOT EXISTS idx_promociones_articulo  ON promociones(articulo_id);
+    CREATE INDEX IF NOT EXISTS idx_precio_hist_art       ON precio_historial(articulo_id);
   `);
 }
 

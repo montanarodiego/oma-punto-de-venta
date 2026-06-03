@@ -15,6 +15,7 @@ let ajustandoId     = null;
 let ajustandoStock  = 0;
 let promosActuales  = [];    // reglas de promo del artículo que se está editando
 let promosBodyOpen  = false;
+let modalTabActiva  = 'datos'; // 'datos' | 'historial'
 
 const MODOS_IVA_PRODUCTO = new Set(['responsable_inscripto', 'farmacia']);
 
@@ -60,6 +61,12 @@ function bindEventos() {
   // Tab kits
   document.getElementById('btn-nuevo-kit').addEventListener('click', abrirModalNuevoKit);
   document.getElementById('busqueda-kits').addEventListener('input', renderKits);
+
+  // Modal artículo — tabs
+  document.getElementById('modal-art-tab-bar').addEventListener('click', e => {
+    const btn = e.target.closest('[data-mtab]');
+    if (btn) switchModalTab(btn.dataset.mtab);
+  });
 
   // Modal artículo
   document.getElementById('btn-cancelar-modal').addEventListener('click', cerrarModal);
@@ -426,6 +433,8 @@ function abrirModalNuevo() {
   kitComponentes = [];
   promosActuales = [];
   document.getElementById('modal-titulo').textContent = 'Nuevo artículo';
+  document.getElementById('modal-art-tab-bar').style.display = 'none';
+  switchModalTab('datos');
   const form = document.getElementById('form-articulo');
   form.reset();
   form.costo_unitario.value  = '0';
@@ -499,6 +508,12 @@ async function abrirModalEdicion(id) {
   promosActuales = await window.api.promociones.listarPorArticulo(id);
   resetPromosUI(true);
 
+  document.getElementById('modal-art-tab-bar').style.display = 'flex';
+  switchModalTab('datos');
+
+  // Cargar historial en background (no bloquea apertura del modal)
+  window.api.articulos.precioHistorial(id).then(hist => renderHistorialPrecios(hist));
+
   document.getElementById('modal').classList.remove('hidden');
   form.nombre.focus();
 }
@@ -513,6 +528,8 @@ function cerrarModal() {
   promosActuales = [];
   cerrarKitDropdown();
   resetPromosUI(false);
+  switchModalTab('datos');
+  document.getElementById('modal-art-tab-bar').style.display = 'none';
 }
 
 async function guardar(e) {
@@ -1730,6 +1747,92 @@ function bindPromoGlobalForm() {
   document.addEventListener('click', e => {
     if (!e.target.closest('#pg-art-busq') && !e.target.closest('#pg-art-dropdown'))
       document.getElementById('pg-art-dropdown').style.display = 'none';
+  });
+}
+
+// ── Historial de precios ──────────────────────────────────────
+
+const CAMPO_LABEL = {
+  precio_unitario: 'Precio venta',
+  costo_unitario:  'Precio costo',
+  precio_mayoreo:  'Precio mayoreo',
+};
+
+function switchModalTab(tab) {
+  modalTabActiva = tab;
+  const panelDatos    = document.getElementById('modal-panel-datos');
+  const panelHistorial = document.getElementById('modal-panel-historial');
+  const btnGuardar    = document.getElementById('btn-guardar');
+
+  panelDatos.style.display    = tab === 'datos'     ? '' : 'none';
+  panelHistorial.style.display = tab === 'historial' ? '' : 'none';
+  if (btnGuardar) btnGuardar.style.display = tab === 'datos' ? '' : 'none';
+
+  document.querySelectorAll('.modal-art-tab').forEach(btn => {
+    const active = btn.dataset.mtab === tab;
+    btn.style.color       = active ? 'var(--text)'         : 'var(--text-subtle)';
+    btn.style.borderBottom = active ? '2px solid var(--accent)' : '2px solid transparent';
+  });
+}
+
+function renderHistorialPrecios(hist) {
+  const wrap = document.getElementById('precio-historial-wrap');
+  if (!wrap) return;
+
+  if (!hist || hist.length === 0) {
+    wrap.innerHTML = `
+      <div style="text-align:center;padding:40px 0;color:var(--text-subtle);font-size:13px;">
+        Sin cambios de precio registrados para este artículo.
+      </div>`;
+    return;
+  }
+
+  const filas = hist.map(h => {
+    const campo  = CAMPO_LABEL[h.campo] || h.campo;
+    const fecha  = fmtFechaLocal(h.created_at);
+    const sube   = h.valor_nuevo > h.valor_anterior;
+    const igual  = h.valor_nuevo === h.valor_anterior;
+    const flecha = igual ? '→' : (sube ? '↑' : '↓');
+    const color  = igual ? 'var(--text)' : (sube ? '#4ade80' : '#fca5a5');
+    return `
+      <tr>
+        <td style="padding:7px 10px;white-space:nowrap;font-size:12px;">${esc(campo)}</td>
+        <td style="padding:7px 10px;text-align:right;white-space:nowrap;font-size:12px;color:var(--text-subtle);">${fmt(h.valor_anterior)}</td>
+        <td style="padding:7px 10px;text-align:center;font-size:14px;color:${color};">${flecha}</td>
+        <td style="padding:7px 10px;text-align:right;white-space:nowrap;font-size:12px;font-weight:600;color:${color};">${fmt(h.valor_nuevo)}</td>
+        <td style="padding:7px 10px;white-space:nowrap;font-size:12px;color:var(--text-subtle);">${esc(h.usuario_nombre || '—')}</td>
+        <td style="padding:7px 10px;white-space:nowrap;font-size:11px;color:var(--text-subtle);font-family:monospace;">${esc(fecha)}</td>
+      </tr>`;
+  }).join('');
+
+  wrap.innerHTML = `
+    <div style="overflow-x:auto;">
+      <table style="width:100%;border-collapse:collapse;">
+        <thead>
+          <tr style="border-bottom:1px solid var(--border);">
+            <th style="padding:6px 10px;text-align:left;font-size:11px;font-weight:600;color:var(--text-subtle);text-transform:uppercase;letter-spacing:.05em;">Campo</th>
+            <th style="padding:6px 10px;text-align:right;font-size:11px;font-weight:600;color:var(--text-subtle);text-transform:uppercase;letter-spacing:.05em;">Anterior</th>
+            <th style="padding:6px 10px;text-align:center;font-size:11px;font-weight:600;color:var(--text-subtle);">  </th>
+            <th style="padding:6px 10px;text-align:right;font-size:11px;font-weight:600;color:var(--text-subtle);text-transform:uppercase;letter-spacing:.05em;">Nuevo</th>
+            <th style="padding:6px 10px;text-align:left;font-size:11px;font-weight:600;color:var(--text-subtle);text-transform:uppercase;letter-spacing:.05em;">Usuario</th>
+            <th style="padding:6px 10px;text-align:left;font-size:11px;font-weight:600;color:var(--text-subtle);text-transform:uppercase;letter-spacing:.05em;">Fecha y hora</th>
+          </tr>
+        </thead>
+        <tbody>
+          ${filas}
+        </tbody>
+      </table>
+    </div>`;
+}
+
+function fmtFechaLocal(isoStr) {
+  if (!isoStr) return '—';
+  // SQLite guarda en UTC sin 'Z'; ajustar a UTC-3
+  const d = new Date(isoStr.includes('T') || isoStr.includes('Z') ? isoStr : isoStr.replace(' ', 'T') + 'Z');
+  return d.toLocaleString('es-AR', {
+    day: '2-digit', month: '2-digit', year: 'numeric',
+    hour: '2-digit', minute: '2-digit',
+    timeZone: 'America/Argentina/Buenos_Aires',
   });
 }
 
