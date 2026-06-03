@@ -415,7 +415,15 @@ function renderBuscadorResultados() {
     return;
   }
   elBuscadorResultados.innerHTML = buscadorItems.map((a, i) => {
-    const sinStock = Number(a.stock_actual) <= 0;
+    const usaInv    = Number(a.usa_inventario) === 1;
+    const sinStock  = usaInv && Number(a.stock_actual) <= 0;
+    const stockBajo = usaInv && !sinStock && Number(a.stock_minimo) > 0 && Number(a.stock_actual) <= Number(a.stock_minimo);
+    const stockStyle = sinStock  ? 'color:#f87171;font-weight:700;' :
+                       stockBajo ? 'color:#fb923c;font-weight:600;' :
+                                   'color:var(--text-subtle);';
+    const stockLabel = sinStock  ? 'Sin stock' :
+                       stockBajo ? `Stock: ${fmtNum(a.stock_actual)} ▼` :
+                       usaInv    ? `Stock: ${fmtNum(a.stock_actual)}` : '';
     return `
       <div class="buscador-item ${i === buscadorIdx ? 'focused' : ''}" data-buscador-idx="${i}">
         <div class="buscador-item-info">
@@ -427,9 +435,7 @@ function renderBuscadorResultados() {
         </div>
         <div style="text-align:right;flex-shrink:0;">
           <div style="font-size:13px;font-weight:600;">${fmt(a.precio_unitario)}</div>
-          <div style="font-size:11px;${sinStock ? 'color:#f87171;font-weight:600;' : 'color:var(--text-subtle);'}">
-            Stock: ${fmtNum(a.stock_actual)}
-          </div>
+          <div style="font-size:11px;${stockStyle}">${stockLabel}</div>
         </div>
       </div>`;
   }).join('');
@@ -496,6 +502,10 @@ function evaluarPromo(item) {
 async function agregarAlCarrito(articulo) {
   const carrito   = ticketActivo().carrito;
   const existente = carrito.find(i => i.id === articulo.id);
+
+  if (Number(articulo.usa_inventario) === 1 && Number(articulo.stock_actual) <= 0) {
+    mostrarToast(`"${articulo.nombre}" no tiene stock disponible`, 'warning');
+  }
 
   let promos = promoCache.get(articulo.id);
   if (promos === undefined) {
@@ -568,13 +578,22 @@ function renderCarrito() {
     const tieneMayoreo   = parseFloat(item.precio_mayoreo) > 0;
     const tienePromo     = !!item.promoAplicada;
     const isSelected     = idx === selIdx;
-    const stockDisplay   = item.esLibre ? '∞' : fmtNum(item.stock_actual);
-    const stockBajo      = !item.esLibre && Number(item.stock_actual) <= 0;
+    const usaInv       = !item.esLibre && Number(item.usa_inventario) === 1;
+    const stockDisplay = item.esLibre ? '∞' : fmtNum(item.stock_actual);
+    const sinStock     = usaInv && Number(item.stock_actual) <= 0;
+    const stockBajo    = usaInv && !sinStock && Number(item.stock_minimo) > 0 && Number(item.stock_actual) <= Number(item.stock_minimo);
+    const insuficiente = usaInv && !sinStock && Number(item.cantidad) > Number(item.stock_actual);
+    const stockColStyle = sinStock     ? 'color:#f87171;font-weight:700;' :
+                          insuficiente ? 'color:#fb923c;font-weight:600;' :
+                          stockBajo    ? 'color:#fbbf24;font-weight:500;' :
+                                         'color:var(--text-subtle);';
 
     const badges = [
       tieneDesc ? `<span class="item-badge badge-desc">${fmtNum(item.descuento_porcentaje)}% dto</span>` : '',
       item.usarMayoreo ? `<span class="item-badge badge-mayoreo">M</span>` : '',
       tienePromo && !item.usarMayoreo ? `<span class="item-badge badge-promo">PROMO</span>` : '',
+      sinStock    ? `<span class="item-badge badge-sin-stock">SIN STOCK</span>` : '',
+      stockBajo   ? `<span class="item-badge badge-stk-bajo">STOCK ▼</span>` : '',
     ].join('');
 
     return `
@@ -595,7 +614,7 @@ function renderCarrito() {
           </div>
         </td>
         <td class="num" style="font-weight:600;">${fmt(importe)}</td>
-        <td class="num" style="${stockBajo ? 'color:#f87171;font-weight:600;' : 'color:var(--text-subtle);'}font-size:12px;">${stockDisplay}</td>
+        <td class="num" style="${stockColStyle}font-size:12px;">${stockDisplay}</td>
         <td style="text-align:center;">
           <button data-action="del" data-idx="${idx}"
             style="color:var(--text-subtle);font-size:16px;line-height:1;background:none;border:none;cursor:pointer;padding:2px 4px;border-radius:4px;transition:color .12s;"
