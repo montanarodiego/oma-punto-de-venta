@@ -171,6 +171,10 @@
       <div class="section-tabs">
         <button class="section-tab active" data-section="ventas">Dashboard ventas</button>
         <button class="section-tab"        data-section="clientes">Ventas por cliente</button>
+        <button class="section-tab"        data-section="stock">
+          Stock bajo
+          <span id="stock-tab-badge" style="display:none;margin-left:5px;padding:1px 6px;border-radius:100px;font-size:10px;font-weight:700;background:rgba(239,68,68,.2);color:#f87171;"></span>
+        </button>
       </div>
 
       <!-- ══ SECCIÓN VENTAS ══════════════════════════════════════ -->
@@ -385,6 +389,58 @@
         </div>
 
       </div><!-- /section-clientes -->
+
+      <!-- ══ SECCIÓN STOCK BAJO ════════════════════════════════════ -->
+      <div id="section-stock" style="display:none;flex-direction:column;gap:14px;">
+
+        <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;">
+          <!-- Filtros -->
+          <div id="stock-filtros" style="display:flex;gap:6px;">
+            <button class="period-tab active" data-stock-filtro="todos">Todos</button>
+            <button class="period-tab"        data-stock-filtro="cero">Sin stock</button>
+            <button class="period-tab"        data-stock-filtro="bajo">Bajo mínimo</button>
+          </div>
+          <!-- Badges de resumen -->
+          <div id="stock-badge-wrap" style="display:flex;gap:6px;margin-left:4px;"></div>
+          <!-- Botón refrescar + exportar -->
+          <div style="display:flex;gap:6px;margin-left:auto;">
+            <button id="btn-refrescar-stock" class="btn btn-ghost" style="font-size:11px;padding:4px 10px;"
+              title="Actualizar lista">
+              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+                <polyline points="23 4 23 10 17 10"/><path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"/>
+              </svg>
+            </button>
+            <button id="btn-exportar-stock" class="btn btn-ghost"
+              style="font-size:11px;padding:4px 12px;display:flex;align-items:center;gap:4px;">
+              <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+                <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
+                <polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/>
+              </svg>
+              CSV Stock
+            </button>
+          </div>
+        </div>
+
+        <div style="background:var(--surface);border:1px solid var(--border);border-radius:var(--radius-lg,12px);overflow:hidden;">
+          <table class="tbl" style="font-size:13px;">
+            <thead>
+              <tr>
+                <th>Código</th>
+                <th>Artículo</th>
+                <th>Departamento</th>
+                <th style="text-align:right;">Stock actual</th>
+                <th style="text-align:right;">Mínimo</th>
+                <th style="text-align:right;">Faltante</th>
+                <th>Proveedor</th>
+              </tr>
+            </thead>
+            <tbody id="tabla-stock-bajo"></tbody>
+          </table>
+          <div id="stock-empty"   style="display:none;padding:36px 0;text-align:center;color:var(--text-subtle);font-size:13px;"></div>
+          <div id="stock-loading" style="display:none;padding:36px 0;text-align:center;color:var(--text-subtle);font-size:13px;">Cargando...</div>
+        </div>
+
+      </div><!-- /section-stock -->
 
     </main>
   </div>

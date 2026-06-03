@@ -29,6 +29,10 @@ const datos = { ventas: null, articulos: null, utilidad: null, saldos: null };
 let chartVentas = null;
 let chartPagos  = null;
 
+// ── Estado sección Stock bajo ───────────────────────────────────
+let datosStock   = null;
+let stockFiltro  = 'todos';
+
 // ── Init ───────────────────────────────────────────────────────
 document.addEventListener('DOMContentLoaded', async () => {
   modoNegocio = (await window.api.config.get('modo_negocio')) || '';
@@ -47,6 +51,15 @@ document.addEventListener('DOMContentLoaded', async () => {
   document.querySelectorAll('.section-tab').forEach(btn =>
     btn.addEventListener('click', () => cambiarSeccion(btn.dataset.section))
   );
+
+  document.querySelectorAll('[data-stock-filtro]').forEach(btn =>
+    btn.addEventListener('click', () => renderTablaStock(btn.dataset.stockFiltro))
+  );
+  document.getElementById('btn-exportar-stock').addEventListener('click', exportarStockBajo);
+  document.getElementById('btn-refrescar-stock').addEventListener('click', () => {
+    datosStock = null;
+    cargarStockBajo();
+  });
 
   document.querySelectorAll('[data-periodo-cli]').forEach(btn =>
     btn.addEventListener('click', () => seleccionarPeriodoCli(btn.dataset.periodoCli))
@@ -611,6 +624,116 @@ function renderPagina() {
     </table>`;
 }
 
+// ── Sección Stock bajo ──────────────────────────────────────────
+async function cargarStockBajo() {
+  const loading = document.getElementById('stock-loading');
+  const empty   = document.getElementById('stock-empty');
+  loading.style.display = 'block';
+  empty.style.display   = 'none';
+  document.getElementById('tabla-stock-bajo').innerHTML = '';
+
+  datosStock = await window.api.inventario.stockBajo();
+
+  loading.style.display = 'none';
+  actualizarBadgeStock();
+  renderTablaStock(stockFiltro);
+}
+
+function actualizarBadgeStock() {
+  if (!datosStock) return;
+  const sinStock = datosStock.filter(a => Number(a.stock_actual) <= 0).length;
+  const bajMin   = datosStock.filter(a => Number(a.stock_actual) > 0).length;
+  const wrap     = document.getElementById('stock-badge-wrap');
+  const tab      = document.getElementById('stock-tab-badge');
+
+  wrap.innerHTML = [
+    sinStock > 0 ? `<span style="font-size:11px;font-weight:700;padding:2px 9px;border-radius:100px;background:rgba(239,68,68,.15);color:#f87171;">${sinStock} sin stock</span>` : '',
+    bajMin  > 0  ? `<span style="font-size:11px;font-weight:700;padding:2px 9px;border-radius:100px;background:rgba(251,146,60,.15);color:#fb923c;">${bajMin} bajo mínimo</span>` : '',
+    sinStock === 0 && bajMin === 0 ? '<span style="font-size:11px;color:var(--text-subtle);">Todo el stock está bien ✓</span>' : '',
+  ].join('');
+
+  const total = sinStock + bajMin;
+  if (total > 0) {
+    tab.textContent = total;
+    tab.style.display = 'inline';
+  } else {
+    tab.style.display = 'none';
+  }
+}
+
+function renderTablaStock(filtro) {
+  stockFiltro = filtro;
+  document.querySelectorAll('[data-stock-filtro]').forEach(btn =>
+    btn.classList.toggle('active', btn.dataset.stockFiltro === filtro)
+  );
+
+  let items = datosStock || [];
+  if (filtro === 'cero') items = items.filter(a => Number(a.stock_actual) <= 0);
+  if (filtro === 'bajo') items = items.filter(a => Number(a.stock_actual) > 0);
+
+  const tbody  = document.getElementById('tabla-stock-bajo');
+  const empty  = document.getElementById('stock-empty');
+
+  if (items.length === 0) {
+    tbody.innerHTML = '';
+    empty.textContent = filtro === 'cero' ? 'No hay artículos sin stock.' :
+                        filtro === 'bajo' ? 'No hay artículos bajo su mínimo configurado.' :
+                        'Todos los artículos están sobre su stock mínimo. ¡Excelente!';
+    empty.style.display = 'block';
+    return;
+  }
+  empty.style.display = 'none';
+
+  const umAbrev = { kg:'kg', g:'g', litro:'lts', ml:'ml', metro:'m', cm:'cm', docena:'doc', caja:'caja', pack:'pack' };
+  const abrev   = um => umAbrev[um] || '';
+
+  tbody.innerHTML = items.map(a => {
+    const actual   = Number(a.stock_actual);
+    const minimo   = Number(a.stock_minimo);
+    const faltante = Math.max(0, minimo - actual);
+    const sinStock = actual <= 0;
+    const numColor = sinStock ? '#f87171' : '#fb923c';
+    const rowBg    = sinStock ? 'rgba(239,68,68,.05)' : 'rgba(251,146,60,.04)';
+    const un       = abrev(a.unidad_medida);
+
+    const depColor = a.departamento_color || '#6366f1';
+    const depBadge = a.departamento_nombre
+      ? `<span style="font-size:10px;font-weight:600;padding:1px 7px;border-radius:100px;background:${depColor}22;color:${depColor};">${esc(a.departamento_nombre)}</span>`
+      : '<span style="color:var(--text-subtle);font-size:11px;">—</span>';
+
+    return `<tr style="background:${rowBg};">
+      <td style="font-family:monospace;font-size:11px;color:var(--text-muted);">${esc(a.codigo || '—')}</td>
+      <td style="font-weight:500;">${esc(a.nombre)}</td>
+      <td>${depBadge}</td>
+      <td class="num" style="color:${numColor};font-weight:700;">${fmtNum(actual)}${un ? ' ' + un : ''}</td>
+      <td class="num" style="color:var(--text-muted);">${fmtNum(minimo)}${un ? ' ' + un : ''}</td>
+      <td class="num" style="color:${numColor};font-weight:600;">${faltante > 0 ? fmtNum(faltante) + (un ? ' ' + un : '') : '—'}</td>
+      <td style="font-size:12px;color:var(--text-muted);">${esc(a.proveedor || '—')}</td>
+    </tr>`;
+  }).join('');
+}
+
+function exportarStockBajo() {
+  if (!datosStock) return;
+  let items = datosStock;
+  if (stockFiltro === 'cero') items = items.filter(a => Number(a.stock_actual) <= 0);
+  if (stockFiltro === 'bajo') items = items.filter(a => Number(a.stock_actual) > 0);
+
+  exportarCSV(`stock_bajo_${new Date().toISOString().slice(0,10)}.csv`,
+    ['Código', 'Artículo', 'Departamento', 'Stock actual', 'Mínimo', 'Faltante', 'Unidad', 'Proveedor'],
+    items.map(a => [
+      a.codigo || '',
+      a.nombre,
+      a.departamento_nombre || '',
+      fmtCSV(a.stock_actual),
+      fmtCSV(a.stock_minimo),
+      fmtCSV(Math.max(0, a.stock_minimo - a.stock_actual)),
+      a.unidad_medida || 'unidad',
+      a.proveedor || '',
+    ])
+  );
+}
+
 // ── Exportar CSV ───────────────────────────────────────────────
 function rangoLabel() {
   return `${desdeActual || 'na'}_${hastaActual || 'na'}`;
@@ -772,9 +895,13 @@ function cambiarSeccion(section) {
   });
   document.getElementById('section-ventas').style.display   = section === 'ventas'   ? 'flex' : 'none';
   document.getElementById('section-clientes').style.display = section === 'clientes' ? 'flex' : 'none';
+  document.getElementById('section-stock').style.display    = section === 'stock'    ? 'flex' : 'none';
 
   if (section === 'clientes' && !datosClientes.length) {
     seleccionarPeriodoCli('mes');
+  }
+  if (section === 'stock' && !datosStock) {
+    cargarStockBajo();
   }
 }
 
