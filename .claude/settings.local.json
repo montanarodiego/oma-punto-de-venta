@@ -82,7 +82,21 @@
       "Bash(awk \"NR>=1 && NR<=5\" src/renderer/js/proveedores.js)",
       "Bash(python -c \"import sys,json; b=json.load\\(sys.stdin\\)['build']; print\\('artifactName nsis:', b.get\\('nsis',{}\\).get\\('artifactName','NO CONFIGURADO'\\)\\); print\\('artifactName raiz:', b.get\\('artifactName','NO CONFIGURADO'\\)\\)\")",
       "Bash(curl -sI \"https://github.com/montanarodiego/oma-punto-de-venta/releases/download/v1.8.2/OmaTech%20POS%20Setup%201.8.2.exe\")",
-      "Bash(gh api *)"
+      "Bash(gh api *)",
+      "PowerShell(cd \"C:\\\\Users\\\\diego\\\\Desktop\\\\oma-punto-de-venta\"; Get-ChildItem dist\\\\ | Where-Object { $_.Name -match \"1\\\\.8\\\\.4\" -or $_.Name -eq \"latest.yml\" } | Select-Object Name, Length)",
+      "Bash(git diff *)",
+      "Bash(python -c \"import sys,json; p=json.load\\(sys.stdin\\); print\\('scripts:', json.dumps\\(p.get\\('scripts',{}\\), indent=2\\)\\); print\\('main:', p.get\\('main',''\\)\\)\")",
+      "Bash(npm root *)",
+      "PowerShell(npx playwright --version; \\(Get-Command npx\\).Source)",
+      "PowerShell(npx --yes playwright --version 2>&1 | Select-Object -First 5)",
+      "PowerShell(npx --yes playwright show-trace --help 2>&1 | Select-Object -First 2)",
+      "PowerShell(Get-ChildItem *)",
+      "WebSearch",
+      "Bash(Get-ChildItem -Path \"C:\\\\Users\\\\diego\\\\Desktop\\\\oma-punto-de-venta\\\\src\\\\renderer\\\\views\" -File)",
+      "Bash(Select-Object Name)",
+      "Bash(Get-ChildItem -Path \"C:\\\\Users\\\\diego\\\\Desktop\\\\oma-punto-de-venta\\\\src\\\\renderer\\\\js\" -File)",
+      "Bash(Get-ChildItem -Path \"C:\\\\Users\\\\diego\\\\Desktop\\\\oma-punto-de-venta\\\\src\\\\main\" -File)",
+      "Bash(Get-ChildItem -Path \"C:\\\\Users\\\\diego\\\\Desktop\\\\oma-punto-de-venta\\\\src\\\\main\\\\models\" -File -ErrorAction SilentlyContinue)"
     ]
   }
 }
