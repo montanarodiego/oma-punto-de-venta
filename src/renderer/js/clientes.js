@@ -103,15 +103,25 @@ function renderTabla(lista) {
   }
 
   tabla.innerHTML = lista.map(c => {
-    const conDeuda = Number(c.saldo_vencido) > 0;
-    const rowCls   = conDeuda ? 'bg-red-50' : 'hover:bg-gray-50';
-    const saldoCls = conDeuda ? 'text-red-600 font-bold' : 'text-gray-700';
+    const conDeuda    = Number(c.saldo_vencido) > 0;
+    const limite      = Number(c.limite_credito || 0);
+    const excedeLimite = limite > 0 && Number(c.saldo_vencido) >= limite;
+    const cercaLimite  = limite > 0 && !excedeLimite && Number(c.saldo_vencido) >= limite * 0.9;
+    const rowCls       = conDeuda ? 'bg-red-50' : 'hover:bg-gray-50';
+    const saldoCls     = conDeuda ? 'text-red-600 font-bold' : 'text-gray-700';
+
+    const badgeLimite = excedeLimite
+      ? `<span style="margin-left:6px;font-size:10px;font-weight:700;padding:1px 6px;border-radius:999px;background:rgba(239,68,68,.15);color:#f87171;">LÍMITE</span>`
+      : cercaLimite
+        ? `<span style="margin-left:6px;font-size:10px;font-weight:700;padding:1px 6px;border-radius:999px;background:rgba(251,146,60,.15);color:#fb923c;">LÍMITE ⚠</span>`
+        : '';
 
     return `
       <tr class="${rowCls} transition-colors" data-id="${c.id}" style="cursor:pointer;">
         <td class="px-4 py-2.5">
           <span class="font-medium">${esc(c.nombre)}</span>
           ${conDeuda ? '<span class="ml-2 text-xs text-red-500 font-semibold">&#9888; Deuda</span>' : ''}
+          ${badgeLimite}
         </td>
         <td class="px-4 py-2.5 text-gray-600">${esc(c.telefono || '—')}</td>
         <td class="px-4 py-2.5 text-gray-500 text-sm">${esc(c.direccion || '—')}</td>
@@ -266,6 +276,24 @@ function actualizarSaldoEnModal(saldo) {
     btnLiquidar.classList.remove('hidden');
   } else {
     btnLiquidar.classList.add('hidden');
+  }
+
+  // Barra de progreso del límite de crédito
+  const c      = clientes.find(x => x.id === cuentaClienteId);
+  const limite = Number(c?.limite_credito || 0);
+  const barWrap = document.getElementById('credito-barra-wrap');
+  if (limite > 0) {
+    const s   = Number(saldo || 0);
+    const pct = Math.min(100, (s / limite) * 100);
+    const color = pct >= 100 ? '#f87171' : pct >= 80 ? '#fb923c' : '#22c55e';
+    document.getElementById('credito-barra-fill').style.width      = pct.toFixed(1) + '%';
+    document.getElementById('credito-barra-fill').style.background = color;
+    document.getElementById('credito-barra-pct').style.color       = color;
+    document.getElementById('credito-barra-pct').textContent       = pct.toFixed(0) + '%';
+    document.getElementById('credito-barra-label').textContent     = `Usado: ${fmt(s)} de ${fmt(limite)}`;
+    barWrap.style.display = '';
+  } else {
+    barWrap.style.display = 'none';
   }
 }
 

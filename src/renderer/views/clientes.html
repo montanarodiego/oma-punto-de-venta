@@ -154,6 +154,16 @@
             </button>
           </div>
         </div>
+        <!-- Barra de uso del límite de crédito -->
+        <div id="credito-barra-wrap" style="display:none;margin-top:10px;">
+          <div style="display:flex;justify-content:space-between;font-size:11px;color:var(--text-subtle);margin-bottom:4px;">
+            <span id="credito-barra-label"></span>
+            <span id="credito-barra-pct" style="font-weight:600;"></span>
+          </div>
+          <div style="height:6px;border-radius:99px;background:rgba(255,255,255,.08);overflow:hidden;">
+            <div id="credito-barra-fill" style="height:100%;border-radius:99px;transition:width .35s,background .35s;"></div>
+          </div>
+        </div>
       </div>
 
       <!-- Registrar pago -->

@@ -1459,14 +1459,49 @@ function seleccionarClienteCobro(cl) {
   elCobroClienteBadge.style.display = 'flex';
   elCobrobuscCliente.value = '';
   elCobroResCliente.style.display = 'none';
+  actualizarAvisoLimite();
 }
 
 document.getElementById('cobro-btn-quitar-cliente').addEventListener('click', () => {
   cobroClienteSeleccionado = null;
   elCobroClienteBadge.style.display = 'none';
+  document.getElementById('cobro-aviso-limite').style.display = 'none';
   elCobrobuscCliente.value = '';
   elCobrobuscCliente.focus();
 });
+
+function actualizarAvisoLimite() {
+  const aviso  = document.getElementById('cobro-aviso-limite');
+  const cl     = cobroClienteSeleccionado;
+  const limite = Number(cl?.limite_credito || 0);
+
+  if (!cl || limite <= 0) { aviso.style.display = 'none'; return; }
+
+  const saldoActual = Number(cl.saldo_vencido || 0);
+  const { total }   = calcularTotales();
+  const saldoNuevo  = saldoActual + total;
+  const exceso      = saldoNuevo - limite;
+  const excede      = exceso > 0.005;
+  const pctActual   = Math.min(100, (saldoActual / limite) * 100);
+  const pctNuevo    = Math.min(100, (saldoNuevo  / limite) * 100);
+
+  const color  = excede ? '#f87171' : pctNuevo >= 80 ? '#fb923c' : '#4ade80';
+  const bg     = excede ? 'rgba(239,68,68,.1)'  : pctNuevo >= 80 ? 'rgba(251,146,60,.1)'  : 'rgba(34,197,94,.07)';
+  const border = excede ? 'rgba(239,68,68,.35)' : pctNuevo >= 80 ? 'rgba(251,146,60,.35)' : 'rgba(34,197,94,.2)';
+  const titulo = excede ? '⚠ Excedería el límite de crédito' : 'Crédito disponible';
+
+  aviso.style.cssText = `display:block;border-radius:var(--r-in);padding:9px 12px;font-size:12px;background:${bg};border:1px solid ${border};`;
+  aviso.innerHTML = `
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px;">
+      <span style="font-weight:600;color:${color};">${titulo}</span>
+      <span style="color:var(--text-subtle);font-size:11px;">${fmt(saldoNuevo)} / ${fmt(limite)}</span>
+    </div>
+    <div style="height:5px;border-radius:99px;background:rgba(255,255,255,.08);overflow:hidden;">
+      <div style="height:100%;width:${pctNuevo.toFixed(1)}%;background:${color};border-radius:99px;transition:width .3s;"></div>
+    </div>
+    ${excede ? `<div style="margin-top:5px;color:#f87171;font-size:11px;">Exceso: ${fmt(exceso)} — la venta se registrará igualmente.</div>` : `<div style="margin-top:5px;color:var(--text-subtle);font-size:11px;">Saldo actual: ${fmt(saldoActual)} | Después de la venta: ${fmt(saldoNuevo)}</div>`}
+  `;
+}
 
 // ── Modal de cobro — capture-phase, captura teclas siempre (incluso con input activo) ──
 document.addEventListener('keydown', e => {
