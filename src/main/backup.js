@@ -46,4 +46,24 @@ function listarBackups() {
     .sort((a, b) => b.fecha.localeCompare(a.fecha));
 }
 
-module.exports = { hacerBackup, listarBackups, getBackupDir };
+function restaurarBackup(rutaArchivo) {
+  const dbPath = path.join(app.getPath('userData'), 'oma-pos.db');
+
+  if (!fs.existsSync(rutaArchivo)) {
+    throw new Error('El archivo de backup no existe: ' + rutaArchivo);
+  }
+
+  // Salvar el estado actual antes de pisarlo
+  try { hacerBackup(); } catch { /* si falla el pre-backup, continuar igual */ }
+
+  // Cerrar la conexión activa para poder reemplazar el archivo
+  try { getDb().close(); } catch { /* continúa */ }
+
+  fs.copyFileSync(rutaArchivo, dbPath);
+
+  // Reiniciar la app: la nueva instancia inicializará la DB restaurada
+  app.relaunch();
+  app.exit(0);
+}
+
+module.exports = { hacerBackup, listarBackups, getBackupDir, restaurarBackup };

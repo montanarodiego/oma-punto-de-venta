@@ -450,6 +450,38 @@ function registerHandlers() {
   ipcMain.handle('backup:getRuta',      () => Backup.getBackupDir());
   ipcMain.handle('backup:abrirCarpeta', () => { shell.openPath(Backup.getBackupDir()); return true; });
 
+  ipcMain.handle('backup:seleccionarArchivo', async (e) => {
+    const win = e.sender.getOwnerBrowserWindow();
+    const result = await dialog.showOpenDialog(win, {
+      title:      'Seleccionar backup a restaurar',
+      filters:    [{ name: 'Base de datos SQLite', extensions: ['db'] }],
+      properties: ['openFile'],
+      defaultPath: Backup.getBackupDir(),
+    });
+    if (result.canceled || !result.filePaths.length) return null;
+    return result.filePaths[0];
+  });
+
+  ipcMain.handle('backup:restaurar', async (e, rutaArchivo) => {
+    const win = e.sender.getOwnerBrowserWindow();
+    const { response } = await dialog.showMessageBox(win, {
+      type:      'warning',
+      title:     'Restaurar backup',
+      message:   '¿Restaurar este backup?',
+      detail:    'La base de datos actual será reemplazada por el backup seleccionado.\n\nLa sesión se cerrará y la app se reiniciará automáticamente.\n\nAntes de restaurar se hará un backup del estado actual.',
+      buttons:   ['Cancelar', 'Restaurar y reiniciar'],
+      defaultId: 0,
+      cancelId:  0,
+    });
+    if (response !== 1) return { ok: false, cancelado: true };
+    try {
+      Backup.restaurarBackup(rutaArchivo); // llama app.exit() — no retorna
+      return { ok: true };
+    } catch (err) {
+      return { ok: false, error: err.message };
+    }
+  });
+
   // ── Navegación ─────────────────────────────────────────────
   ipcMain.handle('navegar', (e, file) => {
     const win = e.sender.getOwnerBrowserWindow();

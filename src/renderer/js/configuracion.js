@@ -77,6 +77,7 @@ document.addEventListener('DOMContentLoaded', () => {
 form.addEventListener('submit', guardar);
 document.getElementById('btn-sync').addEventListener('click', sincronizarAhora);
 document.getElementById('btn-backup-ahora').addEventListener('click', hacerBackupAhora);
+document.getElementById('btn-restaurar-archivo').addEventListener('click', restaurarDesdeArchivo);
 document.getElementById('btn-abrir-carpeta-backup').addEventListener('click', () => window.api.backup.abrirCarpeta());
 
 async function cargarConfig() {
@@ -205,11 +206,39 @@ async function cargarBackups() {
       hour: '2-digit', minute: '2-digit',
     });
     const kb = (b.tamanio / 1024).toFixed(0);
-    return `<div style="display:flex;justify-content:space-between;align-items:center;padding:6px 10px;background:var(--surface-2);border-radius:var(--r-in);font-size:12px;">
-      <span style="color:var(--text-muted);font-family:monospace;">${esc(b.nombre)}</span>
-      <span style="color:var(--text-subtle);white-space:nowrap;margin-left:12px;">${fecha} · ${kb} KB</span>
+    return `<div style="display:flex;align-items:center;gap:8px;padding:5px 8px;background:var(--surface-2);border-radius:var(--r-in);font-size:12px;">
+      <span style="flex:1;color:var(--text-muted);font-family:monospace;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;" title="${esc(b.nombre)}">${esc(b.nombre)}</span>
+      <span style="color:var(--text-subtle);white-space:nowrap;flex-shrink:0;">${fecha} · ${kb} KB</span>
+      <button data-restaurar-ruta="${esc(b.ruta)}"
+        style="flex-shrink:0;font-size:11px;padding:2px 8px;border-radius:4px;border:1px solid var(--border);background:none;color:var(--text-muted);cursor:pointer;white-space:nowrap;"
+        title="Restaurar este backup">
+        Restaurar
+      </button>
     </div>`;
   }).join('');
+
+  el.querySelectorAll('[data-restaurar-ruta]').forEach(btn => {
+    btn.addEventListener('click', () => ejecutarRestaurar(btn.dataset.restaurarRuta));
+  });
+}
+
+async function restaurarDesdeArchivo() {
+  const ruta = await window.api.backup.seleccionarArchivo();
+  if (!ruta) return;
+  await ejecutarRestaurar(ruta);
+}
+
+async function ejecutarRestaurar(ruta) {
+  const resEl = document.getElementById('backup-resultado');
+  resEl.textContent = '';
+  const res = await window.api.backup.restaurar(ruta);
+  if (res && !res.ok && !res.cancelado) {
+    resEl.textContent = 'Error: ' + (res.error || 'error desconocido');
+    resEl.style.color = '#f87171';
+    setTimeout(() => { resEl.textContent = ''; }, 5000);
+  }
+  // Si ok: la app se reinicia sola (app.exit llamado en main)
+  // Si cancelado: no hacer nada
 }
 
 async function hacerBackupAhora() {

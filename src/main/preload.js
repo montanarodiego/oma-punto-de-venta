@@ -154,10 +154,12 @@ contextBridge.exposeInMainWorld('api', {
 
   // Backup
   backup: {
-    hacerAhora:    ()  => ipcRenderer.invoke('backup:hacerAhora'),
-    listar:        ()  => ipcRenderer.invoke('backup:listar'),
-    getRuta:       ()  => ipcRenderer.invoke('backup:getRuta'),
-    abrirCarpeta:  ()  => ipcRenderer.invoke('backup:abrirCarpeta'),
+    hacerAhora:        ()     => ipcRenderer.invoke('backup:hacerAhora'),
+    listar:            ()     => ipcRenderer.invoke('backup:listar'),
+    getRuta:           ()     => ipcRenderer.invoke('backup:getRuta'),
+    abrirCarpeta:      ()     => ipcRenderer.invoke('backup:abrirCarpeta'),
+    seleccionarArchivo:()     => ipcRenderer.invoke('backup:seleccionarArchivo'),
+    restaurar:         (ruta) => ipcRenderer.invoke('backup:restaurar', ruta),
   },
 
   // Caja
