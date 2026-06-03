@@ -159,7 +159,7 @@ function getRecientes(limite = 40) {
     SELECT t.*, c.nombre AS nombre_cliente
     FROM transacciones t
     LEFT JOIN clientes c ON c.id = t.cuenta_cliente_id
-    WHERE date(t.created_at) = date('now')
+    WHERE date(datetime(t.created_at, '-3 hours')) = date(datetime('now', '-3 hours'))
     ORDER BY t.id DESC
     LIMIT ?
   `).all(limite);

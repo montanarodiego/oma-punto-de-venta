@@ -1,9 +1,31 @@
 const { getDb } = require('../database');
 
+// Argentina es UTC-3 sin cambio de horario desde 1999.
+// Todos los timestamps se guardan como UTC con datetime('now').
+// utcRange() convierte una fecha local (YYYY-MM-DD) a los límites UTC
+// correctos para usar en BETWEEN, evitando que ventas nocturnas caigan
+// en el día siguiente al agrupar por fecha.
+const TZ_OFFSET_H = 3; // horas a sumar para pasar ART → UTC
+
+function utcRange(localDate, endOfDay) {
+  const [y, m, d] = localDate.split('-').map(Number);
+  const utcH   = (endOfDay ? 23 : 0) + TZ_OFFSET_H;
+  const overflow = utcH >= 24;
+  const h  = utcH % 24;
+  const tail = endOfDay ? ':59:59' : ':00:00';
+  if (!overflow) return `${localDate} ${String(h).padStart(2, '0')}${tail}`;
+  const next = new Date(Date.UTC(y, m - 1, d + 1)).toISOString().slice(0, 10);
+  return `${next} ${String(h).padStart(2, '0')}${tail}`;
+}
+
+// Atajo para envolver columna de timestamp en la conversión ART.
+// Uso: dt('t.created_at') → "datetime(t.created_at, '-3 hours')"
+function dt(col) { return `datetime(${col}, '-3 hours')`; }
+
 function ventasPorPeriodo(desde, hasta) {
-  const db  = getDb();
-  const d   = desde + ' 00:00:00';
-  const h   = hasta  + ' 23:59:59';
+  const db = getDb();
+  const d  = utcRange(desde, false);
+  const h  = utcRange(hasta, true);
 
   const resumen = db.prepare(`
     SELECT
@@ -16,8 +38,8 @@ function ventasPorPeriodo(desde, hasta) {
       AND estado != 'cancelada'
   `).get(d, h);
 
-  // Ganancia bruta: (precio_al_momento - costo_unitario) * cantidad
-  // Para Productos Comunes (articulo_id NULL) ganancia = 0
+  // Ganancia bruta: (precio_al_momento - costo_unitario) × cantidad.
+  // Nota: no descuenta descuentos por ítem (ver ítem 2 de mejoras).
   const gananciaBruta = db.prepare(`
     SELECT COALESCE(SUM(
       CASE WHEN dt.articulo_id IS NOT NULL
@@ -33,7 +55,6 @@ function ventasPorPeriodo(desde, hasta) {
 
   resumen.ganancia_bruta = gananciaBruta.ganancia_bruta;
 
-  // Para pagos mixtos, desagregar monto por cada método de pago
   const porFormaPago = db.prepare(`
     SELECT forma_pago, SUM(cantidad) AS cantidad, SUM(total) AS total FROM (
       SELECT forma_pago, 1 AS cantidad,
@@ -61,8 +82,8 @@ function ventasPorPeriodo(desde, hasta) {
 }
 
 function articulosMasVendidos(desde, hasta) {
-  const d = desde + ' 00:00:00';
-  const h = hasta  + ' 23:59:59';
+  const d = utcRange(desde, false);
+  const h = utcRange(hasta, true);
 
   return getDb().prepare(`
     SELECT
@@ -83,8 +104,8 @@ function articulosMasVendidos(desde, hasta) {
 }
 
 function utilidadBruta(desde, hasta) {
-  const d = desde + ' 00:00:00';
-  const h = hasta  + ' 23:59:59';
+  const d = utcRange(desde, false);
+  const h = utcRange(hasta, true);
 
   const items = getDb().prepare(`
     SELECT
@@ -122,8 +143,8 @@ function saldosClientes() {
 
 function ventasPorDia(desde, hasta) {
   const db = getDb();
-  const d  = desde + ' 00:00:00';
-  const h  = hasta  + ' 23:59:59';
+  const d  = utcRange(desde, false);
+  const h  = utcRange(hasta, true);
 
   return db.prepare(`
     WITH g AS (
@@ -136,51 +157,51 @@ function ventasPorDia(desde, hasta) {
       GROUP BY dt.transaccion_id
     )
     SELECT
-      DATE(t.created_at)          AS fecha,
-      COUNT(*)                    AS cantidad,
-      COALESCE(SUM(t.monto_total), 0) AS total,
-      COALESCE(SUM(g.ganancia),   0)  AS ganancia
+      DATE(${dt('t.created_at')})          AS fecha,
+      COUNT(*)                             AS cantidad,
+      COALESCE(SUM(t.monto_total), 0)      AS total,
+      COALESCE(SUM(g.ganancia),   0)       AS ganancia
     FROM transacciones t
     LEFT JOIN g ON g.transaccion_id = t.id
     WHERE t.created_at BETWEEN ? AND ?
       AND t.estado != 'cancelada'
-    GROUP BY DATE(t.created_at)
+    GROUP BY DATE(${dt('t.created_at')})
     ORDER BY fecha ASC
   `).all(d, h);
 }
 
 function ventasPorHora(fecha) {
   const db = getDb();
-  const d  = fecha + ' 00:00:00';
-  const h  = fecha + ' 23:59:59';
+  const d  = utcRange(fecha, false);
+  const h  = utcRange(fecha, true);
 
   return db.prepare(`
     SELECT
-      CAST(strftime('%H', created_at) AS INTEGER) AS hora,
-      COUNT(*)                                    AS cantidad,
-      COALESCE(SUM(monto_total), 0)               AS total
+      CAST(strftime('%H', ${dt('created_at')}) AS INTEGER) AS hora,
+      COUNT(*)                                             AS cantidad,
+      COALESCE(SUM(monto_total), 0)                        AS total
     FROM transacciones
     WHERE created_at BETWEEN ? AND ?
       AND estado != 'cancelada'
-    GROUP BY strftime('%H', created_at)
+    GROUP BY strftime('%H', ${dt('created_at')})
     ORDER BY hora ASC
   `).all(d, h);
 }
 
 function mejorDia(desde, hasta) {
   const db = getDb();
-  const d  = desde + ' 00:00:00';
-  const h  = hasta  + ' 23:59:59';
+  const d  = utcRange(desde, false);
+  const h  = utcRange(hasta, true);
 
   return db.prepare(`
     SELECT
-      DATE(created_at)             AS fecha,
-      COUNT(*)                     AS cantidad,
-      COALESCE(SUM(monto_total), 0) AS total
+      DATE(${dt('created_at')})              AS fecha,
+      COUNT(*)                               AS cantidad,
+      COALESCE(SUM(monto_total), 0)          AS total
     FROM transacciones
     WHERE created_at BETWEEN ? AND ?
       AND estado != 'cancelada'
-    GROUP BY DATE(created_at)
+    GROUP BY DATE(${dt('created_at')})
     ORDER BY total DESC
     LIMIT 1
   `).get(d, h) || null;
@@ -188,8 +209,8 @@ function mejorDia(desde, hasta) {
 
 function resumenRapido(desde, hasta) {
   const db = getDb();
-  const d  = desde + ' 00:00:00';
-  const h  = hasta  + ' 23:59:59';
+  const d  = utcRange(desde, false);
+  const h  = utcRange(hasta, true);
 
   const row = db.prepare(`
     SELECT COUNT(*) AS cantidad, COALESCE(SUM(monto_total), 0) AS total
@@ -214,8 +235,8 @@ function resumenRapido(desde, hasta) {
 }
 
 function ventasPorCliente(desde, hasta) {
-  const d = desde + ' 00:00:00';
-  const h = hasta  + ' 23:59:59';
+  const d = utcRange(desde, false);
+  const h = utcRange(hasta, true);
 
   return getDb().prepare(`
     SELECT
@@ -245,8 +266,8 @@ function ventasPorCliente(desde, hasta) {
 
 function ventasPorMes(desde, hasta) {
   const db = getDb();
-  const d  = desde + ' 00:00:00';
-  const h  = hasta  + ' 23:59:59';
+  const d  = utcRange(desde, false);
+  const h  = utcRange(hasta, true);
 
   return db.prepare(`
     WITH g AS (
@@ -259,29 +280,29 @@ function ventasPorMes(desde, hasta) {
       GROUP BY dt.transaccion_id
     )
     SELECT
-      strftime('%Y-%m', t.created_at)   AS mes,
-      COUNT(*)                          AS cantidad,
-      COALESCE(SUM(t.monto_total), 0)   AS total,
-      COALESCE(SUM(g.ganancia), 0)      AS ganancia
+      strftime('%Y-%m', ${dt('t.created_at')})  AS mes,
+      COUNT(*)                                   AS cantidad,
+      COALESCE(SUM(t.monto_total), 0)            AS total,
+      COALESCE(SUM(g.ganancia), 0)               AS ganancia
     FROM transacciones t
     LEFT JOIN g ON g.transaccion_id = t.id
     WHERE t.created_at BETWEEN ? AND ?
       AND t.estado != 'cancelada'
-    GROUP BY strftime('%Y-%m', t.created_at)
+    GROUP BY strftime('%Y-%m', ${dt('t.created_at')})
     ORDER BY mes ASC
   `).all(d, h);
 }
 
 function ventasPorDepartamento(desde, hasta) {
   const db = getDb();
-  const d  = desde + ' 00:00:00';
-  const h  = hasta  + ' 23:59:59';
+  const d  = utcRange(desde, false);
+  const h  = utcRange(hasta, true);
 
   return db.prepare(`
     SELECT
-      COALESCE(dep.nombre, 'Sin depto.') AS departamento,
-      COUNT(DISTINCT t.id)               AS cantidad,
-      COALESCE(SUM(dt.importe_total), 0) AS total,
+      COALESCE(dep.nombre, 'Sin departamento') AS departamento,
+      COUNT(DISTINCT t.id)                      AS cantidad,
+      COALESCE(SUM(dt.importe_total), 0)        AS total,
       COALESCE(SUM(dt.cantidad * (dt.precio_al_momento - a.costo_unitario)), 0) AS ganancia
     FROM detalle_transaccion dt
     JOIN transacciones t ON t.id = dt.transaccion_id
@@ -289,25 +310,25 @@ function ventasPorDepartamento(desde, hasta) {
     LEFT JOIN departamentos dep ON dep.id = a.departamento_id
     WHERE t.created_at BETWEEN ? AND ?
       AND t.estado != 'cancelada'
-    GROUP BY COALESCE(dep.nombre, 'Sin depto.')
+    GROUP BY COALESCE(dep.nombre, 'Sin departamento')
     ORDER BY total DESC
   `).all(d, h);
 }
 
 function ventasPorHoraRango(desde, hasta) {
   const db = getDb();
-  const d  = desde + ' 00:00:00';
-  const h  = hasta  + ' 23:59:59';
+  const d  = utcRange(desde, false);
+  const h  = utcRange(hasta, true);
 
   return db.prepare(`
     SELECT
-      CAST(strftime('%H', created_at) AS INTEGER) AS hora,
-      COUNT(*)                                    AS cantidad,
-      COALESCE(SUM(monto_total), 0)               AS total
+      CAST(strftime('%H', ${dt('created_at')}) AS INTEGER) AS hora,
+      COUNT(*)                                             AS cantidad,
+      COALESCE(SUM(monto_total), 0)                        AS total
     FROM transacciones
     WHERE created_at BETWEEN ? AND ?
       AND estado != 'cancelada'
-    GROUP BY strftime('%H', created_at)
+    GROUP BY strftime('%H', ${dt('created_at')})
     ORDER BY hora ASC
   `).all(d, h);
 }
