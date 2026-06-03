@@ -211,6 +211,7 @@ contextBridge.exposeInMainWorld('api', {
     listarImpresoras: ()                       => ipcRenderer.invoke('printer:listarImpresoras'),
     imprimir:         (transaccionId, extra)   => ipcRenderer.invoke('printer:imprimir', transaccionId, extra),
     imprimirPrueba:   (nombreImpresora)        => ipcRenderer.invoke('printer:imprimirPrueba', nombreImpresora),
+    imprimirCorteZ:   (turnoId)               => ipcRenderer.invoke('printer:imprimirCorteZ', turnoId),
   },
 
   // Navegación (main process loadFile — funciona aunque location.href falle en Electron)

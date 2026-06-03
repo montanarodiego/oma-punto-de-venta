@@ -291,4 +291,130 @@ async function enviarRaw(nombreImpresora, buffer) {
   }
 }
 
-module.exports = { listarImpresoras, buildTicketBuffer, buildPruebaBuffer, enviarRaw };
+// ── Corte Z (cierre de turno) ────────────────────────────────────
+function buildCorteZBuffer(resumen, cfg) {
+  const parts = [];
+  const cmd = (...b) => parts.push(Buffer.from(b));
+  const txt = s  => parts.push(enc(s));
+  const sep = () => txt('='.repeat(COLS) + '\n');
+  const lin = () => txt('-'.repeat(COLS) + '\n');
+
+  const mon = cfg.moneda || '$';
+  const fmt = n => {
+    const num = parseFloat(n || 0);
+    const abs = Math.abs(num).toFixed(2);
+    const [ent, dec] = abs.split('.');
+    const entF = ent.replace(/\B(?=(\d{3})+(?!\d))/g, '.');
+    return (num < 0 ? '-' : '') + mon + entF + ',' + dec;
+  };
+  const der = (label, valor) => {
+    const l = String(label), v = String(valor);
+    return l + ' '.repeat(Math.max(1, COLS - l.length - v.length)) + v + '\n';
+  };
+  const fmtFecha = iso => {
+    if (!iso) return '—';
+    const d = new Date(iso.replace(' ', 'T'));
+    return d.toLocaleString('es-AR', {
+      day: '2-digit', month: '2-digit', year: 'numeric',
+      hour: '2-digit', minute: '2-digit',
+    });
+  };
+
+  // Init + code page 850
+  cmd(ESC, 0x40);
+  cmd(ESC, 0x74, 0x02);
+
+  // Header centrado
+  cmd(ESC, 0x61, 0x01);
+  cmd(ESC, 0x21, 0x30);
+  txt((cfg.nombreNegocio || 'MI NEGOCIO').toUpperCase() + '\n');
+  cmd(ESC, 0x21, 0x00);
+  if (cfg.direccion) txt(cfg.direccion + '\n');
+  if (cfg.telefono)  txt('Tel: ' + cfg.telefono + '\n');
+  if (cfg.cuit)      txt('CUIT: ' + cfg.cuit + '\n');
+  cmd(ESC, 0x61, 0x00);
+
+  txt('\n');
+  sep();
+  cmd(ESC, 0x61, 0x01);
+  cmd(ESC, 0x45, 0x01);
+  txt('CORTE Z - CIERRE DE TURNO\n');
+  cmd(ESC, 0x45, 0x00);
+  cmd(ESC, 0x61, 0x00);
+  sep();
+
+  txt(der('Turno N:', resumen.id));
+  txt(der('Apertura:', fmtFecha(resumen.fecha_apertura)));
+  txt(der('Cierre:',   fmtFecha(resumen.fecha_cierre)));
+  lin();
+
+  // Ventas por medio de pago
+  cmd(ESC, 0x45, 0x01);
+  txt('VENTAS DEL TURNO\n');
+  cmd(ESC, 0x45, 0x00);
+  lin();
+
+  txt(der('Total ventas:', fmt(resumen.total_ventas)));
+  const medios = [
+    [resumen.ventas_efectivo,          'Efectivo'],
+    [resumen.ventas_debito,            'Tarjeta debito'],
+    [resumen.ventas_credito,           'Tarjeta credito'],
+    [resumen.ventas_transferencia,     'Transferencia'],
+    [resumen.ventas_cuenta_corriente,  'Cuenta corriente'],
+  ];
+  for (const [v, label] of medios) {
+    if (parseFloat(v || 0) > 0) txt(der('  ' + label + ':', fmt(v)));
+  }
+  if (parseFloat(resumen.total_descuentos || 0) > 0)
+    txt(der('Descuentos otorgados:', '-' + fmt(resumen.total_descuentos)));
+  if (parseFloat(resumen.total_propinas || 0) > 0)
+    txt(der('Propinas:', fmt(resumen.total_propinas)));
+  txt(der('Cantidad de ventas:', resumen.total_transacciones || 0));
+  lin();
+
+  // Efectivo
+  cmd(ESC, 0x45, 0x01);
+  txt('CAJA - EFECTIVO\n');
+  cmd(ESC, 0x45, 0x00);
+  lin();
+
+  txt(der('Efectivo inicial:', fmt(resumen.efectivo_inicial)));
+  if (parseFloat(resumen.total_entradas || 0) > 0)
+    txt(der('Entradas:', '+' + fmt(resumen.total_entradas)));
+  if (parseFloat(resumen.total_salidas || 0) > 0)
+    txt(der('Salidas:', '-' + fmt(resumen.total_salidas)));
+  txt(der('Esperado en caja:', fmt(resumen.efectivo_esperado)));
+
+  cmd(ESC, 0x45, 0x01);
+  txt(der('Real (contado):', fmt(resumen.efectivo_real)));
+  cmd(ESC, 0x45, 0x00);
+
+  const dif = parseFloat(resumen.diferencia ?? 0);
+  const difStr = (dif > 0 ? '+' : '') + fmt(dif);
+  cmd(ESC, 0x45, 0x01);
+  txt(der('Diferencia:', difStr));
+  cmd(ESC, 0x45, 0x00);
+
+  if (Math.abs(dif) > 0.005) {
+    txt('\n');
+    cmd(ESC, 0x61, 0x01);
+    txt(dif < 0 ? '*** FALTANTE ***\n' : '*** SOBRANTE ***\n');
+    cmd(ESC, 0x61, 0x00);
+  }
+
+  if (resumen.notas) {
+    lin();
+    txt('Notas: ' + resumen.notas + '\n');
+  }
+
+  sep();
+  cmd(ESC, 0x61, 0x01);
+  txt('OmaTech POS\n');
+  cmd(ESC, 0x61, 0x00);
+  parts.push(Buffer.from([0x0A, 0x0A, 0x0A]));
+  cmd(GS, 0x56, 0x42, 0x00);
+
+  return Buffer.concat(parts);
+}
+
+module.exports = { listarImpresoras, buildTicketBuffer, buildPruebaBuffer, buildCorteZBuffer, enviarRaw };

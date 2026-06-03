@@ -545,6 +545,33 @@ function registerHandlers() {
     }
   });
 
+  ipcMain.handle('printer:imprimirCorteZ', async (_e, turnoId) => {
+    try {
+      const db = getDb();
+      const nombreImpresora = db
+        .prepare("SELECT valor FROM configuracion WHERE clave = 'impresora_nombre'")
+        .get()?.valor;
+      if (!nombreImpresora) return { ok: false, noImpresora: true };
+
+      const getCfg = (k, def = '') =>
+        db.prepare('SELECT valor FROM configuracion WHERE clave = ?').get(k)?.valor ?? def;
+
+      const cfg = {
+        nombreNegocio: getCfg('nombre_negocio', 'MI NEGOCIO'),
+        direccion:     getCfg('direccion'),
+        telefono:      getCfg('telefono'),
+        cuit:          getCfg('cuit'),
+        moneda:        getCfg('moneda', '$'),
+      };
+
+      const resumen = Turnos.calcularResumen(turnoId);
+      const buf = Printer.buildCorteZBuffer(resumen, cfg);
+      return await Printer.enviarRaw(nombreImpresora, buf);
+    } catch (err) {
+      return { ok: false, error: err.message };
+    }
+  });
+
   // ── Reporte automático por email ───────────────────────────────
   ipcMain.handle('reporteEmail:getConfig', () => {
     const db  = getDb();

@@ -152,8 +152,11 @@ formCerrar.addEventListener('submit', async e => {
   btn.disabled = true;
 
   try {
-    const notas = document.getElementById('inp-notas-cierre').value.trim();
-    await window.api.turnos.cerrar(turnoActivo.id, efectivoReal, notas);
+    const notas    = document.getElementById('inp-notas-cierre').value.trim();
+    const turnoId  = turnoActivo.id;
+    await window.api.turnos.cerrar(turnoId, efectivoReal, notas);
+    // Imprimir corte Z: fire-and-forget, no bloquea el cierre
+    window.api.printer.imprimirCorteZ(turnoId).catch(() => {});
     turnoActivo = null;
     document.getElementById('inp-notas-cierre').value = '';
     inpEfectivoReal.value = '';
