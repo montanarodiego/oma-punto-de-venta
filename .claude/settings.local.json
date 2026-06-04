@@ -96,7 +96,14 @@
       "Bash(Select-Object Name)",
       "Bash(Get-ChildItem -Path \"C:\\\\Users\\\\diego\\\\Desktop\\\\oma-punto-de-venta\\\\src\\\\renderer\\\\js\" -File)",
       "Bash(Get-ChildItem -Path \"C:\\\\Users\\\\diego\\\\Desktop\\\\oma-punto-de-venta\\\\src\\\\main\" -File)",
-      "Bash(Get-ChildItem -Path \"C:\\\\Users\\\\diego\\\\Desktop\\\\oma-punto-de-venta\\\\src\\\\main\\\\models\" -File -ErrorAction SilentlyContinue)"
+      "Bash(Get-ChildItem -Path \"C:\\\\Users\\\\diego\\\\Desktop\\\\oma-punto-de-venta\\\\src\\\\main\\\\models\" -File -ErrorAction SilentlyContinue)",
+      "Bash(npx skills *)",
+      "Bash(npx vite *)",
+      "Bash(npx tsc *)",
+      "PowerShell($pids = netstat -ano | Select-String \":5173\" | ForEach-Object { \\($_ -split '\\\\s+'\\)[-1] } | Sort-Object -Unique; foreach \\($p in $pids\\) { if \\($p -match '^\\\\d+$'\\) { Stop-Process -Id $p -Force -ErrorAction SilentlyContinue } }; Write-Output \"killed port 5173\")",
+      "PowerShell($pids = netstat -ano | Select-String \":5173\" | ForEach-Object { \\($_ -split '\\\\s+'\\)[-1] } | Sort-Object -Unique; foreach \\($p in $pids\\) { if \\($p -match '^\\\\d+$'\\) { Stop-Process -Id $p -Force -ErrorAction SilentlyContinue } }; Write-Output \"ok\")",
+      "PowerShell(Get-Process *)",
+      "PowerShell(netstat *)"
     ]
   }
 }
