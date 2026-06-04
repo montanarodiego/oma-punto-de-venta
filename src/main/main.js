@@ -47,6 +47,9 @@ function createMenu() {
   Menu.setApplicationMenu(Menu.buildFromTemplate(template));
 }
 
+const isDev = !app.isPackaged;
+const VITE_URL = 'http://localhost:5173';
+
 // ── Ventana principal ──────────────────────────────────────────
 function createWindow() {
   mainWindow = new BrowserWindow({
@@ -72,9 +75,11 @@ function createWindow() {
   mainWindow.setMenuBarVisibility(false);
   mainWindow.setAutoHideMenuBar(true);
 
-  mainWindow.loadFile(
-    path.join(__dirname, '..', 'renderer', 'views', 'caja.html')
-  );
+  if (isDev) {
+    mainWindow.loadURL(VITE_URL);
+  } else {
+    mainWindow.loadFile(path.join(__dirname, '..', '..', 'dist', 'renderer', 'index.html'));
+  }
 
   createMenu();
 
@@ -112,9 +117,8 @@ function createWindow() {
       cancelId: 1,
     }).then(function ({ response }) {
       if (response === 0) {
-        mainWindow.loadFile(
-          path.join(__dirname, '..', 'renderer', 'views', 'turno.html')
-        );
+        if (isDev) mainWindow.loadURL(VITE_URL + '/#/turno');
+        else mainWindow.loadFile(path.join(__dirname, '..', '..', 'dist', 'renderer', 'index.html'), { hash: '#/turno' });
       } else {
         forceClose = true;
         mainWindow.close();
@@ -123,24 +127,10 @@ function createWindow() {
   });
 }
 
-// ── Ventana de login ───────────────────────────────────────────
+// ── Ventana de login (legacy, no usada en React SPA) ────────────
 function createLoginWindow() {
-  loginWindow = new BrowserWindow({
-    width: 420,
-    height: 500,
-    resizable: false,
-    icon: path.join(__dirname, '..', '..', 'assets', 'icon.ico'),
-    webPreferences: {
-      preload: path.join(__dirname, 'preload.js'),
-      contextIsolation: true,
-      nodeIntegration: false,
-    },
-    title: 'Oma — Iniciar sesión',
-  });
-  loginWindow.setMenuBarVisibility(false);
-  loginWindow.loadFile(
-    path.join(__dirname, '..', 'renderer', 'views', 'login.html')
-  );
+  // La SPA React maneja el login internamente vía HashRouter
+  createWindow();
 }
 
 // ── Sincronización periódica (cada 30 min) ─────────────────────
@@ -218,8 +208,7 @@ function registerAuthHandlers() {
       });
 
       negocioIdActivo = user.uid;
-      if (loginWindow && !loginWindow.isDestroyed()) loginWindow.close();
-      createWindow();
+      // La React SPA maneja la navegación internamente — no crear ventana nueva
       iniciarSyncInterval();
       return { ok: true };
 
@@ -345,15 +334,15 @@ app.whenReady().then(async () => {
       },
     });
     popup.setMenuBarVisibility(false);
-    popup.loadFile(
-      path.join(__dirname, '..', 'renderer', 'views', 'comprobante.html'),
-      { query: {
-          id:       String(transaccionId),
-          recibido: String(montoRecibido ?? 0),
-          vuelto:   String(vuelto ?? 0),
-          propina:  String(propina ?? 0),
-      }}
-    );
+    const hashParams = `?id=${transaccionId}&recibido=${montoRecibido??0}&vuelto=${vuelto??0}&propina=${propina??0}`;
+    if (isDev) {
+      popup.loadURL(`${VITE_URL}/#/comprobante${hashParams}`);
+    } else {
+      popup.loadFile(
+        path.join(__dirname, '..', '..', 'dist', 'renderer', 'index.html'),
+        { hash: `#/comprobante${hashParams}` }
+      );
+    }
   });
 
   // Startup offline-first: si hay token local válido, cablear negocioIdActivo

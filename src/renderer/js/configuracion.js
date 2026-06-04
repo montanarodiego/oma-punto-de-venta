@@ -177,14 +177,9 @@ async function sincronizarAhora() {
 function mostrarMensaje(texto, tipo) {
   clearTimeout(timerMensaje);
   mensaje.textContent = texto;
-  mensaje.className   = tipo === 'ok'
-    ? 'px-4 py-3 rounded-lg text-sm text-center font-medium bg-green-50 border border-green-200 text-green-700'
-    : 'px-4 py-3 rounded-lg text-sm text-center font-medium bg-red-50 border border-red-200 text-red-700';
+  mensaje.className   = tipo === 'ok' ? 'msg-ok' : 'msg-error';
   mensaje.classList.remove('hidden');
-
-  if (tipo === 'ok') {
-    timerMensaje = setTimeout(ocultarMensaje, 3000);
-  }
+  if (tipo === 'ok') timerMensaje = setTimeout(ocultarMensaje, 3000);
 }
 
 function ocultarMensaje() {

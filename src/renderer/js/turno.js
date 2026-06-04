@@ -17,6 +17,7 @@ const CAT_LABELS = {
 
 let turnoActivo = null;
 let _cancelarMovId = null;
+let _pendingCierre = null; // { efectivoReal, notas }
 
 const panelSinTurno    = document.getElementById('panel-sin-turno');
 const panelTurnoActivo = document.getElementById('panel-turno-activo');
@@ -31,6 +32,7 @@ const diferenciaValor  = document.getElementById('diferencia-valor');
 document.addEventListener('DOMContentLoaded', async () => {
   await cargar();
   initCancelarMovModal();
+  initConfirmarCierreModal();
 });
 
 async function cargar() {
@@ -161,16 +163,16 @@ formCerrar.addEventListener('submit', async e => {
   if (isNaN(efectivoReal) || efectivoReal < 0)
     return mostrarErrorCierre('Ingresá el efectivo real en caja (puede ser $0).');
 
-  if (!confirm('¿Cerrar el turno actual? Esta acción no se puede deshacer.')) return;
+  const notas = document.getElementById('inp-notas-cierre').value.trim();
+  abrirModalConfirmarCierre(efectivoReal, notas);
+});
 
+async function ejecutarCierreTurno(efectivoReal, notas) {
   const btn = document.getElementById('btn-cerrar-turno');
   btn.disabled = true;
-
   try {
-    const notas    = document.getElementById('inp-notas-cierre').value.trim();
-    const turnoId  = turnoActivo.id;
+    const turnoId = turnoActivo.id;
     await window.api.turnos.cerrar(turnoId, efectivoReal, notas);
-    // Imprimir corte Z: fire-and-forget, no bloquea el cierre
     window.api.printer.imprimirCorteZ(turnoId).catch(() => {});
     turnoActivo = null;
     document.getElementById('inp-notas-cierre').value = '';
@@ -186,7 +188,42 @@ formCerrar.addEventListener('submit', async e => {
   } finally {
     btn.disabled = false;
   }
-});
+}
+
+function abrirModalConfirmarCierre(efectivoReal, notas) {
+  _pendingCierre = { efectivoReal, notas };
+
+  const resumen = document.getElementById('confirmar-cierre-resumen');
+  const rows = [
+    { label: 'Efectivo real ingresado', valor: fmt(efectivoReal) },
+  ];
+  if (notas) rows.push({ label: 'Notas', valor: notas });
+
+  resumen.innerHTML = rows.map(r =>
+    `<div style="display:flex;justify-content:space-between;gap:12px;">
+       <span style="color:var(--text-muted);">${esc(r.label)}</span>
+       <span style="color:var(--text);font-weight:500;">${esc(r.valor)}</span>
+     </div>`
+  ).join('');
+
+  document.getElementById('modal-confirmar-cierre').classList.remove('hidden');
+  document.getElementById('btn-confirmar-cierre').focus();
+}
+
+function initConfirmarCierreModal() {
+  document.getElementById('btn-cancelar-cierre-confirm').addEventListener('click', () => {
+    document.getElementById('modal-confirmar-cierre').classList.add('hidden');
+    _pendingCierre = null;
+  });
+
+  document.getElementById('btn-confirmar-cierre').addEventListener('click', async () => {
+    if (!_pendingCierre) return;
+    document.getElementById('modal-confirmar-cierre').classList.add('hidden');
+    const { efectivoReal, notas } = _pendingCierre;
+    _pendingCierre = null;
+    await ejecutarCierreTurno(efectivoReal, notas);
+  });
+}
 
 // ── Actualizar resumen ──────────────────────────────────────────
 document.getElementById('btn-actualizar-resumen').addEventListener('click', async () => {

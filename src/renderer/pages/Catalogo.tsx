@@ -1,0 +1,494 @@
+import { useState, useEffect, useMemo, useCallback } from 'react';
+import { motion, AnimatePresence } from 'framer-motion';
+import { useToast } from '../context/ToastContext';
+import { useSession } from '../context/SessionContext';
+import { Button, Field, Input, Select, Modal, Badge } from '../components/ui';
+import type { Articulo, Departamento } from '../types/api';
+
+function fmt(n: number) {
+  return new Intl.NumberFormat('es-AR', { style: 'currency', currency: 'ARS', minimumFractionDigits: 2 }).format(n ?? 0);
+}
+
+export default function Catalogo() {
+  const { showToast } = useToast();
+  const { session } = useSession();
+  const esAdmin = session?.rol === 'admin';
+
+  const [articulos, setArticulos]       = useState<Articulo[]>([]);
+  const [departamentos, setDepartamentos] = useState<Departamento[]>([]);
+  const [busqueda, setBusqueda]         = useState('');
+  const [filtroDep, setFiltroDep]       = useState<number | null>(null);
+  const [loading, setLoading]           = useState(true);
+  const [error, setError]               = useState('');
+
+  // Modal artículo
+  const [modalOpen, setModalOpen] = useState(false);
+  const [editId, setEditId]       = useState<number | null>(null);
+  const [saving, setSaving]       = useState(false);
+  const [formError, setFormError] = useState('');
+  const [form, setForm]           = useState<Partial<Articulo>>({
+    codigo: '', nombre: '', precio_unitario: 0, precio_mayoreo: 0, costo_unitario: 0,
+    stock_actual: 0, stock_minimo: 0, tasa_iva: 21, unidad_medida: 'unidad',
+    departamento_id: null, usa_inventario: 1, es_kit: 0,
+  });
+
+  // Modal historial precios
+  const [histOpen, setHistOpen]   = useState(false);
+  const [histData, setHistData]   = useState<any[]>([]);
+  const [histNombre, setHistNombre] = useState('');
+
+  // Modal departamentos
+  const [depOpen, setDepOpen] = useState(false);
+
+  useEffect(() => { cargar(); }, []);
+
+  async function cargar() {
+    setLoading(true);
+    setError('');
+    try {
+      const [arts, deps] = await Promise.all([
+        window.api.articulos.getAll(),
+        window.api.departamentos.getAll(),
+      ]);
+      setArticulos(arts ?? []);
+      setDepartamentos(deps ?? []);
+    } catch (err: any) {
+      setError(err.message ?? 'Error al cargar el catálogo.');
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  const filtrados = useMemo(() => {
+    const q = busqueda.trim().toLowerCase();
+    return articulos.filter(a => {
+      const matchQ = !q
+        || (a.nombre ?? '').toLowerCase().includes(q)
+        || (a.codigo ?? '').toLowerCase().includes(q);
+      const matchD = filtroDep === null || a.departamento_id === filtroDep;
+      return matchQ && matchD;
+    });
+  }, [articulos, busqueda, filtroDep]);
+
+  const abrirNuevo = useCallback(() => {
+    setEditId(null); setFormError('');
+    setForm({ codigo: '', nombre: '', precio_unitario: 0, precio_mayoreo: 0, costo_unitario: 0, stock_actual: 0, stock_minimo: 0, tasa_iva: 21, unidad_medida: 'unidad', departamento_id: null, usa_inventario: 1, es_kit: 0 });
+    setModalOpen(true);
+  }, []);
+
+  const abrirEditar = useCallback((a: Articulo) => {
+    setEditId(a.id); setFormError('');
+    setForm({ ...a });
+    setModalOpen(true);
+  }, []);
+
+  async function guardar(e: React.FormEvent) {
+    e.preventDefault();
+    if (!form.codigo?.trim() || !form.nombre?.trim()) { setFormError('Código y nombre son obligatorios.'); return; }
+    setSaving(true); setFormError('');
+    try {
+      if (editId) await window.api.articulos.update(editId, form);
+      else await window.api.articulos.create(form);
+      setModalOpen(false);
+      cargar();
+      showToast(editId ? 'Artículo actualizado.' : 'Artículo creado.', 'ok');
+    } catch (err: any) { setFormError(err.message ?? 'Error al guardar.'); }
+    finally { setSaving(false); }
+  }
+
+  async function eliminar(id: number) {
+    try {
+      await window.api.articulos.delete(id);
+      cargar();
+      showToast('Artículo eliminado.', 'ok');
+    } catch (err: any) {
+      showToast(err.message ?? 'No se pudo eliminar.', 'error');
+    }
+  }
+
+  async function verHistorial(a: Articulo) {
+    const h = await window.api.articulos.precioHistorial(a.id);
+    setHistData(h ?? []); setHistNombre(a.nombre); setHistOpen(true);
+  }
+
+  const setField = useCallback((k: keyof Articulo, v: any) => setForm(p => ({ ...p, [k]: v })), []);
+
+  const limpiarBusqueda = useCallback(() => { setBusqueda(''); setFiltroDep(null); }, []);
+
+  const hayFiltro = busqueda.trim() !== '' || filtroDep !== null;
+
+  return (
+    <div className="page-content">
+      {/* Header */}
+      <div className="page-header flex items-center justify-between">
+        <h1 className="page-title">Catálogo</h1>
+        <div className="flex items-center gap-2">
+          {esAdmin && (
+            <Button variant="ghost" size="sm" onClick={() => setDepOpen(true)}>
+              Departamentos
+            </Button>
+          )}
+          {esAdmin && (
+            <Button variant="primary" size="sm" onClick={abrirNuevo}>
+              + Nuevo artículo
+            </Button>
+          )}
+        </div>
+      </div>
+
+      {/* Barra de búsqueda */}
+      <div className="flex items-center gap-3 px-6 py-3 border-b border-border flex-shrink-0">
+        <div className="relative max-w-xs w-full">
+          <svg
+            className="absolute left-3 top-1/2 -translate-y-1/2 text-text-subtle pointer-events-none"
+            width="13" height="13" viewBox="0 0 24 24" fill="none"
+            stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"
+          >
+            <circle cx="11" cy="11" r="8" /><line x1="21" y1="21" x2="16.65" y2="16.65" />
+          </svg>
+          <input
+            className="inp pl-8 pr-8"
+            placeholder="Buscar por nombre o código..."
+            value={busqueda}
+            onChange={e => setBusqueda(e.target.value)}
+          />
+          {busqueda && (
+            <button
+              onClick={() => setBusqueda('')}
+              className="absolute right-2.5 top-1/2 -translate-y-1/2 text-text-subtle hover:text-text"
+            >
+              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round"><line x1="18" y1="6" x2="6" y2="18" /><line x1="6" y1="6" x2="18" y2="18" /></svg>
+            </button>
+          )}
+        </div>
+        <Select
+          className="max-w-[180px]"
+          value={filtroDep ?? ''}
+          onChange={e => setFiltroDep(e.target.value ? Number(e.target.value) : null)}
+        >
+          <option value="">Todos los departamentos</option>
+          {departamentos.map(d => <option key={d.id} value={d.id}>{d.nombre}</option>)}
+        </Select>
+        <span className="text-[12px] text-text-muted ml-auto flex-shrink-0">
+          {loading ? '…' : `${filtrados.length} artículo${filtrados.length !== 1 ? 's' : ''}`}
+        </span>
+      </div>
+
+      {/* Contenido */}
+      <div className="flex-1 overflow-y-auto">
+        {loading ? (
+          <div className="flex items-center justify-center h-32 text-text-subtle text-sm gap-2">
+            <svg className="animate-spin" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M12 2v4M12 18v4M4.93 4.93l2.83 2.83M16.24 16.24l2.83 2.83M2 12h4M18 12h4M4.93 19.07l2.83-2.83M16.24 7.76l2.83-2.83" /></svg>
+            Cargando catálogo…
+          </div>
+        ) : error ? (
+          <div className="flex flex-col items-center justify-center h-32 gap-3">
+            <p className="text-[13px] text-[#fca5a5]">{error}</p>
+            <Button size="sm" onClick={cargar}>Reintentar</Button>
+          </div>
+        ) : (
+          <table className="tbl">
+            <thead>
+              <tr>
+                <th style={{ width: 100 }}>Código</th>
+                <th>Nombre</th>
+                <th>Departamento</th>
+                <th className="text-right">Costo</th>
+                <th className="text-right">Precio venta</th>
+                <th className="text-right">Mayoreo</th>
+                <th className="text-right">Stock</th>
+                <th className="text-right">Mín.</th>
+                <th className="text-right">IVA</th>
+                <th style={{ width: 80 }} />
+              </tr>
+            </thead>
+            <tbody>
+              {filtrados.length === 0 ? (
+                <tr>
+                  <td colSpan={10} className="text-center py-12 text-text-subtle text-[13px]">
+                    {hayFiltro ? (
+                      <span>
+                        Sin resultados para la búsqueda actual.{' '}
+                        <button onClick={limpiarBusqueda} className="text-accent underline-offset-2 hover:underline">
+                          Limpiar filtros
+                        </button>
+                      </span>
+                    ) : (
+                      'Sin artículos. Creá el primero con "+ Nuevo artículo".'
+                    )}
+                  </td>
+                </tr>
+              ) : (
+                filtrados.map(a => (
+                  <motion.tr
+                    key={a.id}
+                    initial={{ opacity: 0 }}
+                    animate={{ opacity: 1 }}
+                    transition={{ duration: 0.12 }}
+                    className="group"
+                  >
+                    <td className="font-mono text-[12px] text-text-muted">{a.codigo}</td>
+                    <td>
+                      <div className="flex items-center gap-2">
+                        <span className="font-medium text-[13px]">{a.nombre}</span>
+                        {!!a.es_kit && <Badge variant="purple">KIT</Badge>}
+                        {!!a.usa_inventario && a.stock_actual <= a.stock_minimo && a.stock_minimo > 0 && (
+                          <Badge variant="red">Stock bajo</Badge>
+                        )}
+                      </div>
+                    </td>
+                    <td className="text-[12px] text-text-muted">
+                      {departamentos.find(d => d.id === a.departamento_id)?.nombre ?? '—'}
+                    </td>
+                    <td className="text-right font-mono text-[13px]">{fmt(a.costo_unitario)}</td>
+                    <td className="text-right font-mono text-[13px] font-medium">{fmt(a.precio_unitario)}</td>
+                    <td className="text-right font-mono text-[13px] text-text-muted">
+                      {a.precio_mayoreo > 0 ? fmt(a.precio_mayoreo) : '—'}
+                    </td>
+                    <td className={`text-right font-mono text-[13px] ${a.usa_inventario && a.stock_actual <= 0 ? 'text-danger' : ''}`}>
+                      {a.usa_inventario ? a.stock_actual : '—'}
+                    </td>
+                    <td className="text-right text-[12px] text-text-muted">
+                      {a.usa_inventario ? a.stock_minimo : '—'}
+                    </td>
+                    <td className="text-right text-[12px] text-text-muted">{a.tasa_iva}%</td>
+                    <td>
+                      <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                        <button
+                          onClick={() => verHistorial(a)}
+                          title="Historial de precios"
+                          className="p-1 text-text-subtle hover:text-accent rounded"
+                        >
+                          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="23 6 13.5 15.5 8.5 10.5 1 18" /></svg>
+                        </button>
+                        {esAdmin && (
+                          <button
+                            onClick={() => abrirEditar(a)}
+                            title="Editar"
+                            className="p-1 text-text-subtle hover:text-accent rounded"
+                          >
+                            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7" /><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z" /></svg>
+                          </button>
+                        )}
+                        {esAdmin && (
+                          <button
+                            onClick={() => eliminar(a.id)}
+                            title="Eliminar"
+                            className="p-1 text-text-subtle hover:text-danger rounded"
+                          >
+                            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="3 6 5 6 21 6" /><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6" /></svg>
+                          </button>
+                        )}
+                      </div>
+                    </td>
+                  </motion.tr>
+                ))
+              )}
+            </tbody>
+          </table>
+        )}
+      </div>
+
+      {/* Modal artículo */}
+      <Modal
+        open={modalOpen}
+        onClose={() => setModalOpen(false)}
+        title={editId ? 'Editar artículo' : 'Nuevo artículo'}
+        maxWidth="580px"
+        footer={
+          <>
+            <Button variant="ghost" onClick={() => setModalOpen(false)}>Cancelar</Button>
+            <Button
+              variant="primary"
+              loading={saving}
+              onClick={() => document.getElementById('form-art')?.dispatchEvent(new Event('submit', { bubbles: true, cancelable: true }))}
+            >
+              Guardar
+            </Button>
+          </>
+        }
+      >
+        <form id="form-art" onSubmit={guardar} className="flex flex-col gap-4">
+          <div className="grid grid-cols-2 gap-4">
+            <Field label="Código *">
+              <Input value={form.codigo ?? ''} onChange={e => setField('codigo', e.target.value)} placeholder="Ej: 7790001" />
+            </Field>
+            <Field label="Nombre *">
+              <Input value={form.nombre ?? ''} onChange={e => setField('nombre', e.target.value)} placeholder="Ej: Coca Cola 500ml" />
+            </Field>
+          </div>
+          <div className="grid grid-cols-3 gap-3">
+            <Field label="Costo">
+              <Input type="number" step="0.01" min="0" value={form.costo_unitario ?? 0} onChange={e => setField('costo_unitario', parseFloat(e.target.value) || 0)} />
+            </Field>
+            <Field label="Precio venta">
+              <Input type="number" step="0.01" min="0" value={form.precio_unitario ?? 0} onChange={e => setField('precio_unitario', parseFloat(e.target.value) || 0)} />
+            </Field>
+            <Field label="Precio mayoreo">
+              <Input type="number" step="0.01" min="0" value={form.precio_mayoreo ?? 0} onChange={e => setField('precio_mayoreo', parseFloat(e.target.value) || 0)} />
+            </Field>
+          </div>
+          <div className="grid grid-cols-3 gap-3">
+            <Field label="Stock actual">
+              <Input type="number" step="any" value={form.stock_actual ?? 0} onChange={e => setField('stock_actual', parseFloat(e.target.value) || 0)} />
+            </Field>
+            <Field label="Stock mínimo">
+              <Input type="number" step="any" min="0" value={form.stock_minimo ?? 0} onChange={e => setField('stock_minimo', parseFloat(e.target.value) || 0)} />
+            </Field>
+            <Field label="IVA (%)">
+              <Select value={form.tasa_iva ?? 21} onChange={e => setField('tasa_iva', parseFloat(e.target.value))}>
+                <option value={21}>21%</option>
+                <option value={10.5}>10,5%</option>
+                <option value={0}>0%</option>
+              </Select>
+            </Field>
+          </div>
+          <div className="grid grid-cols-2 gap-3">
+            <Field label="Unidad de medida">
+              <Select value={form.unidad_medida ?? 'unidad'} onChange={e => setField('unidad_medida', e.target.value)}>
+                {['unidad', 'kg', 'g', 'litro', 'ml', 'metro', 'cm'].map(u => <option key={u} value={u}>{u}</option>)}
+              </Select>
+            </Field>
+            <Field label="Departamento">
+              <Select value={form.departamento_id ?? ''} onChange={e => setField('departamento_id', e.target.value ? Number(e.target.value) : null)}>
+                <option value="">— Sin departamento —</option>
+                {departamentos.map(d => <option key={d.id} value={d.id}>{d.nombre}</option>)}
+              </Select>
+            </Field>
+          </div>
+          <div className="flex gap-4">
+            <label className="flex items-center gap-2 cursor-pointer text-[13px]">
+              <input type="checkbox" checked={!!form.usa_inventario} onChange={e => setField('usa_inventario', e.target.checked ? 1 : 0)} className="accent-accent" />
+              Controlar inventario
+            </label>
+            <label className="flex items-center gap-2 cursor-pointer text-[13px]">
+              <input type="checkbox" checked={!!form.es_kit} onChange={e => setField('es_kit', e.target.checked ? 1 : 0)} className="accent-accent" />
+              Es un kit
+            </label>
+          </div>
+          <AnimatePresence>
+            {formError && (
+              <motion.div
+                initial={{ opacity: 0, y: -4 }}
+                animate={{ opacity: 1, y: 0 }}
+                exit={{ opacity: 0 }}
+                className="px-3 py-2 bg-[rgba(239,68,68,.1)] border border-[rgba(239,68,68,.25)] text-[#fca5a5] text-[12px] rounded-[var(--r-in)]"
+              >
+                {formError}
+              </motion.div>
+            )}
+          </AnimatePresence>
+        </form>
+      </Modal>
+
+      {/* Modal historial precios */}
+      <Modal
+        open={histOpen}
+        onClose={() => setHistOpen(false)}
+        title={`Historial de precios — ${histNombre}`}
+        maxWidth="480px"
+      >
+        {histData.length === 0 ? (
+          <p className="text-text-muted text-[13px]">Sin historial de cambios de precio.</p>
+        ) : (
+          <table className="tbl text-[12px]">
+            <thead>
+              <tr>
+                <th>Fecha</th>
+                <th className="text-right">Precio anterior</th>
+                <th className="text-right">Precio nuevo</th>
+                <th>Usuario</th>
+              </tr>
+            </thead>
+            <tbody>
+              {histData.map((h, i) => (
+                <tr key={i}>
+                  <td>{new Date(h.created_at).toLocaleString('es-AR')}</td>
+                  <td className="text-right font-mono">{fmt(h.precio_anterior)}</td>
+                  <td className="text-right font-mono font-semibold">{fmt(h.precio_nuevo)}</td>
+                  <td>{h.usuario ?? '—'}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        )}
+      </Modal>
+
+      {/* Modal departamentos */}
+      {depOpen && (
+        <DepartamentosModal
+          departamentos={departamentos}
+          onClose={() => { setDepOpen(false); cargar(); }}
+        />
+      )}
+    </div>
+  );
+}
+
+function DepartamentosModal({
+  departamentos,
+  onClose,
+}: {
+  departamentos: Departamento[];
+  onClose: () => void;
+}) {
+  const { showToast } = useToast();
+  const [nombre, setNombre] = useState('');
+  const [color, setColor]   = useState('#4f8ef5');
+  const [lista, setLista]   = useState(departamentos);
+
+  async function crear(e: React.FormEvent) {
+    e.preventDefault();
+    if (!nombre.trim()) return;
+    try {
+      const d = await window.api.departamentos.create({ nombre: nombre.trim(), color });
+      setLista(p => [...p, d]);
+      setNombre('');
+      showToast('Departamento creado.', 'ok');
+    } catch (err: any) {
+      showToast(err.message ?? 'Error al crear.', 'error');
+    }
+  }
+
+  async function eliminar(id: number) {
+    try {
+      await window.api.departamentos.delete(id);
+      setLista(p => p.filter(d => d.id !== id));
+    } catch (err: any) {
+      showToast(err.message ?? 'No se pudo eliminar.', 'error');
+    }
+  }
+
+  return (
+    <Modal open onClose={onClose} title="Departamentos" footer={<Button variant="ghost" onClick={onClose}>Cerrar</Button>}>
+      <form onSubmit={crear} className="flex gap-2 mb-4">
+        <Input className="flex-1" value={nombre} onChange={e => setNombre(e.target.value)} placeholder="Nombre del departamento" />
+        <input type="color" value={color} onChange={e => setColor(e.target.value)} className="w-10 h-9 rounded border border-border cursor-pointer" />
+        <Button type="submit" variant="primary" size="sm">Agregar</Button>
+      </form>
+      <div className="flex flex-col gap-1.5">
+        <AnimatePresence>
+          {lista.map(d => (
+            <motion.div
+              key={d.id}
+              initial={{ opacity: 0, height: 0 }}
+              animate={{ opacity: 1, height: 'auto' }}
+              exit={{ opacity: 0, height: 0 }}
+              transition={{ duration: 0.15 }}
+              className="flex items-center gap-2 p-2 bg-surface-2 rounded-[var(--r-in)]"
+            >
+              <div className="w-4 h-4 rounded-full flex-shrink-0" style={{ background: d.color }} />
+              <span className="flex-1 text-[13px]">{d.nombre}</span>
+              <button
+                onClick={() => eliminar(d.id)}
+                className="text-text-subtle hover:text-danger transition-colors"
+              >
+                <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="3 6 5 6 21 6" /><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6" /></svg>
+              </button>
+            </motion.div>
+          ))}
+        </AnimatePresence>
+      </div>
+    </Modal>
+  );
+}
