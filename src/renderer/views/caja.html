@@ -189,13 +189,15 @@
     .btn-cobrar-pie {
       display:flex; flex-direction:column; align-items:center; justify-content:center;
       padding:8px 18px; border-radius:var(--r);
-      background:var(--success); color:#fff;
+      background:linear-gradient(135deg, #2dda6e, var(--success-h));
+      color:#fff;
       border:none; cursor:pointer; font-family:inherit;
-      transition:background var(--ease); gap:1px;
+      transition:background var(--ease), transform var(--ease); gap:1px;
       min-width:110px;
     }
-    .btn-cobrar-pie:hover:not(:disabled) { background:var(--success-h); }
-    .btn-cobrar-pie:disabled { opacity:.4; cursor:not-allowed; }
+    .btn-cobrar-pie:not(:disabled) { animation:pulse-cobrar 4s ease-in-out 2s infinite; }
+    .btn-cobrar-pie:hover:not(:disabled) { background:linear-gradient(135deg, #38e87a, #1ab84e); transform:translateY(-1px); }
+    .btn-cobrar-pie:disabled { opacity:.4; cursor:not-allowed; animation:none; }
     .btn-cobrar-pie .kbd-hint { font-size:10px; opacity:.75; }
     .btn-cobrar-pie .total-grande {
       font-size:20px; font-weight:800;

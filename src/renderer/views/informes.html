@@ -25,14 +25,19 @@
     }
     .kpi-card {
       background:var(--surface); border:1px solid var(--border-subtle,var(--border));
+      border-top: 2px solid var(--kpi-color, rgba(79,142,245,.35));
       border-radius:var(--radius-lg,12px); padding:16px 18px; position:relative;
-      overflow:hidden; transition:border-color .15s, box-shadow .15s;
+      overflow:hidden; transition:transform .13s ease, border-color .13s, box-shadow .13s;
     }
-    .kpi-card:hover { border-color:rgba(255,255,255,.14); }
+    .kpi-card:hover {
+      transform: translateY(-2px);
+      border-color: rgba(255,255,255,.14);
+      box-shadow: 0 8px 24px rgba(0,0,0,.4);
+    }
     .kpi-card::after {
-      content:''; position:absolute; top:-20px; right:-20px;
-      width:90px; height:90px; border-radius:50%;
-      background:var(--kpi-glow,rgba(59,130,246,.07));
+      content:''; position:absolute; top:-30px; right:-30px;
+      width:130px; height:130px; border-radius:50%;
+      background:var(--kpi-glow,rgba(79,142,245,.08));
       pointer-events:none;
     }
     .kpi-icon { font-size:1rem; margin-bottom:8px; line-height:1; }
@@ -199,42 +204,42 @@
         <!-- 6 KPI cards -->
         <div class="kpi-grid">
 
-          <div class="kpi-card" style="--kpi-glow:rgba(59,130,246,.12);">
+          <div class="kpi-card" style="--kpi-glow:rgba(79,142,245,.14);--kpi-color:rgba(79,142,245,.5);">
             <div class="kpi-icon">💰</div>
             <div class="kpi-label">Total vendido</div>
             <div class="kpi-value" id="kv-total"><span class="skel" style="width:100px;"></span></div>
             <div class="kpi-sub"  id="ks-total"></div>
           </div>
 
-          <div class="kpi-card" style="--kpi-glow:rgba(34,197,94,.12);">
+          <div class="kpi-card" style="--kpi-glow:rgba(34,197,94,.14);--kpi-color:rgba(34,197,94,.5);">
             <div class="kpi-icon">📈</div>
             <div class="kpi-label">Ganancia bruta</div>
             <div class="kpi-value" id="kv-ganancia"><span class="skel" style="width:90px;"></span></div>
             <div class="kpi-sub"  id="ks-ganancia"></div>
           </div>
 
-          <div class="kpi-card" style="--kpi-glow:rgba(139,92,246,.12);">
+          <div class="kpi-card" style="--kpi-glow:rgba(139,92,246,.14);--kpi-color:rgba(139,92,246,.5);">
             <div class="kpi-icon">🧾</div>
             <div class="kpi-label">Transacciones</div>
             <div class="kpi-value" id="kv-transacciones"><span class="skel" style="width:60px;"></span></div>
             <div class="kpi-sub"  id="ks-transacciones"></div>
           </div>
 
-          <div class="kpi-card" style="--kpi-glow:rgba(245,158,11,.12);">
+          <div class="kpi-card" style="--kpi-glow:rgba(245,158,11,.14);--kpi-color:rgba(245,158,11,.5);">
             <div class="kpi-icon">🎫</div>
             <div class="kpi-label">Ticket promedio</div>
             <div class="kpi-value" id="kv-ticket"><span class="skel" style="width:80px;"></span></div>
             <div class="kpi-sub"  id="ks-ticket"></div>
           </div>
 
-          <div class="kpi-card" style="--kpi-glow:rgba(236,72,153,.12);">
+          <div class="kpi-card" style="--kpi-glow:rgba(236,72,153,.14);--kpi-color:rgba(236,72,153,.5);">
             <div class="kpi-icon">⏰</div>
             <div class="kpi-label">Hora pico</div>
             <div class="kpi-value" id="kv-hora-pico"><span class="skel" style="width:60px;"></span></div>
             <div class="kpi-sub"  id="ks-hora-pico"></div>
           </div>
 
-          <div class="kpi-card" style="--kpi-glow:rgba(20,184,166,.12);">
+          <div class="kpi-card" style="--kpi-glow:rgba(20,184,166,.14);--kpi-color:rgba(20,184,166,.5);">
             <div class="kpi-icon">⭐</div>
             <div class="kpi-label">Mejor producto</div>
             <div class="kpi-value" id="kv-mejor-prod" style="font-size:clamp(11px,1vw,14px);line-height:1.3;"><span class="skel" style="width:110px;"></span></div>

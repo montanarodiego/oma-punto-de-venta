@@ -43,9 +43,11 @@
   var _sessionRaw = localStorage.getItem('oma_session');
   var _session = null;
   try { _session = _sessionRaw ? JSON.parse(_sessionRaw) : null; } catch (_) {}
-  var _nombre = _session ? (_session.nombre || _session.usuario || '') : '';
-  var _rol    = _session ? (_session.rol === 'admin' ? 'Administrador' : 'Cajero') : '';
-  var _avatar = _nombre ? _nombre[0].toUpperCase() : '?';
+  var _nombre   = _session ? (_session.nombre || _session.usuario || '') : '';
+  var _rolRaw   = _session ? _session.rol : '';
+  var _rol      = _rolRaw === 'admin' ? 'Administrador' : 'Cajero';
+  var _avatar   = _nombre ? _nombre[0].toUpperCase() : '?';
+  var _avatarCls = _rolRaw === 'admin' ? 'nav-user-avatar avatar-admin' : 'nav-user-avatar';
 
   var nav = document.createElement('nav');
   nav.id = 'app-nav';
@@ -135,7 +137,7 @@
   var userChip = document.createElement('div');
   userChip.className = 'nav-user';
   userChip.innerHTML =
-    '<div class="nav-user-avatar">' + _avatar + '</div>' +
+    '<div class="' + _avatarCls + '">' + _avatar + '</div>' +
     '<div class="nav-user-info">' +
       '<span class="nav-user-name">' + _nombre + '</span>' +
       '<span class="nav-user-role">' + _rol + '</span>' +
