@@ -6,4 +6,5 @@ out/
 *.db-wal
 .env
 .env.local
+src/main/credentials.js
 src/renderer/css/output.css
