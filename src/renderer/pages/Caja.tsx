@@ -107,6 +107,13 @@ export default function Caja() {
   const [descItemTipo, setDescItemTipo] = useState<'pct'|'monto'>('pct');
   const [descItemVal, setDescItemVal] = useState('');
   const [anularOpen, setAnularOpen] = useState(false);
+  const [anularTransList, setAnularTransList] = useState<any[]>([]);
+  const [anularSelTrans, setAnularSelTrans] = useState<any|null>(null);
+  const [anularTipo, setAnularTipo] = useState<'total'|'parcial'>('total');
+  const [anularMotivo, setAnularMotivo] = useState('');
+  const [anularItemQtys, setAnularItemQtys] = useState<Record<number, number>>({});
+  const [anularLoading, setAnularLoading] = useState(false);
+  const [anularError, setAnularError] = useState('');
   const [renombrarOpen, setRenombrarOpen] = useState(false);
   const [renombrarVal, setRenombrarVal] = useState('');
 
@@ -441,6 +448,81 @@ export default function Caja() {
     setDescItemOpen(false);
   }
 
+  // ── Anular / devolver ──────────────────────────────────────────
+  async function openAnularModal() {
+    setAnularOpen(true);
+    setAnularSelTrans(null);
+    setAnularMotivo('');
+    setAnularError('');
+    setAnularTipo('total');
+    setAnularItemQtys({});
+    setAnularTransList([]);
+    try {
+      const lista = await window.api.devoluciones.recientes(60);
+      setAnularTransList(lista.filter((t: any) => t.estado !== 'cancelada'));
+    } catch {
+      setAnularError('No se pudieron cargar las transacciones recientes.');
+    }
+  }
+
+  async function seleccionarTransAnular(transId: number) {
+    try {
+      const t = await window.api.transacciones.getById(transId);
+      setAnularSelTrans(t);
+      const qtys: Record<number, number> = {};
+      for (const item of t.detalle) qtys[item.id] = item.cantidad;
+      setAnularItemQtys(qtys);
+      setAnularTipo('total');
+      setAnularError('');
+    } catch {
+      setAnularError('Error al cargar el detalle de la transacción.');
+    }
+  }
+
+  async function confirmarAnulacion() {
+    if (!anularSelTrans) return;
+    if (!anularMotivo.trim()) { setAnularError('Ingresá un motivo.'); return; }
+    setAnularLoading(true);
+    setAnularError('');
+    try {
+      if (anularTipo === 'total') {
+        await window.api.devoluciones.cancelar({
+          transaccionId: anularSelTrans.id,
+          turnoId:       turnoActivo?.id ?? null,
+          motivo:        anularMotivo.trim(),
+        });
+        showToast(`Transacción #${anularSelTrans.id} anulada. Stock repuesto.`, 'ok');
+      } else {
+        const items = anularSelTrans.detalle
+          .filter((i: any) => (anularItemQtys[i.id] ?? 0) > 0)
+          .map((i: any) => ({
+            detalle_id:      i.id,
+            articulo_id:     i.articulo_id ?? null,
+            descripcion:     i.nombre || '',
+            cantidad:        anularItemQtys[i.id],
+            precio_unitario: i.precio_al_momento,
+          }));
+        if (items.length === 0) {
+          setAnularError('Seleccioná al menos un ítem con cantidad mayor a 0.');
+          setAnularLoading(false);
+          return;
+        }
+        await window.api.devoluciones.parcial({
+          transaccionId: anularSelTrans.id,
+          turnoId:       turnoActivo?.id ?? null,
+          motivo:        anularMotivo.trim(),
+          items,
+        });
+        showToast(`Devolución parcial de #${anularSelTrans.id} registrada.`, 'ok');
+      }
+      setAnularOpen(false);
+    } catch (err: any) {
+      setAnularError(err.message ?? 'Error al procesar la operación.');
+    } finally {
+      setAnularLoading(false);
+    }
+  }
+
   // ── Render ──────────────────────────────────────────────────────
   if (!ready) return <div className="page-content flex items-center justify-center text-text-subtle text-sm">Cargando...</div>;
 
@@ -504,7 +586,7 @@ export default function Caja() {
         <ToolbarBtn variant="warning" icon={<svg viewBox="0 0 24 24"><line x1="19" y1="5" x2="5" y2="19"/><circle cx="6.5" cy="6.5" r="2.5"/><circle cx="17.5" cy="17.5" r="2.5"/></svg>} label="% Desc" active={descInlineOpen || ticket.descGlobalTipo !== 'ninguno'} onClick={() => setDescInlineOpen(o => !o)} />
         <ToolbarBtn icon={<svg viewBox="0 0 24 24"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>} label="Notas" active={notasOpen} onClick={() => setNotasOpen(o => !o)} />
         <ToolbarBtn variant="danger" icon={<svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><line x1="15" y1="9" x2="9" y2="15"/><line x1="9" y1="9" x2="15" y2="15"/></svg>} label="Cancelar" onClick={() => limpiarTicket(activeIdx)} />
-        <ToolbarBtn icon={<svg viewBox="0 0 24 24"><polyline points="1 4 1 10 7 10"/><path d="M3.51 15a9 9 0 1 0 .49-3.57"/></svg>} label="Anular" onClick={() => setAnularOpen(true)} />
+        <ToolbarBtn icon={<svg viewBox="0 0 24 24"><polyline points="1 4 1 10 7 10"/><path d="M3.51 15a9 9 0 1 0 .49-3.57"/></svg>} label="Anular" variant="warning" onClick={openAnularModal} />
         {ticket.carrito.length > 0 && (
           <span
             className="text-[12px] text-text-subtle cursor-pointer hover:text-accent px-1.5 py-0.5 rounded"
@@ -994,6 +1076,190 @@ export default function Caja() {
               </div>
             </ModalBox>
           </ModalOverlay>
+        )}
+      </AnimatePresence>
+
+      {/* ── Modal Anular / Devolver ── */}
+      <AnimatePresence>
+        {anularOpen && (
+          <motion.div
+            className="fixed inset-0 z-[200] bg-black/82 backdrop-blur-md flex items-center justify-center p-4"
+            initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
+          >
+            <motion.div
+              className="bg-surface border border-border rounded-[var(--r-card)] shadow-[var(--shadow-lg)] w-[860px] max-w-[98vw] max-h-[90vh] flex overflow-hidden"
+              initial={{ scale: 0.95, y: 10 }} animate={{ scale: 1, y: 0 }} exit={{ scale: 0.95, y: 10 }}
+            >
+              {/* ── Columna izq: lista transacciones del día ── */}
+              <div className="w-[280px] flex-shrink-0 border-r border-border flex flex-col">
+                <div className="px-4 py-3 border-b border-border">
+                  <h3 className="text-[14px] font-bold text-text">Anular / Devolver</h3>
+                  <div className="text-[11px] text-text-muted mt-0.5">Ventas del día · solo vigentes</div>
+                </div>
+                <div className="flex-1 overflow-y-auto">
+                  {anularTransList.length === 0 && !anularError && (
+                    <div className="py-10 text-center text-text-subtle text-[12px]">Sin ventas disponibles</div>
+                  )}
+                  {anularTransList.map(t => (
+                    <div
+                      key={t.id}
+                      onClick={() => seleccionarTransAnular(t.id)}
+                      className={`px-4 py-3 cursor-pointer border-b border-border-sub transition-colors ${
+                        anularSelTrans?.id === t.id
+                          ? 'bg-[rgba(79,142,245,.12)] border-l-[3px] border-l-accent'
+                          : 'hover:bg-surface-2'
+                      }`}
+                    >
+                      <div className="flex items-center justify-between mb-0.5">
+                        <span className="text-[13px] font-bold text-text">#{t.id}</span>
+                        <span className={`text-[10px] font-bold px-1.5 py-0.5 rounded ${
+                          t.estado === 'devolucion_parcial'
+                            ? 'bg-[rgba(234,179,8,.2)] text-[#fbbf24]'
+                            : 'bg-[rgba(34,197,94,.12)] text-[#4ade80]'
+                        }`}>{t.estado === 'devolucion_parcial' ? 'DEV PARCIAL' : 'VIGENTE'}</span>
+                      </div>
+                      <div className="text-[12px] text-text-muted">{fmt(t.monto_total)} · {t.forma_pago.replace(/_/g, ' ')}</div>
+                      {t.nombre_cliente && <div className="text-[11px] text-text-subtle mt-0.5 truncate">{t.nombre_cliente}</div>}
+                      <div className="text-[11px] text-text-subtle">
+                        {new Date(t.created_at).toLocaleTimeString('es-AR', { hour: '2-digit', minute: '2-digit' })}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+
+              {/* ── Columna der: detalle + acciones ── */}
+              <div className="flex-1 flex flex-col overflow-hidden min-w-0">
+                {!anularSelTrans ? (
+                  <div className="flex-1 flex flex-col items-center justify-center gap-3 text-text-subtle">
+                    <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1" strokeLinecap="round" strokeLinejoin="round" className="opacity-20">
+                      <polyline points="1 4 1 10 7 10"/><path d="M3.51 15a9 9 0 1 0 .49-3.57"/>
+                    </svg>
+                    <span className="text-[13px]">Seleccioná una venta de la izquierda</span>
+                    {anularError && <div className="text-[12px] text-danger mt-2">{anularError}</div>}
+                    <button className="btn btn-ghost mt-2" onClick={() => setAnularOpen(false)}>Cerrar</button>
+                  </div>
+                ) : (
+                  <>
+                    {/* Header transacción seleccionada */}
+                    <div className="px-5 py-3 border-b border-border flex items-center gap-4 flex-shrink-0">
+                      <div>
+                        <div className="text-[13px] font-bold text-text">Transacción #{anularSelTrans.id}</div>
+                        <div className="text-[12px] text-text-muted">{fmt(anularSelTrans.monto_total)} · {anularSelTrans.forma_pago.replace(/_/g, ' ')}</div>
+                      </div>
+                      <div className="flex-1" />
+                      <div className="flex gap-2">
+                        {(['total', 'parcial'] as const).map(tipo => (
+                          <button
+                            key={tipo}
+                            onClick={() => setAnularTipo(tipo)}
+                            className={`px-3 py-1.5 rounded-[var(--r-in)] text-[12px] font-semibold border transition-all ${
+                              anularTipo === tipo
+                                ? tipo === 'total'
+                                  ? 'bg-[rgba(239,68,68,.12)] border-danger text-danger'
+                                  : 'bg-[rgba(234,179,8,.12)] border-[#ca8a04] text-[#fbbf24]'
+                                : 'border-border text-text-muted bg-transparent hover:bg-surface-2'
+                            }`}
+                          >{tipo === 'total' ? 'Anulación total' : 'Devolución parcial'}</button>
+                        ))}
+                      </div>
+                    </div>
+
+                    {/* Tabla de ítems */}
+                    <div className="flex-1 overflow-y-auto min-h-0">
+                      <table className="w-full text-[13px]">
+                        <thead className="sticky top-0 bg-surface border-b border-border">
+                          <tr>
+                            <th className="text-left px-4 py-2 text-[11px] font-semibold text-text-muted uppercase">Ítem</th>
+                            <th className="text-right px-4 py-2 text-[11px] font-semibold text-text-muted uppercase">P.Unit</th>
+                            <th className="text-right px-4 py-2 text-[11px] font-semibold text-text-muted uppercase w-24">
+                              {anularTipo === 'parcial' ? 'A devolver' : 'Cant.'}
+                            </th>
+                            <th className="text-right px-4 py-2 text-[11px] font-semibold text-text-muted uppercase">Importe</th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {anularSelTrans.detalle.map((item: any) => {
+                            const devQty = anularItemQtys[item.id] ?? 0;
+                            const importe = anularTipo === 'parcial'
+                              ? item.precio_al_momento * devQty
+                              : item.importe_total;
+                            return (
+                              <tr key={item.id} className="border-b border-border-sub hover:bg-surface-2 transition-colors">
+                                <td className="px-4 py-2.5 text-text font-medium">{item.nombre}</td>
+                                <td className="px-4 py-2.5 text-right font-mono text-text-muted">{fmt(item.precio_al_momento)}</td>
+                                <td className="px-4 py-2.5 text-right">
+                                  {anularTipo === 'parcial' ? (
+                                    <input
+                                      type="number" min="0" max={item.cantidad} step="any"
+                                      value={devQty}
+                                      onChange={e => {
+                                        const v = Math.min(item.cantidad, Math.max(0, parseFloat(e.target.value) || 0));
+                                        setAnularItemQtys(q => ({ ...q, [item.id]: v }));
+                                      }}
+                                      className="inp w-20 text-right py-0.5 px-2 text-[12px] font-mono"
+                                    />
+                                  ) : (
+                                    <span className="font-mono">{item.cantidad}</span>
+                                  )}
+                                </td>
+                                <td className="px-4 py-2.5 text-right font-mono font-semibold text-text tabular-nums">{fmt(importe)}</td>
+                              </tr>
+                            );
+                          })}
+                        </tbody>
+                      </table>
+                    </div>
+
+                    {/* Footer: motivo + confirmar */}
+                    <div className="px-5 py-4 border-t border-border flex flex-col gap-3 flex-shrink-0">
+                      {anularTipo === 'parcial' && (() => {
+                        const totalDev = anularSelTrans.detalle.reduce(
+                          (s: number, i: any) => s + i.precio_al_momento * (anularItemQtys[i.id] ?? 0), 0
+                        );
+                        return (
+                          <div className="flex items-center justify-between text-[13px] pb-1 border-b border-border-sub">
+                            <span className="text-text-muted">Total a devolver:</span>
+                            <span className="font-bold font-mono text-[17px] text-text">{fmt(totalDev)}</span>
+                          </div>
+                        );
+                      })()}
+                      <div className="field">
+                        <label className="field-label">Motivo <span className="text-danger">*</span></label>
+                        <input
+                          autoFocus
+                          className="inp"
+                          value={anularMotivo}
+                          onChange={e => setAnularMotivo(e.target.value)}
+                          placeholder="Ej: error en precio, cliente devolvió el producto..."
+                          onKeyDown={e => e.key === 'Enter' && confirmarAnulacion()}
+                        />
+                      </div>
+                      {anularError && (
+                        <div className="text-[12px] text-danger px-3 py-2 bg-[rgba(239,68,68,.08)] border border-[rgba(239,68,68,.25)] rounded-[var(--r-in)]">
+                          {anularError}
+                        </div>
+                      )}
+                      <div className="flex gap-2 justify-end">
+                        <button className="btn btn-ghost" onClick={() => setAnularOpen(false)}>Cancelar</button>
+                        <button
+                          disabled={anularLoading}
+                          onClick={confirmarAnulacion}
+                          className={`btn font-bold ${anularTipo === 'total' ? 'btn-danger' : 'btn-primary'}`}
+                        >
+                          {anularLoading
+                            ? 'Procesando...'
+                            : anularTipo === 'total'
+                              ? 'Anular transacción'
+                              : 'Confirmar devolución'}
+                        </button>
+                      </div>
+                    </div>
+                  </>
+                )}
+              </div>
+            </motion.div>
+          </motion.div>
         )}
       </AnimatePresence>
 

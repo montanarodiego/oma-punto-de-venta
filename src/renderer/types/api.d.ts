@@ -65,7 +65,7 @@ export interface Transaccion {
   monto_pago_2: number | null;
   cuenta_cliente_id: number | null;
   turno_id: number;
-  estado: 'vigente' | 'cancelada';
+  estado: 'vigente' | 'cancelada' | 'devolucion_parcial';
   motivo_cancelacion: string | null;
   sync_status: string;
   created_at: string;
