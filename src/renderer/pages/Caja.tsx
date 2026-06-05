@@ -137,6 +137,7 @@ export default function Caja() {
   const timerCodigo = useRef<NodeJS.Timeout|null>(null);
   const timerBuscador = useRef<NodeJS.Timeout|null>(null);
   const timerCliente = useRef<NodeJS.Timeout|null>(null);
+  const cobrarRef = useRef<(conTicket: boolean) => void>(() => {});
 
   // ── Init ────────────────────────────────────────────────────────
   useEffect(() => {
@@ -160,8 +161,9 @@ export default function Caja() {
     init();
 
     // IPC: cobrar con ticket / sin ticket / abrir cobro
-    const u1 = window.api.onCobrarConTicket(() => cobrar(true));
-    const u2 = window.api.onCobrarSinTicket(() => cobrar(false));
+    // cobrarRef.current se mantiene actualizado en cada render, evitando stale closure.
+    const u1 = window.api.onCobrarConTicket(() => cobrarRef.current(true));
+    const u2 = window.api.onCobrarSinTicket(() => cobrarRef.current(false));
     const u3 = window.api.onAbrirCobro(() => setCobroOpen(true));
     return () => { u1(); u2(); u3(); };
   }, []);
@@ -404,6 +406,9 @@ export default function Caja() {
       setCobrandoOp(false);
     }
   }
+
+  // Mantiene cobrarRef actualizado en cada render para los listeners IPC (F1/F2).
+  cobrarRef.current = cobrar;
 
   // ── Vuelto calc ─────────────────────────────────────────────────
   const vuelto = useMemo(
