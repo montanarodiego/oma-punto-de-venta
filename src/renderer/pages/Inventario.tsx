@@ -26,6 +26,7 @@ export default function Inventario() {
   const buscarGen   = useRef(0);
 
   useEffect(() => { cargar(); }, []);
+  useEffect(() => () => { if (buscarTimer.current) clearTimeout(buscarTimer.current); }, []);
 
   async function cargar() {
     setLoading(true);
