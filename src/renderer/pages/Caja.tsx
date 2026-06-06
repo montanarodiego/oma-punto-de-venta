@@ -5,6 +5,13 @@ import { useToast } from '../context/ToastContext';
 import type { Articulo, Cliente } from '../types/api';
 
 // ── Types ──────────────────────────────────────────────────────────
+interface PromoItem {
+  id: number;
+  cantidad_desde: number;
+  cantidad_hasta: number | null;
+  precio_promocional: number;
+}
+
 interface CartItem {
   _id: number;
   articuloId?: number;
@@ -22,6 +29,7 @@ interface CartItem {
   esMayoreo?: boolean;
   precioBase?: number;
   promoId?: number;
+  promos?: PromoItem[];
 }
 
 interface Ticket {
@@ -47,6 +55,15 @@ function fmt(n: number, moneda = '$') {
 
 function mkItem(base: Partial<CartItem>): CartItem {
   return { _id: Date.now() + Math.random(), codigo: '', nombre: '', precio: 0, costo: 0, cantidad: 1, descPct: 0, ...base };
+}
+
+function aplicarPromoAItem(item: CartItem): CartItem {
+  if (!item.promos?.length || item.esLibre) return item;
+  const promo = item.promos.find(p =>
+    item.cantidad >= p.cantidad_desde &&
+    (p.cantidad_hasta === null || item.cantidad <= p.cantidad_hasta),
+  );
+  return { ...item, precio: promo ? promo.precio_promocional : (item.precioBase ?? item.precio), promoId: promo?.id };
 }
 
 // ── Wizard modos ────────────────────────────────────────────────────
@@ -248,16 +265,42 @@ export default function Caja() {
     return { sub, desc, subtotalConDesc, iva, total: Math.max(0, total), propAmt };
   }, [ticket, mostrarIva, modoNegocio, tasaIva, propina]);
 
-  function agregarArticulo(art: Articulo, cantidad = 1) {
+  async function agregarArticulo(art: Articulo, cantidad = 1) {
     const precio = (mayoreoMode && art.precio_mayoreo > 0) ? art.precio_mayoreo : art.precio_unitario;
-    const existing = ticket.carrito.findIndex(i => i.articuloId === art.id && i.descPct === 0 && !i.esLibre);
-    if (existing >= 0) {
-      const newCarrito = ticket.carrito.map((it, i) => i === existing ? { ...it, cantidad: it.cantidad + cantidad } : it);
-      updateTicket(activeIdx, { carrito: newCarrito });
-    } else {
-      const item = mkItem({ articuloId: art.id, codigo: art.codigo, nombre: art.nombre, precio, costo: art.costo_unitario, cantidad, stockActual: art.stock_actual, usaInventario: !!art.usa_inventario, unidadMedida: art.unidad_medida, tasaIva: art.tasa_iva, precioBase: art.precio_unitario });
-      updateTicket(activeIdx, { carrito: [...ticket.carrito, item] });
+
+    // Fetch promos solo si el artículo probablemente no está en el carrito aún.
+    // La verificación definitiva ocurre dentro del functional updater de setTickets,
+    // usando el estado más reciente (prev), por lo que llamadas concurrentes no se pisan.
+    const probablyNew = !ticket.carrito.some(
+      i => i.articuloId === art.id && i.descPct === 0 && !i.esLibre,
+    );
+    let promos: PromoItem[] = [];
+    if (probablyNew) {
+      try { promos = await window.api.promociones.listarPorArticulo(art.id); } catch {}
     }
+
+    setTickets(prev => {
+      const t = prev[activeIdx];
+      const existing = t.carrito.findIndex(
+        i => i.articuloId === art.id && i.descPct === 0 && !i.esLibre,
+      );
+      let newCarrito: CartItem[];
+      if (existing >= 0) {
+        newCarrito = t.carrito.map((it, i) =>
+          i === existing ? aplicarPromoAItem({ ...it, cantidad: it.cantidad + cantidad }) : it,
+        );
+      } else {
+        const item = mkItem({
+          articuloId: art.id, codigo: art.codigo, nombre: art.nombre, precio,
+          costo: art.costo_unitario, cantidad, stockActual: art.stock_actual,
+          usaInventario: !!art.usa_inventario, unidadMedida: art.unidad_medida,
+          tasaIva: art.tasa_iva, precioBase: art.precio_unitario, promos,
+        });
+        newCarrito = [...t.carrito, aplicarPromoAItem(item)];
+      }
+      return prev.map((tk, i) => i === activeIdx ? { ...tk, carrito: newCarrito } : tk);
+    });
+
     animScanOk();
   }
 
@@ -676,21 +719,22 @@ export default function Caja() {
                         {item.descPct > 0 && <span className="text-[10px] font-bold px-1.5 rounded-full bg-[rgba(234,179,8,.18)] text-[#f59e0b]">-{item.descPct.toFixed(1)}%</span>}
                         {item.esMayoreo && <span className="text-[10px] font-bold px-1.5 rounded-full bg-[rgba(139,92,246,.18)] text-[#a78bfa]">MAY</span>}
                         {item.usaInventario && item.stockActual !== undefined && item.stockActual <= 0 && <span className="text-[10px] font-bold px-1.5 rounded-full bg-[rgba(239,68,68,.18)] text-[#f87171]">SIN STOCK</span>}
+                        {item.promoId && <span className="text-[10px] font-bold px-1.5 rounded-full bg-[rgba(34,197,94,.18)] text-[#4ade80]">PROMO</span>}
                       </div>
                     </td>
                     <td className="text-right font-mono text-[14px] text-text-muted">{fmt(item.precio)}</td>
                     <td className="text-right">
                       <div className="flex items-center justify-end">
                         <div className="flex items-center border border-border rounded-[var(--r-in)] overflow-hidden">
-                          <button className="px-2.5 py-1 text-text-muted hover:bg-surface-2 text-[15px] font-bold" onClick={e => { e.stopPropagation(); const c = [...ticket.carrito]; if (c[idx].cantidad <= (UNIDADES_CONTINUAS.has(c[idx].unidadMedida ?? '') ? 0.001 : 1)) return; c[idx] = { ...c[idx], cantidad: c[idx].cantidad - (UNIDADES_CONTINUAS.has(c[idx].unidadMedida ?? '') ? 0.1 : 1) }; updateTicket(activeIdx, { carrito: c }); }}>−</button>
+                          <button className="px-2.5 py-1 text-text-muted hover:bg-surface-2 text-[15px] font-bold" onClick={e => { e.stopPropagation(); const c = [...ticket.carrito]; if (c[idx].cantidad <= (UNIDADES_CONTINUAS.has(c[idx].unidadMedida ?? '') ? 0.001 : 1)) return; c[idx] = aplicarPromoAItem({ ...c[idx], cantidad: c[idx].cantidad - (UNIDADES_CONTINUAS.has(c[idx].unidadMedida ?? '') ? 0.1 : 1) }); updateTicket(activeIdx, { carrito: c }); }}>−</button>
                           <input
                             type="number" step="any" min="0.001"
                             value={item.cantidad}
-                            onChange={e => { const c = [...ticket.carrito]; c[idx] = { ...c[idx], cantidad: parseFloat(e.target.value) || 1 }; updateTicket(activeIdx, { carrito: c }); }}
+                            onChange={e => { const c = [...ticket.carrito]; c[idx] = aplicarPromoAItem({ ...c[idx], cantidad: parseFloat(e.target.value) || 1 }); updateTicket(activeIdx, { carrito: c }); }}
                             onClick={e => e.stopPropagation()}
                             className="w-14 text-center bg-transparent border-none outline-none text-[14px] font-semibold py-1"
                           />
-                          <button className="px-2.5 py-1 text-text-muted hover:bg-surface-2 text-[15px] font-bold" onClick={e => { e.stopPropagation(); const c = [...ticket.carrito]; c[idx] = { ...c[idx], cantidad: c[idx].cantidad + (UNIDADES_CONTINUAS.has(c[idx].unidadMedida ?? '') ? 0.1 : 1) }; updateTicket(activeIdx, { carrito: c }); }}>+</button>
+                          <button className="px-2.5 py-1 text-text-muted hover:bg-surface-2 text-[15px] font-bold" onClick={e => { e.stopPropagation(); const c = [...ticket.carrito]; c[idx] = aplicarPromoAItem({ ...c[idx], cantidad: c[idx].cantidad + (UNIDADES_CONTINUAS.has(c[idx].unidadMedida ?? '') ? 0.1 : 1) }); updateTicket(activeIdx, { carrito: c }); }}>+</button>
                         </div>
                       </div>
                     </td>
