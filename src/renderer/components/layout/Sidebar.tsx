@@ -11,6 +11,7 @@ const TABS = [
   { route: '/inventario',    label: 'Inventario',    key: 'F3', icon: <svg viewBox="0 0 24 24"><line x1="18" y1="20" x2="18" y2="10"/><line x1="12" y1="20" x2="12" y2="4"/><line x1="6" y1="20" x2="6" y2="14"/></svg> },
   { route: '/clientes',      label: 'Clientes',      key: 'F4', icon: <svg viewBox="0 0 24 24"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg> },
   { route: '/proveedores',   label: 'Proveedores',   key: 'F5', icon: <svg viewBox="0 0 24 24"><rect x="1" y="3" width="15" height="13"/><polygon points="16 8 20 8 23 11 23 16 16 16 16 8"/><circle cx="5.5" cy="18.5" r="2.5"/><circle cx="18.5" cy="18.5" r="2.5"/></svg> },
+  { route: '/pedidos',       label: 'Pedidos',       key: '',   icon: <svg viewBox="0 0 24 24"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="9" y1="13" x2="15" y2="13"/><line x1="9" y1="17" x2="13" y2="17"/></svg> },
   { route: '/informes',      label: 'Informes',      key: 'F6', icon: <svg viewBox="0 0 24 24"><polyline points="23 6 13.5 15.5 8.5 10.5 1 18"/><polyline points="17 6 23 6 23 12"/></svg> },
   { route: '/turno',         label: 'Turno',         key: 'F7', icon: <svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg> },
   { route: '/configuracion', label: 'Configuración', key: 'F8', icon: <svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg> },
@@ -76,7 +77,7 @@ export function Sidebar() {
             >
               {tab.icon}
               <span className="flex-1">{tab.label}</span>
-              <span className="nav-key">{tab.key}</span>
+              {tab.key && <span className="nav-key">{tab.key}</span>}
             </button>
           );
         })}
@@ -125,6 +126,12 @@ export function Sidebar() {
   );
 }
 
+const REPORTE_PATH_MAP: Record<string, string> = {
+  '/caja': 'Caja', '/catalogo': 'Catálogo', '/inventario': 'Inventario',
+  '/clientes': 'Clientes', '/proveedores': 'Proveedores', '/pedidos': 'Pedidos',
+  '/informes': 'Informes', '/turno': 'Turno', '/configuracion': 'Configuración',
+};
+
 function ReporteModal({ open, onClose, nombre, currentPath }: { open: boolean; onClose: () => void; nombre: string; currentPath: string }) {
   const { showToast } = useToast();
   const [tipo, setTipo] = useState('Error en la app');
@@ -133,15 +140,9 @@ function ReporteModal({ open, onClose, nombre, currentPath }: { open: boolean; o
   const [sending, setSending] = useState(false);
   const [done, setDone] = useState(false);
 
-  const PATH_MAP: Record<string, string> = {
-    '/caja': 'Caja', '/catalogo': 'Catálogo', '/inventario': 'Inventario',
-    '/clientes': 'Clientes', '/proveedores': 'Proveedores',
-    '/informes': 'Informes', '/turno': 'Turno', '/configuracion': 'Configuración',
-  };
-
   useEffect(() => {
     if (open) {
-      setModulo(PATH_MAP[currentPath] ?? 'Otro');
+      setModulo(REPORTE_PATH_MAP[currentPath] ?? 'Otro');
       setDesc(''); setDone(false);
     }
   }, [open, currentPath]);

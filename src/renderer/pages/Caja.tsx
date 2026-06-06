@@ -154,8 +154,10 @@ export default function Caja() {
   const timerCodigo = useRef<NodeJS.Timeout|null>(null);
   const timerBuscador = useRef<NodeJS.Timeout|null>(null);
   const timerCliente = useRef<NodeJS.Timeout|null>(null);
-  const cobrarRef  = useRef<(conTicket: boolean) => void>(() => {});
-  const hotkeyRef  = useRef<(e: KeyboardEvent) => void>(() => {});
+  const cobrarRef      = useRef<(conTicket: boolean) => void>(() => {});
+  const hotkeyRef      = useRef<(e: KeyboardEvent) => void>(() => {});
+  const mayoreoModeRef = useRef(mayoreoMode);
+  mayoreoModeRef.current = mayoreoMode;
 
   // ── Init ────────────────────────────────────────────────────────
   useEffect(() => {
@@ -276,8 +278,6 @@ export default function Caja() {
   }, [ticket, mostrarIva, modoNegocio, tasaIva, propina]);
 
   async function agregarArticulo(art: Articulo, cantidad = 1) {
-    const precio = (mayoreoMode && art.precio_mayoreo > 0) ? art.precio_mayoreo : art.precio_unitario;
-
     // Fetch promos solo si el artículo probablemente no está en el carrito aún.
     // La verificación definitiva ocurre dentro del functional updater de setTickets,
     // usando el estado más reciente (prev), por lo que llamadas concurrentes no se pisan.
@@ -300,6 +300,8 @@ export default function Caja() {
           i === existing ? aplicarPromoAItem({ ...it, cantidad: it.cantidad + cantidad }) : it,
         );
       } else {
+        // precio calculado aquí con el ref para evitar stale closure si F11 cambió durante el await
+        const precio = (mayoreoModeRef.current && art.precio_mayoreo > 0) ? art.precio_mayoreo : art.precio_unitario;
         const item = mkItem({
           articuloId: art.id, codigo: art.codigo, nombre: art.nombre, precio,
           costo: art.costo_unitario, cantidad, stockActual: art.stock_actual,

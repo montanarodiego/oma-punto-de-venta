@@ -13,9 +13,9 @@
 |-----------|----------|------------|
 | Crítico   | 2        | 2 (BUG-01, BUG-02) |
 | Grave     | 3        | 3 (BUG-03, BUG-04, BUG-05) |
-| Moderado  | 5        | 4 (BUG-06, BUG-07, BUG-09, BUG-10) |
-| Leve      | 2        | —          |
-| **Total** | **12**   | **9**      |
+| Moderado  | 5        | 5 (BUG-06, BUG-07, BUG-08, BUG-09, BUG-10) |
+| Leve      | 2        | 2 (BUG-11, BUG-12) |
+| **Total** | **12**   | **12**     |
 
 ---
 
@@ -223,7 +223,9 @@ Mitigación parcial: `setSession` también actualiza `window.SESSION` directamen
 
 ---
 
-### BUG-08 · `Configuracion.tsx:84-109` — `cargarTodo()` captura `esAdmin` stale
+### BUG-08 · `Configuracion.tsx:84-109` — `cargarTodo()` captura `esAdmin` stale ✅ ARREGLADO
+
+> **Fix aplicado**: se agregó `esAdmin` al dep array → `}, [esAdmin])`. Si el rol del usuario cambia, el effect re-ejecuta `cargarTodo()` con el valor fresco de `esAdmin`, incluyendo o excluyendo `cargarUsuarios()` correctamente.
 
 **Patrón**: `useEffect([])` con closure sobre valor derivado de context
 
@@ -288,7 +290,9 @@ async function registrarPago(e) {
 
 ---
 
-### BUG-11 · `Sidebar.tsx:143-148` — `ReporteModal.useEffect` con dep array incompleto
+### BUG-11 · `Sidebar.tsx:143-148` — `ReporteModal.useEffect` con dep array incompleto ✅ ARREGLADO
+
+> **Fix aplicado**: `PATH_MAP` se movió a una constante de módulo (`REPORTE_PATH_MAP`) fuera del componente. Al tener referencia estable (no se recrea en cada render), no necesita estar en el dep array y el efecto cumple el contrato de exhaustive-deps.
 
 **Patrón**: dep array incompleto (funcional pero violación de regla)
 
@@ -306,7 +310,9 @@ useEffect(() => {
 
 ---
 
-### BUG-12 · `Caja.tsx:268-269` — `mayoreoMode` capturado stale en `agregarArticulo`
+### BUG-12 · `Caja.tsx:268-269` — `mayoreoMode` capturado stale en `agregarArticulo` ✅ ARREGLADO
+
+> **Fix aplicado**: se agregó `mayoreoModeRef` (mismo patrón que `hotkeyRef` y `cobrarRef`), actualizado en el cuerpo del componente cada render. El cálculo de `precio` se movió desde antes del await hacia dentro del `setTickets` functional updater, usando `mayoreoModeRef.current` — el ref ya tiene el valor del render más reciente en el momento en que el updater se ejecuta.
 
 **Patrón**: Stale closure menor en función async
 
@@ -346,7 +352,7 @@ Si el usuario activa/desactiva modo mayoreo (F11) exactamente mientras un `agreg
 6. ~~**BUG-10** — registrarPago sin coordinación (moderado, detalleLoading stuck)~~ ✅ Arreglado
 7. ~~**BUG-09** — Keydown re-registra en cada scan (moderado, performance + gap)~~ ✅ Arreglado
 8. ~~**BUG-06** — nuevoTicket activeIdx sin functional (moderado, fragile)~~ ✅ Arreglado
-9. **BUG-08** — Configuracion esAdmin stale (moderado, edge case)
+9. ~~**BUG-08** — Configuracion esAdmin stale (moderado, edge case)~~ ✅ Arreglado
 10. ~~**BUG-07** — SessionContext dep incompleto (moderado, edge case)~~ ✅ Arreglado
-11. **BUG-12** — mayoreoMode stale (leve, ventana muy pequeña)
-12. **BUG-11** — ReporteModal dep incompleto (leve, sin impacto actual)
+11. ~~**BUG-12** — mayoreoMode stale (leve, ventana muy pequeña)~~ ✅ Arreglado
+12. ~~**BUG-11** — ReporteModal dep incompleto (leve, sin impacto actual)~~ ✅ Arreglado

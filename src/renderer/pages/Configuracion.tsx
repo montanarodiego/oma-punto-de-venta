@@ -81,7 +81,7 @@ export default function Configuracion() {
   const [uError, setUError]           = useState('');
   const [uSaving, setUSaving]         = useState(false);
 
-  useEffect(() => { cargarTodo(); }, []);
+  useEffect(() => { cargarTodo(); }, [esAdmin]);
 
   async function cargarTodo() {
     const [cfg, modoVal, tasaDef, hudVal] = await Promise.all([
