@@ -32,8 +32,10 @@ export default function Clientes() {
 
   async function cargar() {
     setLoading(true);
-    setClientes(await window.api.clientes.getAll());
-    setLoading(false);
+    try {
+      setClientes(await window.api.clientes.getAll());
+    } catch (err: any) { showToast('Error al cargar clientes: ' + (err.message ?? 'Error.'), 'error'); }
+    finally { setLoading(false); }
   }
 
   async function verDetalle(c: Cliente) {
@@ -70,8 +72,10 @@ export default function Clientes() {
   }
 
   async function eliminar(id: number) {
-    await window.api.clientes.delete(id);
-    cargar(); showToast('Cliente eliminado.', 'ok');
+    try {
+      await window.api.clientes.delete(id);
+      cargar(); showToast('Cliente eliminado.', 'ok');
+    } catch (err: any) { showToast('No se pudo eliminar: ' + (err.message ?? 'Error.'), 'error'); }
   }
 
   async function registrarPago(e: React.FormEvent) {

@@ -41,6 +41,7 @@ export default function TurnoPage() {
   const [cancelMovId, setCancelMovId] = useState<number|null>(null);
   const [cancelMovMotivo, setCancelMovMotivo] = useState('');
   const [cancelMovError, setCancelMovError] = useState('');
+  const [cancelando, setCancelando] = useState(false);
 
   useEffect(() => { cargar(); }, []);
 
@@ -95,11 +96,15 @@ export default function TurnoPage() {
 
   async function cancelarMov() {
     if (!cancelMovId || !cancelMovMotivo.trim()) { setCancelMovError('El motivo es obligatorio.'); return; }
-    await window.api.movimientos.cancelar(cancelMovId, cancelMovMotivo);
-    setCancelMovId(null); setCancelMovMotivo('');
-    const [r, m] = await Promise.all([window.api.turnos.calcularResumen(turno!.id), window.api.movimientos.listarPorTurno(turno!.id)]);
-    setResumen(r); setMovimientos(m);
-    showToast('Movimiento cancelado.', 'ok');
+    setCancelando(true); setCancelMovError('');
+    try {
+      await window.api.movimientos.cancelar(cancelMovId, cancelMovMotivo);
+      setCancelMovId(null); setCancelMovMotivo('');
+      const [r, m] = await Promise.all([window.api.turnos.calcularResumen(turno!.id), window.api.movimientos.listarPorTurno(turno!.id)]);
+      setResumen(r); setMovimientos(m);
+      showToast('Movimiento cancelado.', 'ok');
+    } catch (err: any) { setCancelMovError(err.message ?? 'Error al cancelar. Intentá de nuevo.'); }
+    finally { setCancelando(false); }
   }
 
   const mediosPago = resumen ? [
@@ -350,8 +355,8 @@ export default function TurnoPage() {
         title="Cancelar movimiento"
         footer={
           <>
-            <Button variant="ghost" onClick={() => setCancelMovId(null)}>Cancelar</Button>
-            <Button variant="danger" onClick={cancelarMov} style={{ fontWeight:600 }}>Confirmar cancelación</Button>
+            <Button variant="ghost" disabled={cancelando} onClick={() => setCancelMovId(null)}>Cancelar</Button>
+            <Button variant="danger" loading={cancelando} onClick={cancelarMov} style={{ fontWeight:600 }}>Confirmar cancelación</Button>
           </>
         }
       >

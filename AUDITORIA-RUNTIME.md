@@ -12,10 +12,10 @@
 | Severidad | Cantidad | Arreglados |
 |-----------|----------|------------|
 | Crítico   | 2        | 1 (BUG-01) |
-| Grave     | 3        | 1 (BUG-03) |
+| Grave     | 3        | 2 (BUG-03, BUG-05) |
 | Moderado  | 5        | —          |
 | Leve      | 2        | —          |
-| **Total** | **12**   | **2**      |
+| **Total** | **12**   | **3**      |
 
 ---
 
@@ -148,7 +148,9 @@ Mismo problema para `timerBuscador` (buscador modal) y `timerCliente` (búsqueda
 
 ---
 
-### BUG-05 · `Turno.tsx:96-103` — MISSING try/catch en `cancelarMov`; patrón repetido
+### BUG-05 · `Turno.tsx:96-103` — MISSING try/catch en `cancelarMov`; patrón repetido ✅ ARREGLADO
+
+> **Fix aplicado**: `cancelarMov` ahora tiene try/catch/finally con estado `cancelando` que deshabilita ambos botones del modal durante el IPC. El error se muestra inline en el modal (`cancelMovError`). En `Clientes`: `cargar()` tiene try/catch/finally para que `loading` siempre vuelva a `false`; `eliminar()` captura el error y muestra un toast en vez de silenciarlo.
 
 **Patrón**: async sin manejo de errores; UI puede quedar colgada
 
@@ -327,7 +329,7 @@ Si el usuario activa/desactiva modo mayoreo (F11) exactamente mientras un `agreg
 1. ~~**BUG-01** — Race condition carrito (crítico, impacto financiero directo)~~ ✅ Arreglado
 2. **BUG-02** — Race condition búsqueda Inventario (crítico, stock equivocado)
 3. ~~**BUG-03** — Doble scan artículo (grave, reproducible con scanner rápido)~~ ✅ Arreglado
-4. **BUG-05** — Missing try/catch en Turno y Clientes (grave, UI colgada)
+4. ~~**BUG-05** — Missing try/catch en Turno y Clientes (grave, UI colgada)~~ ✅ Arreglado
 5. **BUG-04** — Timers no limpiados (grave, IPCs innecesarios tras unmount)
 6. **BUG-10** — registrarPago sin coordinación (moderado, detalleLoading stuck)
 7. **BUG-09** — Keydown re-registra en cada scan (moderado, performance + gap)
