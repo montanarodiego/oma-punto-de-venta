@@ -13,9 +13,9 @@
 |-----------|----------|------------|
 | Crítico   | 2        | 2 (BUG-01, BUG-02) |
 | Grave     | 3        | 3 (BUG-03, BUG-04, BUG-05) |
-| Moderado  | 5        | 3 (BUG-06, BUG-09, BUG-10) |
+| Moderado  | 5        | 4 (BUG-06, BUG-07, BUG-09, BUG-10) |
 | Leve      | 2        | —          |
-| **Total** | **12**   | **8**      |
+| **Total** | **12**   | **9**      |
 
 ---
 
@@ -204,7 +204,9 @@ La forma correcta: `setActiveIdx(prev => prev + 1)`.
 
 ---
 
-### BUG-07 · `SessionContext.tsx:35-37` — `useEffect([])` con dep array incompleto
+### BUG-07 · `SessionContext.tsx:35-37` — `useEffect([])` con dep array incompleto ✅ ARREGLADO
+
+> **Fix aplicado**: se agregó `session` al dep array → `}, [session])`. El body del effect es solo `if (session) window.SESSION = session` — sin async ni cleanup. Re-ejecutar en cada cambio de sesión es inocuo: logout → `if (session)` es false, no-op; login → ya cubierto por `setSession` pero la re-asignación es harmless.
 
 **Patrón**: dep array incompleto; violación de exhaustive-deps
 
@@ -345,6 +347,6 @@ Si el usuario activa/desactiva modo mayoreo (F11) exactamente mientras un `agreg
 7. ~~**BUG-09** — Keydown re-registra en cada scan (moderado, performance + gap)~~ ✅ Arreglado
 8. ~~**BUG-06** — nuevoTicket activeIdx sin functional (moderado, fragile)~~ ✅ Arreglado
 9. **BUG-08** — Configuracion esAdmin stale (moderado, edge case)
-10. **BUG-07** — SessionContext dep incompleto (moderado, edge case)
+10. ~~**BUG-07** — SessionContext dep incompleto (moderado, edge case)~~ ✅ Arreglado
 11. **BUG-12** — mayoreoMode stale (leve, ventana muy pequeña)
 12. **BUG-11** — ReporteModal dep incompleto (leve, sin impacto actual)

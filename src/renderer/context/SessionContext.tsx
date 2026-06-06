@@ -34,7 +34,7 @@ export function SessionProvider({ children }: { children: React.ReactNode }) {
 
   useEffect(() => {
     if (session) window.SESSION = session;
-  }, []);
+  }, [session]);
 
   return (
     <SessionContext.Provider value={{ session, setSession, logout }}>
