@@ -184,23 +184,30 @@ Si el IPC lanza (DB locked, foreign key constraint, etc.), la promesa rechaza si
 
 ### BUG-06 · `Caja.tsx:221` — setState sin forma funcional en `nuevoTicket` ✅ ARREGLADO
 
-> **Fix aplicado**: `setActiveIdx(prev.length)` se movió dentro del functional updater de `setTickets`. El argumento `prev` es el array fresco en el momento en que React procesa la actualización — `prev.length` es exactamente el índice donde `n` quedará posicionado. Mismo patrón que `cerrarTicket`, que ya usaba `setActiveIdx(prev => Math.max(...))` en lugar del closure.
+> **Fix aplicado** (`commit 18da52c`): se captura `const newIdx = tickets.length` antes de `setTickets`, luego se llaman `setTickets(prev => [...prev, n])` y `setActiveIdx(newIdx)` como statements separados. El updater queda puro — sin side-effects internos.
+>
+> **Nota de regresión**: un fix intermedio (`commit 443360f`) colocó `setActiveIdx(prev.length)` *dentro* del functional updater de `setTickets`. Eso es un setState como side-effect dentro de un updater — React Strict Mode lo detecta invocando el updater dos veces, lo que encoló `setActiveIdx` el doble de veces y produjo renders en cascada que bloqueaban inputs en el modal Catálogo. El commit 18da52c revirtió ese enfoque.
 
 **Patrón**: `setState` que depende del valor anterior sin usar `prev =>`
 
 ```js
-// Caja.tsx líneas 217-222
+// Caja.tsx — estado original buggy
 function nuevoTicket() {
-    if (tickets.length >= MAX_TICKETS) { ... return; }
-    const n: Ticket = { id: Date.now(), nombre: `Ticket ${tickets.length + 1}`, ... };
-    setTickets(prev => [...prev, n]);       // ← correcto: functional
-    setActiveIdx(tickets.length);           // ← incorrecto: stale tickets.length
+    const n: Ticket = { ..., nombre: `Ticket ${tickets.length + 1}` };
+    setTickets(prev => [...prev, n]);
+    setActiveIdx(tickets.length);   // ← stale: usa length del render anterior
+}
+
+// Fix final correcto (commit 18da52c)
+function nuevoTicket() {
+    const newIdx = tickets.length;  // capturado antes, sincrónico
+    const n: Ticket = { ..., nombre: `Ticket ${newIdx + 1}` };
+    setTickets(prev => [...prev, n]);
+    setActiveIdx(newIdx);           // setState separado, fuera del updater
 }
 ```
 
-`setActiveIdx(tickets.length)` usa el `tickets.length` del render actual, antes de que el `setTickets` previo haya commitado. Con React 18 automatic batching, ambos setState se ejecutan en un mismo ciclo, por lo que el resultado es coincidentalmente correcto (old length == índice del nuevo ticket). Pero si el patrón se extiende o se añade lógica condicional a `setTickets`, `activeIdx` podría quedar fuera de rango, causando `tickets[activeIdx] = undefined` y un crash al siguiente render de Caja.
-
-La forma correcta: `setActiveIdx(prev => prev + 1)`.
+`setActiveIdx(tickets.length)` usaba el `tickets.length` del render actual. Con React 18 automatic batching el resultado era coincidentalmente correcto, pero el patrón es frágil — si `setTickets` se hace condicional, `activeIdx` puede quedar fuera de rango, causando `tickets[activeIdx] = undefined` y crash.
 
 ---
 
@@ -356,3 +363,17 @@ Si el usuario activa/desactiva modo mayoreo (F11) exactamente mientras un `agreg
 10. ~~**BUG-07** — SessionContext dep incompleto (moderado, edge case)~~ ✅ Arreglado
 11. ~~**BUG-12** — mayoreoMode stale (leve, ventana muy pequeña)~~ ✅ Arreglado
 12. ~~**BUG-11** — ReporteModal dep incompleto (leve, sin impacto actual)~~ ✅ Arreglado
+
+---
+
+## Post-auditoría — fixes adicionales descubiertos en runtime
+
+### Admin IPC gap · `SessionContext.tsx` ✅ Arreglado (`commit 18da52c`)
+
+Al restaurar sesión desde localStorage sin pasar por login explícito, `currentUserRole` en el proceso main quedaba `null` porque `window.api.auth.setSession()` nunca se llamaba desde la React SPA. Todos los IPC handlers con `onlyAdmin()` fallaban con "Acción restringida a administradores".
+
+**Fix**: `window.api.auth.setSession(s)` agregado en dos puntos de `SessionContext.tsx`: dentro de `setSession()` (cubre login) y dentro del `useEffect([session])` (cubre restauración desde localStorage al arrancar).
+
+### WMIC → OneNote popup · `printer.js` ✅ Arreglado (`commit 16861db`)
+
+`wmic printer get name` activaba el proceso de Microsoft OneNote al ser llamado desde `cargarImpresoras()` al montar Configuración, porque Windows inicializa el driver de impresora virtual de OneNote al ser enumerado por WMIC. Reemplazado por `Get-Printer | Select-Object -ExpandProperty Name` (PowerShell), que devuelve la misma lista sin ese efecto secundario.
