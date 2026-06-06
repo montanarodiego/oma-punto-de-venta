@@ -40,8 +40,14 @@ export default function Clientes() {
 
   async function verDetalle(c: Cliente) {
     setClienteDetalle(c); setDetalleLoading(true);
-    const [t, p] = await Promise.all([window.api.clientes.getTransacciones(c.id), window.api.clientes.listarPagos(c.id)]);
-    setTransacciones(t); setPagos(p); setDetalleLoading(false);
+    try {
+      const [t, p] = await Promise.all([window.api.clientes.getTransacciones(c.id), window.api.clientes.listarPagos(c.id)]);
+      setTransacciones(t); setPagos(p);
+    } catch (err: any) {
+      showToast('Error al cargar detalle del cliente: ' + (err.message ?? 'Error.'), 'error');
+    } finally {
+      setDetalleLoading(false);
+    }
   }
 
   const filtrados = clientes.filter(c => !busqueda || c.nombre.toLowerCase().includes(busqueda.toLowerCase()) || c.telefono?.includes(busqueda));
@@ -83,13 +89,17 @@ export default function Clientes() {
     if (!clienteDetalle) return;
     const monto = parseFloat(pagoMonto);
     if (isNaN(monto) || monto <= 0) return;
-    await window.api.clientes.registrarPago(clienteDetalle.id, monto, pagoForma);
-    setPagoOpen(false); setPagoMonto('');
-    const updated = await window.api.clientes.getById(clienteDetalle.id);
-    setClienteDetalle(updated);
-    await verDetalle(updated);
-    cargar();
-    showToast('Pago registrado.', 'ok');
+    try {
+      await window.api.clientes.registrarPago(clienteDetalle.id, monto, pagoForma);
+      setPagoOpen(false); setPagoMonto('');
+      const updated = await window.api.clientes.getById(clienteDetalle.id);
+      setClienteDetalle(updated);
+      await verDetalle(updated);
+      cargar();
+      showToast('Pago registrado.', 'ok');
+    } catch (err: any) {
+      showToast('Error al registrar pago: ' + (err.message ?? 'Error.'), 'error');
+    }
   }
 
   async function imprimirEstado() {

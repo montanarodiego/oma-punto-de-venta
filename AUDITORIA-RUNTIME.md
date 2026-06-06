@@ -11,11 +11,11 @@
 
 | Severidad | Cantidad | Arreglados |
 |-----------|----------|------------|
-| Crítico   | 2        | 1 (BUG-01) |
+| Crítico   | 2        | 2 (BUG-01, BUG-02) |
 | Grave     | 3        | 3 (BUG-03, BUG-04, BUG-05) |
-| Moderado  | 5        | —          |
+| Moderado  | 5        | 1 (BUG-10) |
 | Leve      | 2        | —          |
-| **Total** | **12**   | **4**      |
+| **Total** | **12**   | **6**      |
 
 ---
 
@@ -60,7 +60,9 @@ async function agregarArticulo(art: Articulo, cantidad = 1) {
 
 ---
 
-### BUG-02 · `Inventario.tsx:33-38` — RACE CONDITION: búsqueda sin debounce sobreescribe resultados
+### BUG-02 · `Inventario.tsx:33-38` — RACE CONDITION: búsqueda sin debounce sobreescribe resultados ✅ ARREGLADO
+
+> **Fix aplicado** (`commit 53c74cc` → rama `main`): se agregó debounce y cancelación de búsqueda stale. Las llamadas previas se descartan cuando llega una nueva query, garantizando que `setArtResultados` solo se ejecuta con el resultado de la última búsqueda activa.
 
 **Patrón**: Race condition en async sin cancelación de requests anteriores
 
@@ -254,7 +256,9 @@ useEffect(() => {
 
 ---
 
-### BUG-10 · `Clientes.tsx:77-89` — `registrarPago` con async sin coordinación
+### BUG-10 · `Clientes.tsx:77-89` — `registrarPago` con async sin coordinación ✅ ARREGLADO
+
+> **Fix aplicado**: `verDetalle` tiene ahora try/catch/finally — `setDetalleLoading(false)` en el `finally` garantiza que el panel de detalle nunca queda bloqueado en "Cargando...", incluso si el `Promise.all` falla. `registrarPago` tiene try/catch que muestra un toast de error en lugar de silencio; el modal solo cierra si el IPC principal tiene éxito.
 
 **Patrón**: múltiples awaits paralelos sin control de orden; detalleLoading puede quedar `true`
 
@@ -329,11 +333,11 @@ Si el usuario activa/desactiva modo mayoreo (F11) exactamente mientras un `agreg
 ## Orden de prioridad para fix
 
 1. ~~**BUG-01** — Race condition carrito (crítico, impacto financiero directo)~~ ✅ Arreglado
-2. **BUG-02** — Race condition búsqueda Inventario (crítico, stock equivocado)
+2. ~~**BUG-02** — Race condition búsqueda Inventario (crítico, stock equivocado)~~ ✅ Arreglado
 3. ~~**BUG-03** — Doble scan artículo (grave, reproducible con scanner rápido)~~ ✅ Arreglado
 4. ~~**BUG-05** — Missing try/catch en Turno y Clientes (grave, UI colgada)~~ ✅ Arreglado
 5. ~~**BUG-04** — Timers no limpiados (grave, IPCs innecesarios tras unmount)~~ ✅ Arreglado
-6. **BUG-10** — registrarPago sin coordinación (moderado, detalleLoading stuck)
+6. ~~**BUG-10** — registrarPago sin coordinación (moderado, detalleLoading stuck)~~ ✅ Arreglado
 7. **BUG-09** — Keydown re-registra en cada scan (moderado, performance + gap)
 8. **BUG-06** — nuevoTicket activeIdx sin functional (moderado, fragile)
 9. **BUG-08** — Configuracion esAdmin stale (moderado, edge case)
