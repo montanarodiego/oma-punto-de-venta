@@ -13,9 +13,9 @@
 |-----------|----------|------------|
 | Crítico   | 2        | 2 (BUG-01, BUG-02) |
 | Grave     | 3        | 3 (BUG-03, BUG-04, BUG-05) |
-| Moderado  | 5        | 2 (BUG-09, BUG-10) |
+| Moderado  | 5        | 3 (BUG-06, BUG-09, BUG-10) |
 | Leve      | 2        | —          |
-| **Total** | **12**   | **7**      |
+| **Total** | **12**   | **8**      |
 
 ---
 
@@ -182,7 +182,9 @@ Si el IPC lanza (DB locked, foreign key constraint, etc.), la promesa rechaza si
 
 ---
 
-### BUG-06 · `Caja.tsx:221` — setState sin forma funcional en `nuevoTicket`
+### BUG-06 · `Caja.tsx:221` — setState sin forma funcional en `nuevoTicket` ✅ ARREGLADO
+
+> **Fix aplicado**: `setActiveIdx(prev.length)` se movió dentro del functional updater de `setTickets`. El argumento `prev` es el array fresco en el momento en que React procesa la actualización — `prev.length` es exactamente el índice donde `n` quedará posicionado. Mismo patrón que `cerrarTicket`, que ya usaba `setActiveIdx(prev => Math.max(...))` en lugar del closure.
 
 **Patrón**: `setState` que depende del valor anterior sin usar `prev =>`
 
@@ -341,7 +343,7 @@ Si el usuario activa/desactiva modo mayoreo (F11) exactamente mientras un `agreg
 5. ~~**BUG-04** — Timers no limpiados (grave, IPCs innecesarios tras unmount)~~ ✅ Arreglado
 6. ~~**BUG-10** — registrarPago sin coordinación (moderado, detalleLoading stuck)~~ ✅ Arreglado
 7. ~~**BUG-09** — Keydown re-registra en cada scan (moderado, performance + gap)~~ ✅ Arreglado
-8. **BUG-06** — nuevoTicket activeIdx sin functional (moderado, fragile)
+8. ~~**BUG-06** — nuevoTicket activeIdx sin functional (moderado, fragile)~~ ✅ Arreglado
 9. **BUG-08** — Configuracion esAdmin stale (moderado, edge case)
 10. **BUG-07** — SessionContext dep incompleto (moderado, edge case)
 11. **BUG-12** — mayoreoMode stale (leve, ventana muy pequeña)

@@ -225,8 +225,10 @@ export default function Caja() {
   function nuevoTicket() {
     if (tickets.length >= MAX_TICKETS) { showToast('Máximo 5 tickets simultáneos.', 'error'); return; }
     const n: Ticket = { id: Date.now(), nombre: `Ticket ${tickets.length + 1}`, carrito: [], clienteSeleccionado: null, formaPago: 'efectivo', descGlobalTipo: 'ninguno', descGlobalValor: 0, notas: '', itemSelIdx: null };
-    setTickets(prev => [...prev, n]);
-    setActiveIdx(tickets.length);
+    setTickets(prev => {
+      setActiveIdx(prev.length);  // prev.length es el índice exacto donde n quedará en el array actualizado
+      return [...prev, n];
+    });
   }
 
   function cerrarTicket(idx: number) {
