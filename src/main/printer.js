@@ -190,17 +190,17 @@ function buildPruebaBuffer(cfg) {
   return Buffer.concat(parts);
 }
 
-// ── Listar impresoras (Windows WMIC) ─────────────────────────────
+// ── Listar impresoras (PowerShell Get-Printer) ───────────────────
 async function listarImpresoras() {
   const { stdout } = await execFileAsync(
-    'wmic', ['printer', 'get', 'name', '/format:value'],
+    'powershell.exe',
+    ['-NonInteractive', '-NoProfile', '-Command',
+     'Get-Printer | Select-Object -ExpandProperty Name'],
     { timeout: 8000 }
   );
   return stdout
     .split(/\r?\n/)
     .map(l => l.trim())
-    .filter(l => l.startsWith('Name='))
-    .map(l => l.slice(5).trim())
     .filter(Boolean);
 }
 
