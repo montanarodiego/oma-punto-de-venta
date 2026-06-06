@@ -24,6 +24,7 @@ export function SessionProvider({ children }: { children: React.ReactNode }) {
     if (s) {
       localStorage.setItem('oma_session', JSON.stringify(s));
       window.SESSION = s;
+      window.api.auth.setSession(s);
     } else {
       localStorage.removeItem('oma_session');
       window.SESSION = undefined;
@@ -33,7 +34,10 @@ export function SessionProvider({ children }: { children: React.ReactNode }) {
   const logout = () => setSession(null);
 
   useEffect(() => {
-    if (session) window.SESSION = session;
+    if (session) {
+      window.SESSION = session;
+      window.api.auth.setSession(session);
+    }
   }, [session]);
 
   return (
