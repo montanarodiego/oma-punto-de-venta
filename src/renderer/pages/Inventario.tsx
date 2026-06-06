@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useToast } from '../context/ToastContext';
 import { Card, CardHeader, CardBody, Button, Field, Input, Select, Modal } from '../components/ui';
 
@@ -22,6 +22,9 @@ export default function Inventario() {
   const [artSel, setArtSel] = useState<any|null>(null);
   const [error, setError] = useState('');
 
+  const buscarTimer = useRef<NodeJS.Timeout | null>(null);
+  const buscarGen   = useRef(0);
+
   useEffect(() => { cargar(); }, []);
 
   async function cargar() {
@@ -30,11 +33,15 @@ export default function Inventario() {
     setMovimientos(m); setStockBajo(s); setLoading(false);
   }
 
-  async function buscarArt(q: string) {
+  function buscarArt(q: string) {
     setArtBusqueda(q); setArtSel(null);
+    if (buscarTimer.current) clearTimeout(buscarTimer.current);
     if (!q.trim()) { setArtResultados([]); return; }
-    const res = await window.api.articulos.search(q);
-    setArtResultados(res);
+    buscarTimer.current = setTimeout(async () => {
+      const gen = ++buscarGen.current;
+      const res = await window.api.articulos.search(q);
+      if (gen === buscarGen.current) setArtResultados(res);
+    }, 250);
   }
 
   async function ajustar(e: React.FormEvent) {
