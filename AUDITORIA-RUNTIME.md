@@ -12,10 +12,10 @@
 | Severidad | Cantidad | Arreglados |
 |-----------|----------|------------|
 | Crítico   | 2        | 1 (BUG-01) |
-| Grave     | 3        | 2 (BUG-03, BUG-05) |
+| Grave     | 3        | 3 (BUG-03, BUG-04, BUG-05) |
 | Moderado  | 5        | —          |
 | Leve      | 2        | —          |
-| **Total** | **12**   | **3**      |
+| **Total** | **12**   | **4**      |
 
 ---
 
@@ -114,7 +114,9 @@ Más sutil: si el artículo YA estaba en el carrito en la primera call (path sin
 
 ---
 
-### BUG-04 · `Caja.tsx:154-155` — TIMERS no limpiados al desmontar el componente
+### BUG-04 · `Caja.tsx:154-155` — TIMERS no limpiados al desmontar el componente ✅ ARREGLADO
+
+> **Fix aplicado**: el `return` del `useEffect([])` de init ahora llama `clearTimeout` sobre los tres refs antes de liberar el componente.
 
 **Patrón**: Resource leak; setTimeout IDs guardados en refs sin cleanup en unmount
 
@@ -330,7 +332,7 @@ Si el usuario activa/desactiva modo mayoreo (F11) exactamente mientras un `agreg
 2. **BUG-02** — Race condition búsqueda Inventario (crítico, stock equivocado)
 3. ~~**BUG-03** — Doble scan artículo (grave, reproducible con scanner rápido)~~ ✅ Arreglado
 4. ~~**BUG-05** — Missing try/catch en Turno y Clientes (grave, UI colgada)~~ ✅ Arreglado
-5. **BUG-04** — Timers no limpiados (grave, IPCs innecesarios tras unmount)
+5. ~~**BUG-04** — Timers no limpiados (grave, IPCs innecesarios tras unmount)~~ ✅ Arreglado
 6. **BUG-10** — registrarPago sin coordinación (moderado, detalleLoading stuck)
 7. **BUG-09** — Keydown re-registra en cada scan (moderado, performance + gap)
 8. **BUG-06** — nuevoTicket activeIdx sin functional (moderado, fragile)

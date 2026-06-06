@@ -182,7 +182,12 @@ export default function Caja() {
     const u1 = window.api.onCobrarConTicket(() => cobrarRef.current(true));
     const u2 = window.api.onCobrarSinTicket(() => cobrarRef.current(false));
     const u3 = window.api.onAbrirCobro(() => setCobroOpen(true));
-    return () => { u1(); u2(); u3(); };
+    return () => {
+      u1(); u2(); u3();
+      if (timerCodigo.current)   clearTimeout(timerCodigo.current);
+      if (timerBuscador.current) clearTimeout(timerBuscador.current);
+      if (timerCliente.current)  clearTimeout(timerCliente.current);
+    };
   }, []);
 
   // focus código al cerrar buscador/cobro
