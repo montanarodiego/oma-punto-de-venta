@@ -395,10 +395,7 @@ export default function Caja() {
     const forma = cobroFormaPago;
     const total = totales.total;
 
-    if (forma === 'efectivo') {
-      const monto = parseFloat(cobroMonto) || 0;
-      if (monto < total) { setCobroError('El monto recibido es menor al total.'); return; }
-    }
+    // sin validación de monto recibido: el vuelto es opcional
     if (forma === 'cuenta_corriente' && !cobroCliente) { setCobroError('Seleccioná un cliente para cuenta corriente.'); return; }
     if (forma === 'mixto') {
       const m1 = parseFloat(mixtoMonto1);
