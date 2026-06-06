@@ -13,9 +13,9 @@
 |-----------|----------|------------|
 | Crítico   | 2        | 2 (BUG-01, BUG-02) |
 | Grave     | 3        | 3 (BUG-03, BUG-04, BUG-05) |
-| Moderado  | 5        | 1 (BUG-10) |
+| Moderado  | 5        | 2 (BUG-09, BUG-10) |
 | Leve      | 2        | —          |
-| **Total** | **12**   | **6**      |
+| **Total** | **12**   | **7**      |
 
 ---
 
@@ -239,7 +239,9 @@ async function cargarTodo() {
 
 ---
 
-### BUG-09 · `Caja.tsx:192-205` — keydown handler re-registra en cada modificación del carrito
+### BUG-09 · `Caja.tsx:192-205` — keydown handler re-registra en cada modificación del carrito ✅ ARREGLADO
+
+> **Fix aplicado**: se agregó `hotkeyRef` (mismo patrón que `cobrarRef`). El cuerpo del handler se asigna a `hotkeyRef.current` en cada render — siempre ve estado fresco sin stale closure. El `useEffect` registra el listener una sola vez con `deps: []`; el wrapper `(e) => hotkeyRef.current(e)` es estable y nunca se reemplaza, eliminando el gap remove/add entre cada scan.
 
 **Patrón**: dep array demasiado amplio; performance + ventana de handler ausente
 
@@ -338,7 +340,7 @@ Si el usuario activa/desactiva modo mayoreo (F11) exactamente mientras un `agreg
 4. ~~**BUG-05** — Missing try/catch en Turno y Clientes (grave, UI colgada)~~ ✅ Arreglado
 5. ~~**BUG-04** — Timers no limpiados (grave, IPCs innecesarios tras unmount)~~ ✅ Arreglado
 6. ~~**BUG-10** — registrarPago sin coordinación (moderado, detalleLoading stuck)~~ ✅ Arreglado
-7. **BUG-09** — Keydown re-registra en cada scan (moderado, performance + gap)
+7. ~~**BUG-09** — Keydown re-registra en cada scan (moderado, performance + gap)~~ ✅ Arreglado
 8. **BUG-06** — nuevoTicket activeIdx sin functional (moderado, fragile)
 9. **BUG-08** — Configuracion esAdmin stale (moderado, edge case)
 10. **BUG-07** — SessionContext dep incompleto (moderado, edge case)

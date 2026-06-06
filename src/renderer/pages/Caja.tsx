@@ -154,7 +154,8 @@ export default function Caja() {
   const timerCodigo = useRef<NodeJS.Timeout|null>(null);
   const timerBuscador = useRef<NodeJS.Timeout|null>(null);
   const timerCliente = useRef<NodeJS.Timeout|null>(null);
-  const cobrarRef = useRef<(conTicket: boolean) => void>(() => {});
+  const cobrarRef  = useRef<(conTicket: boolean) => void>(() => {});
+  const hotkeyRef  = useRef<(e: KeyboardEvent) => void>(() => {});
 
   // ── Init ────────────────────────────────────────────────────────
   useEffect(() => {
@@ -193,21 +194,23 @@ export default function Caja() {
   // focus código al cerrar buscador/cobro
   useEffect(() => { if (!buscadorOpen && !cobroOpen) recuperarFocoCodigo(); }, [buscadorOpen, cobroOpen]);
 
-  // F10, F11, F12, Ins, Del, Esc hotkeys
+  // F10, F11, F12, Ins, Del, Esc hotkeys — ref actualizado en cada render para evitar stale closure
+  // El listener se registra una sola vez (deps: []) eliminando el gap remove/add en cada scan.
+  hotkeyRef.current = (e: KeyboardEvent) => {
+    const tag = (document.activeElement as HTMLElement)?.tagName.toLowerCase();
+    const isInput = tag === 'input' || tag === 'textarea' || tag === 'select';
+    if (e.key === 'F10') { e.preventDefault(); abrirBuscador(); }
+    if (e.key === 'F11') { e.preventDefault(); setMayoreoMode(m => !m); }
+    if (e.key === 'F12') { e.preventDefault(); setCobroOpen(true); window.api.setModalCobro(true); }
+    if (e.key === 'Insert') { e.preventDefault(); setLibreOpen(true); }
+    if (e.key === 'Delete' && !isInput) { e.preventDefault(); borrarItemSel(); }
+    if (e.key === 'Escape' && buscadorOpen) { setBuscadorOpen(false); }
+  };
   useEffect(() => {
-    const handler = (e: KeyboardEvent) => {
-      const tag = (document.activeElement as HTMLElement)?.tagName.toLowerCase();
-      const isInput = tag === 'input' || tag === 'textarea' || tag === 'select';
-      if (e.key === 'F10') { e.preventDefault(); abrirBuscador(); }
-      if (e.key === 'F11') { e.preventDefault(); setMayoreoMode(m => !m); }
-      if (e.key === 'F12') { e.preventDefault(); setCobroOpen(true); window.api.setModalCobro(true); }
-      if (e.key === 'Insert') { e.preventDefault(); setLibreOpen(true); }
-      if (e.key === 'Delete' && !isInput) { e.preventDefault(); borrarItemSel(); }
-      if (e.key === 'Escape' && buscadorOpen) { setBuscadorOpen(false); }
-    };
+    const handler = (e: KeyboardEvent) => hotkeyRef.current(e);
     window.addEventListener('keydown', handler);
     return () => window.removeEventListener('keydown', handler);
-  }, [buscadorOpen, tickets, activeIdx]);
+  }, []);
 
   function aplicarModo(modo: string) {
     setShowPropina(modo === 'restaurante');
