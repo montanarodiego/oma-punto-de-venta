@@ -383,7 +383,7 @@ app.whenReady().then(async () => {
   // auth-guard.js en cada vista redirige a login.html si no hay sesión local
   createWindow();
 
-  // F1-F8: atajos globales de sistema — funcionan sin importar el foco del HTML
+  // F1-F9: atajos globales de sistema — funcionan sin importar el foco del HTML
   // F1/F2 tienen comportamiento doble: navegan normalmente, pero dentro del modal cobro
   // envían el evento de cobro correspondiente en lugar de navegar.
   globalShortcut.register('F1', () => {
@@ -406,9 +406,10 @@ app.whenReady().then(async () => {
     F3: 'inventario.html',
     F4: 'clientes.html',
     F5: 'proveedores.html',
-    F6: 'informes.html',
-    F7: 'turno.html',
-    F8: 'configuracion.html',
+    F6: 'pedidos.html',
+    F7: 'informes.html',
+    F8: 'turno.html',
+    F9: 'configuracion.html',
   };
   Object.entries(F_MODULOS).forEach(([key, file]) => {
     globalShortcut.register(key, () => {

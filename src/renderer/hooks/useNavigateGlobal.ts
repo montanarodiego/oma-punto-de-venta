@@ -7,6 +7,7 @@ const FILE_TO_ROUTE: Record<string, string> = {
   'inventario.html':    '/inventario',
   'clientes.html':      '/clientes',
   'proveedores.html':   '/proveedores',
+  'pedidos.html':       '/pedidos',
   'informes.html':      '/informes',
   'turno.html':         '/turno',
   'configuracion.html': '/configuracion',

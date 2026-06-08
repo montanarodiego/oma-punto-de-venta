@@ -6,6 +6,18 @@ import type { Cliente } from '../types/api';
 
 function fmt(n: number) { return new Intl.NumberFormat('es-AR',{style:'currency',currency:'ARS',minimumFractionDigits:2}).format(n??0); }
 
+function handleNumericKeyDown(e: React.KeyboardEvent<HTMLInputElement>) {
+  if (e.key !== 'ArrowUp' && e.key !== 'ArrowDown') return;
+  e.preventDefault();
+  const modal = (e.currentTarget as HTMLElement).closest('[data-modal]');
+  if (!modal) return;
+  const sel = 'button:not([disabled]),input:not([disabled]):not([type="hidden"]),select:not([disabled]),textarea:not([disabled])';
+  const els = Array.from(modal.querySelectorAll<HTMLElement>(sel));
+  const idx = els.indexOf(e.currentTarget as HTMLElement);
+  if (idx < 0) return;
+  els[e.key === 'ArrowDown' ? Math.min(idx + 1, els.length - 1) : Math.max(idx - 1, 0)]?.focus();
+}
+
 export default function Clientes() {
   const { showToast } = useToast();
   const [clientes, setClientes] = useState<Cliente[]>([]);
@@ -205,7 +217,7 @@ export default function Clientes() {
           <Field label="Nombre *"><Input autoFocus value={form.nombre} onChange={e => setForm(p=>({...p,nombre:e.target.value}))} required /></Field>
           <div className="grid grid-cols-2 gap-3">
             <Field label="Teléfono"><Input value={form.telefono} onChange={e => setForm(p=>({...p,telefono:e.target.value}))} placeholder="011-..." /></Field>
-            <Field label="Límite de crédito ($)"><Input type="number" step="0.01" min="0" value={form.limite_credito} onChange={e => setForm(p=>({...p,limite_credito:parseFloat(e.target.value)||0}))} /></Field>
+            <Field label="Límite de crédito ($)"><Input type="number" step="0.01" min="0" value={form.limite_credito} onChange={e => setForm(p=>({...p,limite_credito:parseFloat(e.target.value)||0}))} onKeyDown={handleNumericKeyDown} /></Field>
           </div>
           <Field label="Dirección"><Input value={form.direccion} onChange={e => setForm(p=>({...p,direccion:e.target.value}))} /></Field>
           {error && <div className="px-3 py-2 bg-[rgba(239,68,68,.1)] border border-[rgba(239,68,68,.25)] text-[#fca5a5] text-[12px] rounded-[var(--r-in)]">{error}</div>}
@@ -220,7 +232,7 @@ export default function Clientes() {
           <div className="px-3 py-2 bg-surface-2 rounded-[var(--r-in)] text-[13px]">
             Deuda de <strong>{clienteDetalle?.nombre}</strong>: <span className="text-danger font-mono">{fmt(clienteDetalle?.saldo_vencido??0)}</span>
           </div>
-          <Field label="Monto del pago"><Input autoFocus type="number" step="0.01" min="0.01" value={pagoMonto} onChange={e => setPagoMonto(e.target.value)} placeholder="0,00" required /></Field>
+          <Field label="Monto del pago"><Input autoFocus type="number" step="0.01" min="0.01" value={pagoMonto} onChange={e => setPagoMonto(e.target.value)} onKeyDown={handleNumericKeyDown} placeholder="0,00" required /></Field>
           <Field label="Forma de pago">
             <select className="inp" value={pagoForma} onChange={e => setPagoForma(e.target.value)}>
               <option value="efectivo">Efectivo</option>

@@ -58,6 +58,18 @@ function mkItem(base: Partial<CartItem>): CartItem {
   return { _id: Date.now() + Math.random(), codigo: '', nombre: '', precio: 0, costo: 0, cantidad: 1, descPct: 0, ...base };
 }
 
+function handleNumericKeyDown(e: React.KeyboardEvent<HTMLInputElement>) {
+  if (e.key !== 'ArrowUp' && e.key !== 'ArrowDown') return;
+  e.preventDefault();
+  const modal = (e.currentTarget as HTMLElement).closest('[data-modal]');
+  if (!modal) return;
+  const sel = 'button:not([disabled]),input:not([disabled]):not([type="hidden"]),select:not([disabled]),textarea:not([disabled])';
+  const els = Array.from(modal.querySelectorAll<HTMLElement>(sel));
+  const idx = els.indexOf(e.currentTarget as HTMLElement);
+  if (idx < 0) return;
+  els[e.key === 'ArrowDown' ? Math.min(idx + 1, els.length - 1) : Math.max(idx - 1, 0)]?.focus();
+}
+
 function aplicarPromoAItem(item: CartItem): CartItem {
   if (!item.promos?.length || item.esLibre) return item;
   const promo = item.promos.find(p =>
@@ -949,6 +961,7 @@ export default function Caja() {
           >
             <motion.div
               ref={cobModalRef}
+              data-modal
               className="bg-surface border border-border rounded-[var(--r-card)] shadow-[var(--shadow-lg)] w-[700px] max-w-[98vw] max-h-[96vh] flex overflow-hidden"
               initial={{ scale: 0.95, y: 10 }} animate={{ scale: 1, y: 0 }} exit={{ scale: 0.95, y: 10 }}
             >
@@ -997,6 +1010,7 @@ export default function Caja() {
                         <input
                           type="number" min="0" step="0.01" value={cobroMonto}
                           onChange={e => setCobroMonto(e.target.value)}
+                          onKeyDown={handleNumericKeyDown}
                           className="w-full text-[22px] font-bold font-mono px-3 py-2 border-2 border-border focus:border-accent bg-bg text-text rounded-[var(--r)] outline-none"
                           autoFocus placeholder="0,00"
                         />
@@ -1076,7 +1090,7 @@ export default function Caja() {
                       </div>
                       <div>
                         <div className="text-[11px] text-text-muted mb-1">Monto 1</div>
-                        <input type="number" min="0" step="0.01" value={mixtoMonto1} onChange={e => setMixtoMonto1(e.target.value)} className="inp text-[17px] font-bold font-mono" placeholder="0,00" />
+                        <input type="number" min="0" step="0.01" value={mixtoMonto1} onChange={e => setMixtoMonto1(e.target.value)} onKeyDown={handleNumericKeyDown} className="inp text-[17px] font-bold font-mono" placeholder="0,00" />
                       </div>
                     </div>
                     <div className="grid grid-cols-2 gap-2">
@@ -1145,10 +1159,10 @@ export default function Caja() {
                 </div>
                 <div className="grid grid-cols-2 gap-3">
                   <div className="field"><label className="field-label">Precio <span className="text-danger">*</span></label>
-                    <input className="inp" type="number" step="0.01" min="0.01" value={librePrecio} onChange={e => setLibrePrecio(e.target.value)} required />
+                    <input className="inp" type="number" step="0.01" min="0.01" value={librePrecio} onChange={e => setLibrePrecio(e.target.value)} onKeyDown={handleNumericKeyDown} required />
                   </div>
                   <div className="field"><label className="field-label">Cantidad</label>
-                    <input className="inp" type="number" step="any" min="0.001" value={libreCant} onChange={e => setLibreCant(e.target.value)} />
+                    <input className="inp" type="number" step="any" min="0.001" value={libreCant} onChange={e => setLibreCant(e.target.value)} onKeyDown={handleNumericKeyDown} />
                   </div>
                 </div>
                 <div className="modal-footer px-0 pb-0">
@@ -1174,7 +1188,7 @@ export default function Caja() {
                 </div>
                 <div className="field">
                   <label className="field-label">{descItemTipo === 'pct' ? 'Porcentaje' : 'Monto'} de descuento</label>
-                  <input autoFocus className="inp" type="number" min="0" step="0.01" value={descItemVal} onChange={e => setDescItemVal(e.target.value)} />
+                  <input autoFocus className="inp" type="number" min="0" step="0.01" value={descItemVal} onChange={e => setDescItemVal(e.target.value)} onKeyDown={handleNumericKeyDown} />
                 </div>
               </div>
               <div className="modal-footer px-0 pb-0 mt-4">
@@ -1214,6 +1228,7 @@ export default function Caja() {
           >
             <motion.div
               ref={anularModalRef}
+              data-modal
               className="bg-surface border border-border rounded-[var(--r-card)] shadow-[var(--shadow-lg)] w-[860px] max-w-[98vw] max-h-[90vh] flex overflow-hidden"
               initial={{ scale: 0.95, y: 10 }} animate={{ scale: 1, y: 0 }} exit={{ scale: 0.95, y: 10 }}
             >
@@ -1324,6 +1339,7 @@ export default function Caja() {
                                         const v = Math.min(item.cantidad, Math.max(0, parseFloat(e.target.value) || 0));
                                         setAnularItemQtys(q => ({ ...q, [item.id]: v }));
                                       }}
+                                      onKeyDown={handleNumericKeyDown}
                                       className="inp w-20 text-right py-0.5 px-2 text-[12px] font-mono"
                                     />
                                   ) : (
@@ -1477,6 +1493,7 @@ function ModalBox({ title, onClose, children, maxWidth = 460 }: { title: string;
   return (
     <motion.div
       ref={boxRef}
+      data-modal
       initial={{ scale: 0.95, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} exit={{ scale: 0.95, opacity: 0 }}
       className="bg-surface border border-border rounded-[var(--r-card)] shadow-[var(--shadow-lg)] w-full"
       style={{ maxWidth }}
@@ -1533,7 +1550,7 @@ function MovimientoModal({ turnoActivo, onClose, onDone }: { turnoActivo: any; o
             </select>
           </div>
           <div className="field"><label className="field-label">Monto *</label>
-            <input autoFocus className="inp text-[18px] font-bold font-mono" type="number" step="0.01" min="0.01" value={monto} onChange={e => setMonto(e.target.value)} placeholder="0,00" required />
+            <input autoFocus className="inp text-[18px] font-bold font-mono" type="number" step="0.01" min="0.01" value={monto} onChange={e => setMonto(e.target.value)} onKeyDown={handleNumericKeyDown} placeholder="0,00" required />
           </div>
           <div className="field"><label className="field-label">Detalle adicional</label>
             <input className="inp" type="text" value={desc} onChange={e => setDesc(e.target.value)} placeholder="Opcional: proveedor, factura..." />

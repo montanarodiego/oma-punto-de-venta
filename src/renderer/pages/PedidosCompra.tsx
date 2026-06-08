@@ -3,6 +3,18 @@ import { useToast } from '../context/ToastContext';
 import { useSession } from '../context/SessionContext';
 import { Button, Field, Input, Modal, Badge } from '../components/ui';
 
+function handleNumericKeyDown(e: React.KeyboardEvent<HTMLInputElement>) {
+  if (e.key !== 'ArrowUp' && e.key !== 'ArrowDown') return;
+  e.preventDefault();
+  const modal = (e.currentTarget as HTMLElement).closest('[data-modal]');
+  if (!modal) return;
+  const sel = 'button:not([disabled]),input:not([disabled]):not([type="hidden"]),select:not([disabled]),textarea:not([disabled])';
+  const els = Array.from(modal.querySelectorAll<HTMLElement>(sel));
+  const idx = els.indexOf(e.currentTarget as HTMLElement);
+  if (idx < 0) return;
+  els[e.key === 'ArrowDown' ? Math.min(idx + 1, els.length - 1) : Math.max(idx - 1, 0)]?.focus();
+}
+
 // ── Types ────────────────────────────────────────────────────────────────────
 
 type EstadoPedido = 'borrador' | 'enviado' | 'recibido' | 'cancelado';
@@ -371,6 +383,7 @@ function ModalNuevoPedido({
                         className="inp py-1 text-[12px] text-right w-20"
                         value={item.cantidad_pedida}
                         onChange={e => upd(item._key, { cantidad_pedida: parseFloat(e.target.value) || 0 })}
+                        onKeyDown={handleNumericKeyDown}
                       />
                     </td>
                     <td className="px-3 py-2 text-right">
@@ -379,6 +392,7 @@ function ModalNuevoPedido({
                         className="inp py-1 text-[12px] text-right w-24"
                         value={item.costo_unitario}
                         onChange={e => upd(item._key, { costo_unitario: parseFloat(e.target.value) || 0 })}
+                        onKeyDown={handleNumericKeyDown}
                       />
                     </td>
                     <td className="px-3 py-2 text-right font-mono text-text-muted">
@@ -510,6 +524,7 @@ function ModalRecibir({
                       className={`inp py-1 text-[12px] text-right w-20 ${f.cant_recibida < f.cant_pedida ? 'border-yellow-500/50' : ''}`}
                       value={f.cant_recibida}
                       onChange={e => upd(f.item_id, { cant_recibida: parseFloat(e.target.value) || 0 })}
+                      onKeyDown={handleNumericKeyDown}
                     />
                   </td>
                   <td className="px-3 py-2 text-right">
@@ -518,6 +533,7 @@ function ModalRecibir({
                       className="inp py-1 text-[12px] text-right w-24"
                       value={f.costo}
                       onChange={e => upd(f.item_id, { costo: parseFloat(e.target.value) || 0 })}
+                      onKeyDown={handleNumericKeyDown}
                     />
                   </td>
                 </tr>

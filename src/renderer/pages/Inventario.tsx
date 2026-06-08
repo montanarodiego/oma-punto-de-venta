@@ -5,6 +5,18 @@ import { Card, CardHeader, CardBody, Button, Field, Input, Select, Modal } from 
 function fmt(n: number) { return new Intl.NumberFormat('es-AR',{style:'currency',currency:'ARS',minimumFractionDigits:2}).format(n??0); }
 function fmtFecha(s: string) { return s ? new Date(s).toLocaleString('es-AR',{day:'2-digit',month:'2-digit',year:'numeric',hour:'2-digit',minute:'2-digit'}) : '—'; }
 
+function handleNumericKeyDown(e: React.KeyboardEvent<HTMLInputElement>) {
+  if (e.key !== 'ArrowUp' && e.key !== 'ArrowDown') return;
+  e.preventDefault();
+  const modal = (e.currentTarget as HTMLElement).closest('[data-modal]');
+  if (!modal) return;
+  const sel = 'button:not([disabled]),input:not([disabled]):not([type="hidden"]),select:not([disabled]),textarea:not([disabled])';
+  const els = Array.from(modal.querySelectorAll<HTMLElement>(sel));
+  const idx = els.indexOf(e.currentTarget as HTMLElement);
+  if (idx < 0) return;
+  els[e.key === 'ArrowDown' ? Math.min(idx + 1, els.length - 1) : Math.max(idx - 1, 0)]?.focus();
+}
+
 export default function Inventario() {
   const { showToast } = useToast();
   const [movimientos, setMovimientos] = useState<any[]>([]);
@@ -144,7 +156,7 @@ export default function Inventario() {
               </label>
             ))}
           </div>
-          <Field label="Cantidad *"><Input autoFocus={!!artSel} type="number" step="any" min="0.001" value={cantidad} onChange={e => setCantidad(e.target.value)} placeholder="0" required /></Field>
+          <Field label="Cantidad *"><Input autoFocus={!!artSel} type="number" step="any" min="0.001" value={cantidad} onChange={e => setCantidad(e.target.value)} onKeyDown={handleNumericKeyDown} placeholder="0" required /></Field>
           <Field label="Motivo"><Input value={motivo} onChange={e => setMotivo(e.target.value)} placeholder="Opcional" /></Field>
           {error && <div className="px-3 py-2 bg-[rgba(239,68,68,.1)] border border-[rgba(239,68,68,.25)] text-[#fca5a5] text-[12px] rounded-[var(--r-in)]">{error}</div>}
         </form>

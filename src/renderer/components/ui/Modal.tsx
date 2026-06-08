@@ -46,6 +46,7 @@ export function Modal({ open, onClose, title, children, footer, maxWidth = '460p
         >
           <motion.div
             ref={panelRef}
+            data-modal
             className={clsx('modal-box', className)}
             style={{ maxWidth }}
             initial={{ scale: 0.95, opacity: 0, y: 10 }}

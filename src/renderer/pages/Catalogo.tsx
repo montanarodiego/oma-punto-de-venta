@@ -5,6 +5,18 @@ import { useSession } from '../context/SessionContext';
 import { Button, Field, Input, Select, Modal, Badge } from '../components/ui';
 import type { Articulo, Departamento } from '../types/api';
 
+function handleNumericKeyDown(e: React.KeyboardEvent<HTMLInputElement>) {
+  if (e.key !== 'ArrowUp' && e.key !== 'ArrowDown') return;
+  e.preventDefault();
+  const modal = (e.currentTarget as HTMLElement).closest('[data-modal]');
+  if (!modal) return;
+  const sel = 'button:not([disabled]),input:not([disabled]):not([type="hidden"]),select:not([disabled]),textarea:not([disabled])';
+  const els = Array.from(modal.querySelectorAll<HTMLElement>(sel));
+  const idx = els.indexOf(e.currentTarget as HTMLElement);
+  if (idx < 0) return;
+  els[e.key === 'ArrowDown' ? Math.min(idx + 1, els.length - 1) : Math.max(idx - 1, 0)]?.focus();
+}
+
 // ── Types ─────────────────────────────────────────────────────────────────────
 
 interface KitComp {
@@ -439,21 +451,21 @@ export default function Catalogo() {
               </div>
               <div className="grid grid-cols-3 gap-3">
                 <Field label="Costo">
-                  <Input type="number" step="0.01" min="0" value={form.costo_unitario ?? 0} onChange={e => setField('costo_unitario', parseFloat(e.target.value) || 0)}/>
+                  <Input type="number" step="0.01" min="0" value={form.costo_unitario ?? 0} onChange={e => setField('costo_unitario', parseFloat(e.target.value) || 0)} onKeyDown={handleNumericKeyDown}/>
                 </Field>
                 <Field label="Precio venta">
-                  <Input type="number" step="0.01" min="0" value={form.precio_unitario ?? 0} onChange={e => setField('precio_unitario', parseFloat(e.target.value) || 0)}/>
+                  <Input type="number" step="0.01" min="0" value={form.precio_unitario ?? 0} onChange={e => setField('precio_unitario', parseFloat(e.target.value) || 0)} onKeyDown={handleNumericKeyDown}/>
                 </Field>
                 <Field label="Precio mayoreo">
-                  <Input type="number" step="0.01" min="0" value={form.precio_mayoreo ?? 0} onChange={e => setField('precio_mayoreo', parseFloat(e.target.value) || 0)}/>
+                  <Input type="number" step="0.01" min="0" value={form.precio_mayoreo ?? 0} onChange={e => setField('precio_mayoreo', parseFloat(e.target.value) || 0)} onKeyDown={handleNumericKeyDown}/>
                 </Field>
               </div>
               <div className="grid grid-cols-3 gap-3">
                 <Field label="Stock actual">
-                  <Input type="number" step="any" value={form.stock_actual ?? 0} onChange={e => setField('stock_actual', parseFloat(e.target.value) || 0)}/>
+                  <Input type="number" step="any" value={form.stock_actual ?? 0} onChange={e => setField('stock_actual', parseFloat(e.target.value) || 0)} onKeyDown={handleNumericKeyDown}/>
                 </Field>
                 <Field label="Stock mínimo">
-                  <Input type="number" step="any" min="0" value={form.stock_minimo ?? 0} onChange={e => setField('stock_minimo', parseFloat(e.target.value) || 0)}/>
+                  <Input type="number" step="any" min="0" value={form.stock_minimo ?? 0} onChange={e => setField('stock_minimo', parseFloat(e.target.value) || 0)} onKeyDown={handleNumericKeyDown}/>
                 </Field>
                 <Field label="IVA (%)">
                   <Select value={form.tasa_iva ?? 21} onChange={e => setField('tasa_iva', parseFloat(e.target.value))}>
@@ -562,6 +574,7 @@ export default function Catalogo() {
                               className="inp py-1 text-[12px] text-right w-20"
                               value={c.cantidad}
                               onChange={e => setCantComp(c.componente_id, parseFloat(e.target.value) || 1)}
+                              onKeyDown={handleNumericKeyDown}
                             />
                           </td>
                           <td className="px-2 py-2">
@@ -606,6 +619,7 @@ export default function Catalogo() {
                       type="number" min="1" step="1" placeholder="Ej: 6"
                       value={promoDesde}
                       onChange={e => setPromoDesde(e.target.value)}
+                      onKeyDown={handleNumericKeyDown}
                     />
                   </Field>
                   <Field label="Cant. hasta (opcional)">
@@ -613,6 +627,7 @@ export default function Catalogo() {
                       type="number" min="1" step="1" placeholder="Vacío = sin límite"
                       value={promoHasta}
                       onChange={e => setPromoHasta(e.target.value)}
+                      onKeyDown={handleNumericKeyDown}
                     />
                   </Field>
                   <Field label="Precio promo *">
@@ -620,6 +635,7 @@ export default function Catalogo() {
                       type="number" min="0.01" step="0.01" placeholder="Ej: 750"
                       value={promoPrecio}
                       onChange={e => setPromoPrecio(e.target.value)}
+                      onKeyDown={handleNumericKeyDown}
                     />
                   </Field>
                   <Field label="Etiqueta (opcional)">
