@@ -1,8 +1,9 @@
-import { useState, useEffect, useRef, useCallback, useMemo } from 'react';
+import React, { useState, useEffect, useRef, useCallback, useMemo, forwardRef, useImperativeHandle } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { AnimatePresence, motion } from 'framer-motion';
 import { useToast } from '../context/ToastContext';
 import { useFocusTrap } from '../hooks/useFocusTrap';
+import { useCarritoKeyboard } from '../hooks/useCarritoKeyboard';
 import type { Articulo, Cliente } from '../types/api';
 
 // ── Types ──────────────────────────────────────────────────────────
@@ -58,17 +59,6 @@ function mkItem(base: Partial<CartItem>): CartItem {
   return { _id: Date.now() + Math.random(), codigo: '', nombre: '', precio: 0, costo: 0, cantidad: 1, descPct: 0, ...base };
 }
 
-function handleNumericKeyDown(e: React.KeyboardEvent<HTMLInputElement>) {
-  if (e.key !== 'ArrowUp' && e.key !== 'ArrowDown') return;
-  e.preventDefault();
-  const modal = (e.currentTarget as HTMLElement).closest('[data-modal]');
-  if (!modal) return;
-  const sel = 'button:not([disabled]),input:not([disabled]):not([type="hidden"]),select:not([disabled]),textarea:not([disabled])';
-  const els = Array.from(modal.querySelectorAll<HTMLElement>(sel));
-  const idx = els.indexOf(e.currentTarget as HTMLElement);
-  if (idx < 0) return;
-  els[e.key === 'ArrowDown' ? Math.min(idx + 1, els.length - 1) : Math.max(idx - 1, 0)]?.focus();
-}
 
 function aplicarPromoAItem(item: CartItem): CartItem {
   if (!item.promos?.length || item.esLibre) return item;
@@ -111,8 +101,6 @@ export default function Caja() {
   const ticket = tickets[activeIdx];
 
   // UI state
-  const [codigoVal, setCodigoVal] = useState('');
-  const [codigoAnim, setCodigoAnim] = useState('');
   const [buscadorOpen, setBuscadorOpen] = useState(false);
   const [buscadorQuery, setBuscadorQuery] = useState('');
   const [buscadorItems, setBuscadorItems] = useState<Articulo[]>([]);
@@ -147,6 +135,11 @@ export default function Caja() {
   const [renombrarOpen, setRenombrarOpen] = useState(false);
   const [renombrarVal, setRenombrarVal] = useState('');
 
+  // Qty editor (*) modal
+  const [qtyEditorOpen, setQtyEditorOpen] = useState(false);
+  const [qtyEditorVal,  setQtyEditorVal]  = useState('');
+  const [qtyEditorIdx,  setQtyEditorIdx]  = useState<number | null>(null);
+
   // Cobro state
   const [cobroFormaPago, setCobroFormaPago] = useState('efectivo');
   const [cobroMonto, setCobroMonto] = useState('');
@@ -160,11 +153,15 @@ export default function Caja() {
   const [mixtoMonto1, setMixtoMonto1] = useState('');
   const [mixtoEfectivoRecibido, setMixtoEfectivoRecibido] = useState('');
 
-  const codigoRef = useRef<HTMLInputElement>(null);
+  // codigoIsEmptyRef: tracks whether the código input is currently empty,
+  // updated by CodigoInput without causing parent re-renders.
+  const codigoIsEmptyRef = useRef(true);
+  // activeIdxRef: stable ref so callbacks can read activeIdx without being recreated.
+  const activeIdxRef = useRef(activeIdx);
+  activeIdxRef.current = activeIdx;
+
+  const codigoRef = useRef<CodigoInputHandle>(null);
   const buscadorRef = useRef<HTMLInputElement>(null);
-  const scannerLastMs = useRef(0);
-  const scannerCharCnt = useRef(0);
-  const timerCodigo = useRef<NodeJS.Timeout|null>(null);
   const timerBuscador = useRef<NodeJS.Timeout|null>(null);
   const timerCliente = useRef<NodeJS.Timeout|null>(null);
   const cobrarRef      = useRef<(conTicket: boolean) => void>(() => {});
@@ -209,14 +206,13 @@ export default function Caja() {
     const u3 = window.api.onAbrirCobro(() => setCobroOpen(true));
     return () => {
       u1(); u2(); u3();
-      if (timerCodigo.current)   clearTimeout(timerCodigo.current);
       if (timerBuscador.current) clearTimeout(timerBuscador.current);
       if (timerCliente.current)  clearTimeout(timerCliente.current);
     };
   }, []);
 
-  // focus código al cerrar buscador/cobro
-  useEffect(() => { if (!buscadorOpen && !cobroOpen) recuperarFocoCodigo(); }, [buscadorOpen, cobroOpen]);
+  // focus código al cerrar buscador/cobro/qty editor
+  useEffect(() => { if (!buscadorOpen && !cobroOpen && !qtyEditorOpen) recuperarFocoCodigo(); }, [buscadorOpen, cobroOpen, qtyEditorOpen]);
 
   // Auto-scroll al ítem seleccionado en el carrito
   useEffect(() => {
@@ -224,73 +220,99 @@ export default function Caja() {
     el?.scrollIntoView({ block: 'nearest' });
   }, [ticket.itemSelIdx, activeIdx]);
 
+  // noModal: true cuando ningún modal/overlay está abierto — usado en hotkeyRef y useCarritoKeyboard
+  const noModal = !buscadorOpen && !cobroOpen && !libreOpen && !descItemOpen && !movOpen && !anularOpen && !renombrarOpen && !wizardOpen && !qtyEditorOpen;
+  const noModalRef = useRef(noModal);
+  noModalRef.current = noModal;
+
   // Hotkeys globales — ref actualizado en cada render para evitar stale closure.
   // El listener se registra una sola vez (deps: []) eliminando el gap remove/add en cada scan.
+  // Las teclas de carrito (↑↓ +−*) se manejan en useCarritoKeyboard (capture phase).
   hotkeyRef.current = (e: KeyboardEvent) => {
     const tag = (document.activeElement as HTMLElement)?.tagName.toLowerCase();
     const isInput = tag === 'input' || tag === 'textarea' || tag === 'select';
-    const noModal = !buscadorOpen && !cobroOpen && !libreOpen && !descItemOpen && !movOpen && !anularOpen && !renombrarOpen && !wizardOpen;
 
-    if (e.key === 'F10') { e.preventDefault(); abrirBuscador(); }
-    if (e.key === 'F11') { e.preventDefault(); setMayoreoMode(m => !m); }
-    if (e.key === 'F12') { e.preventDefault(); setCobroOpen(true); window.api.setModalCobro(true); }
-    if (e.key === 'Insert') { e.preventDefault(); setLibreOpen(true); }
-    // Delete: borra el ítem seleccionado si el input de código está vacío (o sin foco)
-    if (e.key === 'Delete' && (!isInput || (noModal && ticket.itemSelIdx !== null && codigoVal === ''))) {
-      e.preventDefault();
-      borrarItemSel();
+    if (e.key === 'F10') { e.preventDefault(); abrirBuscador(); return; }
+    if (e.key === 'F11') { e.preventDefault(); setMayoreoMode(m => !m); return; }
+    if (e.key === 'F12') { e.preventDefault(); setCobroOpen(true); window.api.setModalCobro(true); return; }
+    if (e.key === 'Insert') { e.preventDefault(); setLibreOpen(true); return; }
+    // Delete: elimina ítem seleccionado si el campo de código está vacío (o sin foco)
+    if (e.key === 'Delete' && (!isInput || (noModal && ticket.itemSelIdx !== null && codigoIsEmptyRef.current))) {
+      e.preventDefault(); borrarItemSel(); return;
     }
-    if (e.key === 'Escape' && buscadorOpen) { setBuscadorOpen(false); }
-
-    // Navegación del carrito con teclado
-    if (noModal && ticket.carrito.length > 0) {
-      if (e.key === 'ArrowDown') {
-        e.preventDefault();
-        updateTicket(activeIdx, {
-          itemSelIdx: ticket.itemSelIdx === null ? 0 : Math.min(ticket.itemSelIdx + 1, ticket.carrito.length - 1),
-        });
-      }
-      if (e.key === 'ArrowUp') {
-        e.preventDefault();
-        updateTicket(activeIdx, {
-          itemSelIdx: ticket.itemSelIdx === null ? ticket.carrito.length - 1 : Math.max(ticket.itemSelIdx - 1, 0),
-        });
-      }
+    if (e.key === 'Escape' && buscadorOpen) { setBuscadorOpen(false); return; }
+    if (e.key === 'Escape' && noModal && ticket.itemSelIdx !== null) {
+      e.preventDefault(); updateTicket(activeIdx, { itemSelIdx: null }); return;
     }
 
-    // +/− cantidad y Esc deselección cuando hay ítem seleccionado
-    if (noModal && ticket.itemSelIdx !== null) {
-      const selItem = ticket.carrito[ticket.itemSelIdx];
-      if (selItem) {
-        const isConti = UNIDADES_CONTINUAS.has(selItem.unidadMedida ?? '');
-        const step   = isConti ? 0.1 : 1;
-        const minQty = isConti ? 0.001 : 1;
-        if (e.key === '+') {
-          e.preventDefault();
-          const c = [...ticket.carrito];
-          c[ticket.itemSelIdx] = aplicarPromoAItem({ ...selItem, cantidad: selItem.cantidad + step });
-          updateTicket(activeIdx, { carrito: c });
-        }
-        if (e.key === '-') {
-          e.preventDefault();
-          if (selItem.cantidad > minQty) {
-            const c = [...ticket.carrito];
-            c[ticket.itemSelIdx] = aplicarPromoAItem({ ...selItem, cantidad: selItem.cantidad - step });
-            updateTicket(activeIdx, { carrito: c });
-          }
-        }
+    // Cobro modal: teclas 1-6 seleccionan forma de pago; Enter (fuera de input/button) cobra
+    if (cobroOpen) {
+      const isInInput = tag === 'input' || tag === 'textarea';
+      const FORMAS_COBRO = ['efectivo', 'tarjeta_debito', 'tarjeta_credito', 'transferencia', 'cuenta_corriente', 'mixto'];
+      if (!isInInput && e.key >= '1' && e.key <= '6') {
+        const fi = parseInt(e.key) - 1;
+        e.preventDefault(); setCobroFormaPago(FORMAS_COBRO[fi]); return;
       }
-      if (e.key === 'Escape') {
-        e.preventDefault();
-        updateTicket(activeIdx, { itemSelIdx: null });
+      if (e.key === 'Enter' && !isInInput && tag !== 'button') {
+        e.preventDefault(); cobrar(true); return;
       }
     }
   };
   useEffect(() => {
     const handler = (e: KeyboardEvent) => hotkeyRef.current(e);
-    window.addEventListener('keydown', handler);
-    return () => window.removeEventListener('keydown', handler);
+    document.addEventListener('keydown', handler, true);
+    return () => document.removeEventListener('keydown', handler, true);
   }, []);
+
+  // Teclas de carrito en capture phase: intercepta ANTES que el input de código reciba el evento
+  useCarritoKeyboard({
+    enabled:  noModal,
+    hasItems: ticket.carrito.length > 0,
+    onUp: () => {
+      updateTicket(activeIdx, {
+        itemSelIdx: ticket.itemSelIdx === null ? ticket.carrito.length - 1 : Math.max(ticket.itemSelIdx - 1, 0),
+      });
+      recuperarFocoCodigo();
+    },
+    onDown: () => {
+      updateTicket(activeIdx, {
+        itemSelIdx: ticket.itemSelIdx === null ? 0 : Math.min(ticket.itemSelIdx + 1, ticket.carrito.length - 1),
+      });
+      recuperarFocoCodigo();
+    },
+    onPlus: () => {
+      const idx = ticket.itemSelIdx ?? ticket.carrito.length - 1;
+      const selItem = ticket.carrito[idx];
+      if (!selItem) return;
+      const isConti = UNIDADES_CONTINUAS.has(selItem.unidadMedida ?? '');
+      const c = [...ticket.carrito];
+      c[idx] = aplicarPromoAItem({ ...selItem, cantidad: selItem.cantidad + (isConti ? 0.1 : 1) });
+      updateTicket(activeIdx, { carrito: c, itemSelIdx: idx });
+      recuperarFocoCodigo();
+    },
+    onMinus: () => {
+      const idx = ticket.itemSelIdx ?? ticket.carrito.length - 1;
+      const selItem = ticket.carrito[idx];
+      if (!selItem) return;
+      const isConti = UNIDADES_CONTINUAS.has(selItem.unidadMedida ?? '');
+      const step = isConti ? 0.1 : 1;
+      const minQty = isConti ? 0.001 : 1;
+      if (selItem.cantidad <= minQty) return;
+      const c = [...ticket.carrito];
+      c[idx] = aplicarPromoAItem({ ...selItem, cantidad: selItem.cantidad - step });
+      updateTicket(activeIdx, { carrito: c, itemSelIdx: idx });
+      recuperarFocoCodigo();
+    },
+    onStar: () => {
+      const idx = ticket.itemSelIdx ?? ticket.carrito.length - 1;
+      const item = ticket.carrito[idx];
+      if (!item) return;
+      setTickets(prev => prev.map((t, i) => i === activeIdx ? { ...t, itemSelIdx: idx } : t));
+      setQtyEditorIdx(idx);
+      setQtyEditorVal(String(item.cantidad));
+      setQtyEditorOpen(true);
+    },
+  });
 
   function aplicarModo(modo: string) {
     setShowPropina(modo === 'restaurante');
@@ -298,7 +320,7 @@ export default function Caja() {
   }
 
   function recuperarFocoCodigo() {
-    setTimeout(() => codigoRef.current?.focus(), 50);
+    codigoRef.current?.focus();
   }
 
   // ── Ticket management ──────────────────────────────────────────
@@ -318,7 +340,7 @@ export default function Caja() {
 
   function limpiarTicket(idx: number) {
     updateTicket(idx, { carrito: [], clienteSeleccionado: null, formaPago: 'efectivo', descGlobalTipo: 'ninguno', descGlobalValor: 0, notas: '', itemSelIdx: null });
-    setCodigoVal('');
+    codigoRef.current?.clear();
   }
 
   function updateTicket(idx: number, patch: Partial<Ticket>) {
@@ -354,11 +376,12 @@ export default function Caja() {
     return { sub, desc, subtotalConDesc, iva, total: Math.max(0, total), propAmt };
   }, [ticket, mostrarIva, modoNegocio, tasaIva, propina]);
 
-  async function agregarArticulo(art: Articulo, cantidad = 1) {
+  const agregarArticulo = useCallback(async (art: Articulo, cantidad = 1) => {
     // Fetch promos solo si el artículo probablemente no está en el carrito aún.
     // La verificación definitiva ocurre dentro del functional updater de setTickets,
     // usando el estado más reciente (prev), por lo que llamadas concurrentes no se pisan.
-    const probablyNew = !ticket.carrito.some(
+    const ai = activeIdxRef.current;
+    const probablyNew = !tickets[ai]?.carrito.some(
       i => i.articuloId === art.id && i.descPct === 0 && !i.esLibre,
     );
     let promos: PromoItem[] = [];
@@ -367,7 +390,7 @@ export default function Caja() {
     }
 
     setTickets(prev => {
-      const t = prev[activeIdx];
+      const t = prev[ai];
       const existing = t.carrito.findIndex(
         i => i.articuloId === art.id && i.descPct === 0 && !i.esLibre,
       );
@@ -387,40 +410,24 @@ export default function Caja() {
         });
         newCarrito = [...t.carrito, aplicarPromoAItem(item)];
       }
-      return prev.map((tk, i) => i === activeIdx ? { ...tk, carrito: newCarrito } : tk);
+      const newItemSelIdx = existing >= 0 ? existing : newCarrito.length - 1;
+      return prev.map((tk, i) => i === ai ? { ...tk, carrito: newCarrito, itemSelIdx: newItemSelIdx } : tk);
     });
-
-    animScanOk();
-  }
-
-  function animScanOk() { setCodigoAnim('scan-ok'); setTimeout(() => setCodigoAnim(''), 600); }
-  function animScanError() { setCodigoAnim('scan-error'); setTimeout(() => setCodigoAnim(''), 600); }
+  }, [tickets]); // tickets needed only for the `probablyNew` check before the async gap
 
   // ── Código input ───────────────────────────────────────────────
-  async function procesarCodigo(codigo: string) {
+  // procesarCodigoRef: stable ref so CodigoInput doesn't need to recreate on every render.
+  const procesarCodigoFn = useCallback(async (codigo: string) => {
     if (!codigo.trim()) return;
-    setCodigoVal('');
     const art = await window.api.articulos.getByCodigo(codigo.trim());
-    if (art) { agregarArticulo(art); }
-    else { animScanError(); showToast('Código no encontrado: ' + codigo, 'error'); }
-  }
-
-  function handleCodigoKeyDown(e: React.KeyboardEvent<HTMLInputElement>) {
-    if (e.key === 'Enter') { procesarCodigo(codigoVal); return; }
-    const now = Date.now();
-    const delta = now - scannerLastMs.current;
-    scannerLastMs.current = now;
-    if (delta < 50) scannerCharCnt.current++; else scannerCharCnt.current = 1;
-  }
-
-  function handleCodigoChange(e: React.ChangeEvent<HTMLInputElement>) {
-    const val = e.target.value;
-    setCodigoVal(val);
-    if (timerCodigo.current) clearTimeout(timerCodigo.current);
-    if (val.length >= 3 && scannerCharCnt.current >= 3) {
-      timerCodigo.current = setTimeout(() => procesarCodigo(val), 120);
+    if (art) {
+      await agregarArticulo(art);
+      codigoRef.current?.animOk();
+    } else {
+      codigoRef.current?.animError();
+      showToast('Código no encontrado: ' + codigo, 'error');
     }
-  }
+  }, [showToast]); // agregarArticulo uses activeIdxRef internally
 
   // ── Buscador F10 ────────────────────────────────────────────────
   function abrirBuscador() { setBuscadorOpen(true); setBuscadorQuery(''); setBuscadorItems([]); setBuscadorIdx(-1); }
@@ -451,6 +458,18 @@ export default function Caja() {
     if (ticket.itemSelIdx === null) return;
     const newCarrito = ticket.carrito.filter((_, i) => i !== ticket.itemSelIdx);
     updateTicket(activeIdx, { carrito: newCarrito, itemSelIdx: null });
+  }
+
+  function confirmQtyEditor(e: React.FormEvent) {
+    e.preventDefault();
+    if (qtyEditorIdx === null) return;
+    const qty = parseFloat(qtyEditorVal);
+    if (isNaN(qty) || qty <= 0) return;
+    const c = [...ticket.carrito];
+    c[qtyEditorIdx] = aplicarPromoAItem({ ...c[qtyEditorIdx], cantidad: qty });
+    updateTicket(activeIdx, { carrito: c });
+    setQtyEditorOpen(false);
+    recuperarFocoCodigo();
   }
 
   // ── Ítem libre ─────────────────────────────────────────────────
@@ -581,6 +600,71 @@ export default function Caja() {
     updateTicket(activeIdx, { carrito: newCarrito });
     setDescItemOpen(false);
   }
+
+  // ticketsRef: stable snapshot for callbacks that need the current cart without recreating.
+  const ticketsRef = useRef(tickets);
+  ticketsRef.current = tickets;
+
+  // ── Callbacks estables para CartRow (usan activeIdxRef/ticketsRef) ──
+  const onCartToggleSelect = useCallback((idx: number) => {
+    const ai = activeIdxRef.current;
+    setTickets(prev => {
+      const t = prev[ai];
+      return prev.map((tk, i) => i === ai ? { ...tk, itemSelIdx: t.itemSelIdx === idx ? null : idx } : tk);
+    });
+    recuperarFocoCodigo();
+  }, []);
+
+  const onCartDecrement = useCallback((idx: number) => {
+    setTickets(prev => {
+      const ai = activeIdxRef.current;
+      const t = prev[ai];
+      const item = t.carrito[idx];
+      if (!item) return prev;
+      const isConti = UNIDADES_CONTINUAS.has(item.unidadMedida ?? '');
+      const step = isConti ? 0.1 : 1;
+      const minQty = isConti ? 0.001 : 1;
+      if (item.cantidad <= minQty) return prev;
+      const c = [...t.carrito];
+      c[idx] = aplicarPromoAItem({ ...item, cantidad: item.cantidad - step });
+      return prev.map((tk, i) => i === ai ? { ...tk, carrito: c } : tk);
+    });
+  }, []);
+
+  const onCartIncrement = useCallback((idx: number) => {
+    setTickets(prev => {
+      const ai = activeIdxRef.current;
+      const t = prev[ai];
+      const item = t.carrito[idx];
+      if (!item) return prev;
+      const isConti = UNIDADES_CONTINUAS.has(item.unidadMedida ?? '');
+      const c = [...t.carrito];
+      c[idx] = aplicarPromoAItem({ ...item, cantidad: item.cantidad + (isConti ? 0.1 : 1) });
+      return prev.map((tk, i) => i === ai ? { ...tk, carrito: c } : tk);
+    });
+  }, []);
+
+  const onCartQtyChange = useCallback((idx: number, qty: number) => {
+    setTickets(prev => {
+      const ai = activeIdxRef.current;
+      const t = prev[ai];
+      const item = t.carrito[idx];
+      if (!item) return prev;
+      const c = [...t.carrito];
+      c[idx] = aplicarPromoAItem({ ...item, cantidad: qty });
+      return prev.map((tk, i) => i === ai ? { ...tk, carrito: c } : tk);
+    });
+  }, []);
+
+  const onCartDescuento = useCallback((idx: number) => {
+    const ai = activeIdxRef.current;
+    const item = ticketsRef.current[ai]?.carrito[idx];
+    if (!item) return;
+    setDescItemIdx(idx);
+    setDescItemTipo('pct');
+    setDescItemVal(item.descPct > 0 ? String(item.descPct) : '');
+    setDescItemOpen(true);
+  }, []);
 
   // ── Anular / devolver ──────────────────────────────────────────
   async function openAnularModal() {
@@ -733,14 +817,10 @@ export default function Caja() {
       {/* ── Código bar ── */}
       <div className="flex items-center gap-3 px-3 py-2.5 bg-surface border-b border-border flex-shrink-0">
         <label className="text-[12px] font-bold text-text-muted whitespace-nowrap uppercase tracking-wider">Código:</label>
-        <input
+        <CodigoInput
           ref={codigoRef}
-          value={codigoVal}
-          onChange={handleCodigoChange}
-          onKeyDown={handleCodigoKeyDown}
-          className={`flex-1 text-[16px] font-medium px-3 py-2 rounded-[var(--r)] border-2 border-accent bg-bg text-text outline-none transition-all ${codigoAnim}`}
-          placeholder="Escaneá o escribí el código..."
-          autoComplete="off" spellCheck={false}
+          onSubmit={procesarCodigoFn}
+          onValueChange={(v) => { codigoIsEmptyRef.current = v === ''; }}
         />
         {descInlineOpen && (
           <div className="flex items-center gap-2 flex-shrink-0 bg-[rgba(234,179,8,.07)] border border-[rgba(234,179,8,.2)] rounded-[var(--r-in)] px-3 py-1.5">
@@ -789,56 +869,19 @@ export default function Caja() {
               </tr>
             </thead>
             <tbody>
-              {ticket.carrito.map((item, idx) => {
-                const importe = item.precio * item.cantidad * (1 - item.descPct / 100);
-                const selected = ticket.itemSelIdx === idx;
-                return (
-                  <tr
-                    key={item._id}
-                    data-cart-sel={selected ? 'true' : undefined}
-                    onClick={() => updateTicket(activeIdx, { itemSelIdx: selected ? null : idx })}
-                    className={`cursor-pointer transition-colors ${selected ? 'bg-[rgba(79,142,245,.12)] [box-shadow:inset_3px_0_0_var(--accent)]' : ''}`}
-                  >
-                    <td className="font-mono text-[12px] text-text-muted">{item.codigo}</td>
-                    <td>
-                      <div className="flex items-center gap-1.5 flex-wrap">
-                        <span className="text-[15px] font-semibold text-text leading-tight">{item.nombre}</span>
-                        {item.descPct > 0 && <span className="text-[10px] font-bold px-1.5 rounded-full bg-[rgba(234,179,8,.18)] text-[#f59e0b]">-{item.descPct.toFixed(1)}%</span>}
-                        {item.esMayoreo && <span className="text-[10px] font-bold px-1.5 rounded-full bg-[rgba(139,92,246,.18)] text-[#a78bfa]">MAY</span>}
-                        {item.usaInventario && item.stockActual !== undefined && item.stockActual <= 0 && <span className="text-[10px] font-bold px-1.5 rounded-full bg-[rgba(239,68,68,.18)] text-[#f87171]">SIN STOCK</span>}
-                        {item.promoId && <span className="text-[10px] font-bold px-1.5 rounded-full bg-[rgba(34,197,94,.18)] text-[#4ade80]">PROMO</span>}
-                      </div>
-                    </td>
-                    <td className="text-right font-mono text-[14px] text-text-muted">{fmt(item.precio)}</td>
-                    <td className="text-right">
-                      <div className="flex items-center justify-end">
-                        <div className="flex items-center border border-border rounded-[var(--r-in)] overflow-hidden">
-                          <button className="px-2.5 py-1 text-text-muted hover:bg-surface-2 text-[15px] font-bold" onClick={e => { e.stopPropagation(); const c = [...ticket.carrito]; if (c[idx].cantidad <= (UNIDADES_CONTINUAS.has(c[idx].unidadMedida ?? '') ? 0.001 : 1)) return; c[idx] = aplicarPromoAItem({ ...c[idx], cantidad: c[idx].cantidad - (UNIDADES_CONTINUAS.has(c[idx].unidadMedida ?? '') ? 0.1 : 1) }); updateTicket(activeIdx, { carrito: c }); }}>−</button>
-                          <input
-                            type="number" step="any" min="0.001"
-                            value={item.cantidad}
-                            onChange={e => { const c = [...ticket.carrito]; c[idx] = aplicarPromoAItem({ ...c[idx], cantidad: parseFloat(e.target.value) || 1 }); updateTicket(activeIdx, { carrito: c }); }}
-                            onClick={e => e.stopPropagation()}
-                            className="w-14 text-center bg-transparent border-none outline-none text-[14px] font-semibold py-1"
-                          />
-                          <button className="px-2.5 py-1 text-text-muted hover:bg-surface-2 text-[15px] font-bold" onClick={e => { e.stopPropagation(); const c = [...ticket.carrito]; c[idx] = aplicarPromoAItem({ ...c[idx], cantidad: c[idx].cantidad + (UNIDADES_CONTINUAS.has(c[idx].unidadMedida ?? '') ? 0.1 : 1) }); updateTicket(activeIdx, { carrito: c }); }}>+</button>
-                        </div>
-                      </div>
-                    </td>
-                    <td className="text-right font-mono text-[16px] font-bold text-text tabular-nums">{fmt(importe)}</td>
-                    <td className="text-right text-[12px] text-text-subtle">{item.usaInventario && item.stockActual !== undefined ? item.stockActual : '—'}</td>
-                    <td>
-                      <button
-                        onClick={e => { e.stopPropagation(); abrirDescItem(idx); }}
-                        className="p-1.5 rounded text-text-subtle hover:text-warning transition-colors"
-                        title="Aplicar descuento"
-                      >
-                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><line x1="19" y1="5" x2="5" y2="19"/><circle cx="6.5" cy="6.5" r="2.5"/><circle cx="17.5" cy="17.5" r="2.5"/></svg>
-                      </button>
-                    </td>
-                  </tr>
-                );
-              })}
+              {ticket.carrito.map((item, idx) => (
+                <CartRow
+                  key={item._id}
+                  item={item}
+                  idx={idx}
+                  selected={ticket.itemSelIdx === idx}
+                  onToggleSelect={onCartToggleSelect}
+                  onDecrement={onCartDecrement}
+                  onIncrement={onCartIncrement}
+                  onQtyChange={onCartQtyChange}
+                  onDescuento={onCartDescuento}
+                />
+              ))}
             </tbody>
           </table>
         )}
@@ -1010,7 +1053,6 @@ export default function Caja() {
                         <input
                           type="number" min="0" step="0.01" value={cobroMonto}
                           onChange={e => setCobroMonto(e.target.value)}
-                          onKeyDown={handleNumericKeyDown}
                           className="w-full text-[22px] font-bold font-mono px-3 py-2 border-2 border-border focus:border-accent bg-bg text-text rounded-[var(--r)] outline-none"
                           autoFocus placeholder="0,00"
                         />
@@ -1090,7 +1132,7 @@ export default function Caja() {
                       </div>
                       <div>
                         <div className="text-[11px] text-text-muted mb-1">Monto 1</div>
-                        <input type="number" min="0" step="0.01" value={mixtoMonto1} onChange={e => setMixtoMonto1(e.target.value)} onKeyDown={handleNumericKeyDown} className="inp text-[17px] font-bold font-mono" placeholder="0,00" />
+                        <input type="number" min="0" step="0.01" value={mixtoMonto1} onChange={e => setMixtoMonto1(e.target.value)} className="inp text-[17px] font-bold font-mono" placeholder="0,00" />
                       </div>
                     </div>
                     <div className="grid grid-cols-2 gap-2">
@@ -1159,10 +1201,10 @@ export default function Caja() {
                 </div>
                 <div className="grid grid-cols-2 gap-3">
                   <div className="field"><label className="field-label">Precio <span className="text-danger">*</span></label>
-                    <input className="inp" type="number" step="0.01" min="0.01" value={librePrecio} onChange={e => setLibrePrecio(e.target.value)} onKeyDown={handleNumericKeyDown} required />
+                    <input className="inp" type="number" step="0.01" min="0.01" value={librePrecio} onChange={e => setLibrePrecio(e.target.value)} required />
                   </div>
                   <div className="field"><label className="field-label">Cantidad</label>
-                    <input className="inp" type="number" step="any" min="0.001" value={libreCant} onChange={e => setLibreCant(e.target.value)} onKeyDown={handleNumericKeyDown} />
+                    <input className="inp" type="number" step="any" min="0.001" value={libreCant} onChange={e => setLibreCant(e.target.value)} />
                   </div>
                 </div>
                 <div className="modal-footer px-0 pb-0">
@@ -1188,7 +1230,7 @@ export default function Caja() {
                 </div>
                 <div className="field">
                   <label className="field-label">{descItemTipo === 'pct' ? 'Porcentaje' : 'Monto'} de descuento</label>
-                  <input autoFocus className="inp" type="number" min="0" step="0.01" value={descItemVal} onChange={e => setDescItemVal(e.target.value)} onKeyDown={handleNumericKeyDown} />
+                  <input autoFocus className="inp" type="number" min="0" step="0.01" value={descItemVal} onChange={e => setDescItemVal(e.target.value)} />
                 </div>
               </div>
               <div className="modal-footer px-0 pb-0 mt-4">
@@ -1339,7 +1381,6 @@ export default function Caja() {
                                         const v = Math.min(item.cantidad, Math.max(0, parseFloat(e.target.value) || 0));
                                         setAnularItemQtys(q => ({ ...q, [item.id]: v }));
                                       }}
-                                      onKeyDown={handleNumericKeyDown}
                                       className="inp w-20 text-right py-0.5 px-2 text-[12px] font-mono"
                                     />
                                   ) : (
@@ -1403,6 +1444,34 @@ export default function Caja() {
               </div>
             </motion.div>
           </motion.div>
+        )}
+      </AnimatePresence>
+
+      {/* ── Modal editor de cantidad (*) ── */}
+      <AnimatePresence>
+        {qtyEditorOpen && (
+          <ModalOverlay onClose={() => { setQtyEditorOpen(false); recuperarFocoCodigo(); }}>
+            <ModalBox title="Cantidad" onClose={() => { setQtyEditorOpen(false); recuperarFocoCodigo(); }} maxWidth={280}>
+              <form onSubmit={confirmQtyEditor} className="flex flex-col gap-4">
+                {qtyEditorIdx !== null && (
+                  <div className="text-[13px] text-text-muted truncate">{ticket.carrito[qtyEditorIdx]?.nombre}</div>
+                )}
+                <input
+                  autoFocus
+                  type="number"
+                  step="any"
+                  min="0.001"
+                  value={qtyEditorVal}
+                  onChange={e => setQtyEditorVal(e.target.value)}
+                  className="inp text-[22px] font-bold font-mono text-center"
+                />
+                <div className="modal-footer px-0 pb-0">
+                  <button type="button" className="btn btn-ghost" onClick={() => { setQtyEditorOpen(false); recuperarFocoCodigo(); }}>Cancelar</button>
+                  <button type="submit" className="btn btn-primary">Aceptar</button>
+                </div>
+              </form>
+            </ModalBox>
+          </ModalOverlay>
         )}
       </AnimatePresence>
 
@@ -1507,6 +1576,143 @@ function ModalBox({ title, onClose, children, maxWidth = 460 }: { title: string;
   );
 }
 
+// ── CodigoInput ────────────────────────────────────────────────────────────────
+// Self-contained input with scanner detection. Owns codigoVal and codigoAnim so
+// every keystroke only re-renders this component, not the entire Caja.
+
+interface CodigoInputHandle {
+  focus(): void;
+  animOk(): void;
+  animError(): void;
+  clear(): void;
+}
+
+const CodigoInput = forwardRef<CodigoInputHandle, {
+  onSubmit: (codigo: string) => void;
+  onValueChange?: (val: string) => void;
+}>(function CodigoInput({ onSubmit, onValueChange }, ref) {
+  const [val, setVal]   = useState('');
+  const [anim, setAnim] = useState('');
+  const inputRef        = useRef<HTMLInputElement>(null);
+  const scannerLastMs   = useRef(0);
+  const scannerCharCnt  = useRef(0);
+  const timer           = useRef<NodeJS.Timeout | null>(null);
+  const onSubmitRef     = useRef(onSubmit);
+  onSubmitRef.current   = onSubmit;
+
+  useImperativeHandle(ref, () => ({
+    focus:    () => setTimeout(() => inputRef.current?.focus(), 50),
+    animOk:   () => { setAnim('scan-ok');    setTimeout(() => setAnim(''), 600); },
+    animError:() => { setAnim('scan-error'); setTimeout(() => setAnim(''), 600); },
+    clear:    () => { setVal(''); onValueChange?.(''); },
+  }));
+
+  useEffect(() => () => { if (timer.current) clearTimeout(timer.current); }, []);
+
+  function submit(codigo: string) {
+    setVal(''); onValueChange?.('');
+    onSubmitRef.current(codigo);
+  }
+
+  function handleKeyDown(e: React.KeyboardEvent<HTMLInputElement>) {
+    if (e.key === 'Enter') { submit(val); return; }
+    const now = Date.now();
+    const delta = now - scannerLastMs.current;
+    scannerLastMs.current = now;
+    if (delta < 50) scannerCharCnt.current++; else scannerCharCnt.current = 1;
+  }
+
+  function handleChange(e: React.ChangeEvent<HTMLInputElement>) {
+    const v = e.target.value;
+    setVal(v); onValueChange?.(v);
+    if (timer.current) clearTimeout(timer.current);
+    if (v.length >= 3 && scannerCharCnt.current >= 3) {
+      timer.current = setTimeout(() => submit(v), 120);
+    }
+  }
+
+  return (
+    <input
+      ref={inputRef}
+      value={val}
+      onChange={handleChange}
+      onKeyDown={handleKeyDown}
+      className={`flex-1 text-[16px] font-medium px-3 py-2 rounded-[var(--r)] border-2 border-accent bg-bg text-text outline-none transition-all ${anim}`}
+      placeholder="Escaneá o escribí el código..."
+      autoComplete="off"
+      spellCheck={false}
+      autoFocus
+    />
+  );
+});
+
+// ── CartRow ────────────────────────────────────────────────────────────────────
+// Memoized cart row. Receives stable callbacks from Caja so it only re-renders
+// when the item itself or its selected state changes.
+
+interface CartRowProps {
+  item: CartItem;
+  idx: number;
+  selected: boolean;
+  onToggleSelect: (idx: number) => void;
+  onDecrement:    (idx: number) => void;
+  onIncrement:    (idx: number) => void;
+  onQtyChange:    (idx: number, qty: number) => void;
+  onDescuento:    (idx: number) => void;
+}
+
+const CartRow = React.memo(function CartRow({
+  item, idx, selected,
+  onToggleSelect, onDecrement, onIncrement, onQtyChange, onDescuento,
+}: CartRowProps) {
+  const importe = item.precio * item.cantidad * (1 - item.descPct / 100);
+  return (
+    <tr
+      data-cart-sel={selected ? 'true' : undefined}
+      onClick={() => onToggleSelect(idx)}
+      className={`cursor-pointer transition-colors ${selected ? 'bg-[rgba(79,142,245,.12)] [box-shadow:inset_3px_0_0_var(--accent)]' : ''}`}
+    >
+      <td className="font-mono text-[12px] text-text-muted">{item.codigo}</td>
+      <td>
+        <div className="flex items-center gap-1.5 flex-wrap">
+          <span className="text-[15px] font-semibold text-text leading-tight">{item.nombre}</span>
+          {item.descPct > 0 && <span className="text-[10px] font-bold px-1.5 rounded-full bg-[rgba(234,179,8,.18)] text-[#f59e0b]">-{item.descPct.toFixed(1)}%</span>}
+          {item.esMayoreo && <span className="text-[10px] font-bold px-1.5 rounded-full bg-[rgba(139,92,246,.18)] text-[#a78bfa]">MAY</span>}
+          {item.usaInventario && item.stockActual !== undefined && item.stockActual <= 0 && <span className="text-[10px] font-bold px-1.5 rounded-full bg-[rgba(239,68,68,.18)] text-[#f87171]">SIN STOCK</span>}
+          {item.promoId && <span className="text-[10px] font-bold px-1.5 rounded-full bg-[rgba(34,197,94,.18)] text-[#4ade80]">PROMO</span>}
+        </div>
+      </td>
+      <td className="text-right font-mono text-[14px] text-text-muted">{fmt(item.precio)}</td>
+      <td className="text-right">
+        <div className="flex items-center justify-end">
+          <div className="flex items-center border border-border rounded-[var(--r-in)] overflow-hidden">
+            <button className="px-2.5 py-1 text-text-muted hover:bg-surface-2 text-[15px] font-bold" onClick={e => { e.stopPropagation(); onDecrement(idx); }}>−</button>
+            <input
+              type="number" step="any" min="0.001"
+              value={item.cantidad}
+              onChange={e => { onQtyChange(idx, parseFloat(e.target.value) || 1); }}
+              onClick={e => e.stopPropagation()}
+              className="w-14 text-center bg-transparent border-none outline-none text-[14px] font-semibold py-1"
+            />
+            <button className="px-2.5 py-1 text-text-muted hover:bg-surface-2 text-[15px] font-bold" onClick={e => { e.stopPropagation(); onIncrement(idx); }}>+</button>
+          </div>
+        </div>
+      </td>
+      <td className="text-right font-mono text-[16px] font-bold text-text tabular-nums">{fmt(importe)}</td>
+      <td className="text-right text-[12px] text-text-subtle">{item.usaInventario && item.stockActual !== undefined ? item.stockActual : '—'}</td>
+      <td>
+        <button
+          onClick={e => { e.stopPropagation(); onDescuento(idx); }}
+          className="p-1.5 rounded text-text-subtle hover:text-warning transition-colors"
+          title="Aplicar descuento"
+        >
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><line x1="19" y1="5" x2="5" y2="19"/><circle cx="6.5" cy="6.5" r="2.5"/><circle cx="17.5" cy="17.5" r="2.5"/></svg>
+        </button>
+      </td>
+    </tr>
+  );
+});
+
 function MovimientoModal({ turnoActivo, onClose, onDone }: { turnoActivo: any; onClose: () => void; onDone: () => void }) {
   const [tipo, setTipo] = useState<'entrada'|'salida'>('entrada');
   const [categoria, setCategoria] = useState('fondo_cambio');
@@ -1550,7 +1756,7 @@ function MovimientoModal({ turnoActivo, onClose, onDone }: { turnoActivo: any; o
             </select>
           </div>
           <div className="field"><label className="field-label">Monto *</label>
-            <input autoFocus className="inp text-[18px] font-bold font-mono" type="number" step="0.01" min="0.01" value={monto} onChange={e => setMonto(e.target.value)} onKeyDown={handleNumericKeyDown} placeholder="0,00" required />
+            <input autoFocus className="inp text-[18px] font-bold font-mono" type="number" step="0.01" min="0.01" value={monto} onChange={e => setMonto(e.target.value)} placeholder="0,00" required />
           </div>
           <div className="field"><label className="field-label">Detalle adicional</label>
             <input className="inp" type="text" value={desc} onChange={e => setDesc(e.target.value)} placeholder="Opcional: proveedor, factura..." />
