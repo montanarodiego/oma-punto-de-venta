@@ -177,7 +177,7 @@ export default function Catalogo() {
     setLoading(true); setError('');
     try {
       const [res, deps] = await Promise.all([
-        window.api.articulos.searchPaged({ query: query.trim(), departamento_id: depId, limit: 500 }),
+        window.api.articulos.searchPaged({ query: query.trim(), departamento_id: depId, limit: 5000 }),
         window.api.departamentos.getAll(),
       ]);
       setArticulos(res.rows ?? []);
