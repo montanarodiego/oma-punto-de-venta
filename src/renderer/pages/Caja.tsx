@@ -2,6 +2,7 @@ import { useState, useEffect, useRef, useCallback, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { AnimatePresence, motion } from 'framer-motion';
 import { useToast } from '../context/ToastContext';
+import { useFocusTrap } from '../hooks/useFocusTrap';
 import type { Articulo, Cliente } from '../types/api';
 
 // ── Types ──────────────────────────────────────────────────────────
@@ -159,6 +160,15 @@ export default function Caja() {
   const mayoreoModeRef = useRef(mayoreoMode);
   mayoreoModeRef.current = mayoreoMode;
 
+  // Refs para focus trap en los modales inline (cobro, anular, buscador)
+  const cobModalRef    = useRef<HTMLDivElement>(null);
+  const anularModalRef = useRef<HTMLDivElement>(null);
+  const buscadorBoxRef = useRef<HTMLDivElement>(null);
+
+  useFocusTrap(cobModalRef,    cobroOpen,    () => { setCobroOpen(false); window.api.setModalCobro(false); });
+  useFocusTrap(anularModalRef, anularOpen,   () => setAnularOpen(false));
+  useFocusTrap(buscadorBoxRef, buscadorOpen, () => setBuscadorOpen(false));
+
   // ── Init ────────────────────────────────────────────────────────
   useEffect(() => {
     async function init() {
@@ -196,17 +206,73 @@ export default function Caja() {
   // focus código al cerrar buscador/cobro
   useEffect(() => { if (!buscadorOpen && !cobroOpen) recuperarFocoCodigo(); }, [buscadorOpen, cobroOpen]);
 
-  // F10, F11, F12, Ins, Del, Esc hotkeys — ref actualizado en cada render para evitar stale closure
+  // Auto-scroll al ítem seleccionado en el carrito
+  useEffect(() => {
+    const el = document.querySelector('[data-cart-sel="true"]') as HTMLElement | null;
+    el?.scrollIntoView({ block: 'nearest' });
+  }, [ticket.itemSelIdx, activeIdx]);
+
+  // Hotkeys globales — ref actualizado en cada render para evitar stale closure.
   // El listener se registra una sola vez (deps: []) eliminando el gap remove/add en cada scan.
   hotkeyRef.current = (e: KeyboardEvent) => {
     const tag = (document.activeElement as HTMLElement)?.tagName.toLowerCase();
     const isInput = tag === 'input' || tag === 'textarea' || tag === 'select';
+    const noModal = !buscadorOpen && !cobroOpen && !libreOpen && !descItemOpen && !movOpen && !anularOpen && !renombrarOpen && !wizardOpen;
+
     if (e.key === 'F10') { e.preventDefault(); abrirBuscador(); }
     if (e.key === 'F11') { e.preventDefault(); setMayoreoMode(m => !m); }
     if (e.key === 'F12') { e.preventDefault(); setCobroOpen(true); window.api.setModalCobro(true); }
     if (e.key === 'Insert') { e.preventDefault(); setLibreOpen(true); }
-    if (e.key === 'Delete' && !isInput) { e.preventDefault(); borrarItemSel(); }
+    // Delete: borra el ítem seleccionado si el input de código está vacío (o sin foco)
+    if (e.key === 'Delete' && (!isInput || (noModal && ticket.itemSelIdx !== null && codigoVal === ''))) {
+      e.preventDefault();
+      borrarItemSel();
+    }
     if (e.key === 'Escape' && buscadorOpen) { setBuscadorOpen(false); }
+
+    // Navegación del carrito con teclado
+    if (noModal && ticket.carrito.length > 0) {
+      if (e.key === 'ArrowDown') {
+        e.preventDefault();
+        updateTicket(activeIdx, {
+          itemSelIdx: ticket.itemSelIdx === null ? 0 : Math.min(ticket.itemSelIdx + 1, ticket.carrito.length - 1),
+        });
+      }
+      if (e.key === 'ArrowUp') {
+        e.preventDefault();
+        updateTicket(activeIdx, {
+          itemSelIdx: ticket.itemSelIdx === null ? ticket.carrito.length - 1 : Math.max(ticket.itemSelIdx - 1, 0),
+        });
+      }
+    }
+
+    // +/− cantidad y Esc deselección cuando hay ítem seleccionado
+    if (noModal && ticket.itemSelIdx !== null) {
+      const selItem = ticket.carrito[ticket.itemSelIdx];
+      if (selItem) {
+        const isConti = UNIDADES_CONTINUAS.has(selItem.unidadMedida ?? '');
+        const step   = isConti ? 0.1 : 1;
+        const minQty = isConti ? 0.001 : 1;
+        if (e.key === '+') {
+          e.preventDefault();
+          const c = [...ticket.carrito];
+          c[ticket.itemSelIdx] = aplicarPromoAItem({ ...selItem, cantidad: selItem.cantidad + step });
+          updateTicket(activeIdx, { carrito: c });
+        }
+        if (e.key === '-') {
+          e.preventDefault();
+          if (selItem.cantidad > minQty) {
+            const c = [...ticket.carrito];
+            c[ticket.itemSelIdx] = aplicarPromoAItem({ ...selItem, cantidad: selItem.cantidad - step });
+            updateTicket(activeIdx, { carrito: c });
+          }
+        }
+      }
+      if (e.key === 'Escape') {
+        e.preventDefault();
+        updateTicket(activeIdx, { itemSelIdx: null });
+      }
+    }
   };
   useEffect(() => {
     const handler = (e: KeyboardEvent) => hotkeyRef.current(e);
@@ -717,6 +783,7 @@ export default function Caja() {
                 return (
                   <tr
                     key={item._id}
+                    data-cart-sel={selected ? 'true' : undefined}
                     onClick={() => updateTicket(activeIdx, { itemSelIdx: selected ? null : idx })}
                     className={`cursor-pointer transition-colors ${selected ? 'bg-[rgba(79,142,245,.12)] [box-shadow:inset_3px_0_0_var(--accent)]' : ''}`}
                   >
@@ -830,6 +897,7 @@ export default function Caja() {
             onClick={e => e.target === e.currentTarget && setBuscadorOpen(false)}
           >
             <motion.div
+              ref={buscadorBoxRef}
               className="w-[560px] max-w-[95vw] bg-surface border border-border rounded-[var(--r-card)] shadow-[var(--shadow-lg)] overflow-hidden"
               initial={{ y: -20, scale: 0.97 }} animate={{ y: 0, scale: 1 }} exit={{ y: -20, scale: 0.97 }}
               transition={{ duration: 0.2 }}
@@ -880,6 +948,7 @@ export default function Caja() {
             initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
           >
             <motion.div
+              ref={cobModalRef}
               className="bg-surface border border-border rounded-[var(--r-card)] shadow-[var(--shadow-lg)] w-[700px] max-w-[98vw] max-h-[96vh] flex overflow-hidden"
               initial={{ scale: 0.95, y: 10 }} animate={{ scale: 1, y: 0 }} exit={{ scale: 0.95, y: 10 }}
             >
@@ -1144,6 +1213,7 @@ export default function Caja() {
             initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
           >
             <motion.div
+              ref={anularModalRef}
               className="bg-surface border border-border rounded-[var(--r-card)] shadow-[var(--shadow-lg)] w-[860px] max-w-[98vw] max-h-[90vh] flex overflow-hidden"
               initial={{ scale: 0.95, y: 10 }} animate={{ scale: 1, y: 0 }} exit={{ scale: 0.95, y: 10 }}
             >
@@ -1402,8 +1472,11 @@ function ModalOverlay({ children, onClose }: { children: React.ReactNode; onClos
 }
 
 function ModalBox({ title, onClose, children, maxWidth = 460 }: { title: string; onClose: () => void; children: React.ReactNode; maxWidth?: number }) {
+  const boxRef = useRef<HTMLDivElement>(null);
+  useFocusTrap(boxRef, true, onClose);
   return (
     <motion.div
+      ref={boxRef}
       initial={{ scale: 0.95, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} exit={{ scale: 0.95, opacity: 0 }}
       className="bg-surface border border-border rounded-[var(--r-card)] shadow-[var(--shadow-lg)] w-full"
       style={{ maxWidth }}

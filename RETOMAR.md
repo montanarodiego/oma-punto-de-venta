@@ -16,7 +16,7 @@
 
 ---
 
-## PRÓXIMA SESIÓN — Navegación sin mouse
+## HECHO EN ESTA SESIÓN — Navegación sin mouse + modales
 
 **Objetivo**: toda la app funcional sin mouse. Casos concretos:
 

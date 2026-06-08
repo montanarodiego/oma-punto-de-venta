@@ -8,7 +8,6 @@ function obtenerActivo() {
   return getDb().prepare(`
     SELECT * FROM turnos
     WHERE estado = 'abierto'
-      AND DATE(fecha_apertura, 'localtime') = DATE('now', 'localtime')
     ORDER BY id DESC LIMIT 1
   `).get() ?? null;
 }
@@ -28,7 +27,7 @@ function abrir(efectivoInicial) {
       .run(vencido.id);
   }
 
-  if (obtenerActivo()) throw new Error('Ya hay un turno activo hoy. Cerrá el turno actual antes de abrir uno nuevo.');
+  if (obtenerActivo()) throw new Error('Ya hay un turno activo. Cerrá el turno actual antes de abrir uno nuevo.');
   const info = db
     .prepare("INSERT INTO turnos (efectivo_inicial, estado) VALUES (?, 'abierto')")
     .run(efectivoInicial ?? 0);

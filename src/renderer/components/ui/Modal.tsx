@@ -2,6 +2,7 @@ import { useEffect, useRef } from 'react';
 import { createPortal } from 'react-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import { clsx } from 'clsx';
+import { useFocusTrap } from '../../hooks/useFocusTrap';
 
 interface ModalProps {
   open: boolean;
@@ -15,19 +16,17 @@ interface ModalProps {
 
 export function Modal({ open, onClose, title, children, footer, maxWidth = '460px', className }: ModalProps) {
   const overlayRef = useRef<HTMLDivElement>(null);
+  const panelRef   = useRef<HTMLDivElement>(null);
 
+  // Notifica al proceso main que un modal está abierto (afecta hotkeys globales)
   useEffect(() => {
     if (!open) return;
-    const handleKey = (e: KeyboardEvent) => {
-      if (e.key === 'Escape' && onClose) onClose();
-    };
-    document.addEventListener('keydown', handleKey);
     window.api?.modalState(true);
-    return () => {
-      document.removeEventListener('keydown', handleKey);
-      window.api?.modalState(false);
-    };
-  }, [open, onClose]);
+    return () => { window.api?.modalState(false); };
+  }, [open]);
+
+  // Focus trap: Tab/Shift+Tab queda dentro del modal; Escape lo cierra
+  useFocusTrap(panelRef, open, onClose);
 
   const handleOverlayClick = (e: React.MouseEvent) => {
     if (e.target === overlayRef.current && onClose) onClose();
@@ -46,6 +45,7 @@ export function Modal({ open, onClose, title, children, footer, maxWidth = '460p
           transition={{ duration: 0.15 }}
         >
           <motion.div
+            ref={panelRef}
             className={clsx('modal-box', className)}
             style={{ maxWidth }}
             initial={{ scale: 0.95, opacity: 0, y: 10 }}

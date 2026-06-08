@@ -212,7 +212,7 @@ declare global {
         listarPorArticulo: (articuloId: number) => Promise<any[]>;
         listarActivas:     (ids: number[]) => Promise<any[]>;
         listarTodas:       () => Promise<any[]>;
-        crear:             (data: any) => Promise<void>;
+        crear:             (data: any) => Promise<any>;
         eliminar:          (id: number) => Promise<void>;
       };
       pedidosCompra: {
@@ -223,8 +223,8 @@ declare global {
         marcarEnviado: (id: number) => Promise<void>;
         recibir:       (id: number, items: any[]) => Promise<void>;
         cancelar:      (id: number) => Promise<void>;
-        exportarPDF:   (id: number) => Promise<void>;
-        exportarCSV:   (id: number) => Promise<void>;
+        exportarPDF:   (id: number) => Promise<{ ok: boolean; filePath?: string; canceled?: boolean; error?: string }>;
+        exportarCSV:   (id: number) => Promise<{ ok: boolean; filePath?: string; canceled?: boolean; error?: string }>;
       };
       recepciones: {
         crear:   (data: any) => Promise<any>;
@@ -257,8 +257,9 @@ declare global {
         set:    (clave: string, valor: string) => Promise<void>;
       };
       sync: {
-        manual:           () => Promise<{ ok: boolean; sincronizados?: number; fallidos?: number; error?: string }>;
-        contarPendientes: () => Promise<number>;
+        manual:            () => Promise<{ ok: boolean; sincronizados?: number; fallidos?: number; error?: string }>;
+        contarPendientes:  () => Promise<number>;
+        detallePendientes: () => Promise<{ articulos: number; clientes: number; transacciones: number }>;
       };
       auth: {
         login:            (email: string, password: string) => Promise<{ ok: boolean; error?: string }>;

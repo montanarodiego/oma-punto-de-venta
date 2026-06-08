@@ -501,6 +501,17 @@ function registerHandlers() {
     return total;
   });
 
+  ipcMain.handle('sync:detallePendientes', () => {
+    const db = getDb();
+    const result = {};
+    for (const tabla of ['articulos', 'clientes', 'transacciones']) {
+      result[tabla] = db
+        .prepare(`SELECT COUNT(*) as count FROM ${tabla} WHERE sync_status = 'pending'`)
+        .get().count;
+    }
+    return result;
+  });
+
   // ── Soporte / Reportar problema ───────────────────────────────
   ipcMain.handle('soporte:enviarReporte', async (_e, datos) => {
     try {

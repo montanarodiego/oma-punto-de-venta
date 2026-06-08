@@ -22,16 +22,26 @@ export function Sidebar() {
   const location = useLocation();
   const { session, logout } = useSession();
   const { showToast } = useToast();
-  const [syncBadge, setSyncBadge] = useState(0);
+  const [syncBadge, setSyncBadge]   = useState(0);
+  const [syncDetalle, setSyncDetalle] = useState<{ articulos: number; clientes: number; transacciones: number } | null>(null);
+  const [syncTooltip, setSyncTooltip] = useState(false);
   const [reporteOpen, setReporteOpen] = useState(false);
 
   useNavigateGlobal();
 
   useEffect(() => {
-    window.api?.sync.contarPendientes().then(setSyncBadge).catch(() => {});
-    const iv = setInterval(() => {
-      window.api?.sync.contarPendientes().then(setSyncBadge).catch(() => {});
-    }, 60_000);
+    async function poll() {
+      try {
+        const [total, detalle] = await Promise.all([
+          window.api.sync.contarPendientes(),
+          window.api.sync.detallePendientes(),
+        ]);
+        setSyncBadge(total);
+        setSyncDetalle(detalle);
+      } catch {}
+    }
+    poll();
+    const iv = setInterval(poll, 60_000);
     return () => clearInterval(iv);
   }, []);
 
@@ -57,10 +67,40 @@ export function Sidebar() {
       {/* Logo */}
       <div className="flex items-center gap-2 px-4 py-3.5 border-b border-border">
         <div className="w-7 h-7 rounded-lg bg-accent flex items-center justify-center text-white font-black text-sm flex-shrink-0">O</div>
-        <div>
+        <div className="min-w-0">
           <div className="text-[13px] font-bold text-text leading-tight">OmaTech POS</div>
           {syncBadge > 0 && (
-            <div className="text-[10px] text-yellow-400 font-semibold">{syncBadge} pendiente{syncBadge !== 1 ? 's' : ''}</div>
+            <div
+              className="relative inline-block"
+              onMouseEnter={() => setSyncTooltip(true)}
+              onMouseLeave={() => setSyncTooltip(false)}
+            >
+              <div className="text-[10px] text-yellow-400 font-semibold cursor-default select-none">
+                ⟳ {syncBadge} pendiente{syncBadge !== 1 ? 's' : ''}
+              </div>
+              {syncTooltip && syncDetalle && (
+                <div className="absolute left-0 top-full mt-1 z-[200] bg-[#1e293b] border border-[#334155] rounded-[6px] shadow-lg p-2.5 text-[11px] whitespace-nowrap leading-5">
+                  {syncDetalle.articulos > 0 && (
+                    <div className="text-text-muted">
+                      <span className="text-text font-semibold">{syncDetalle.articulos}</span> artículo{syncDetalle.articulos !== 1 ? 's' : ''}
+                    </div>
+                  )}
+                  {syncDetalle.clientes > 0 && (
+                    <div className="text-text-muted">
+                      <span className="text-text font-semibold">{syncDetalle.clientes}</span> cliente{syncDetalle.clientes !== 1 ? 's' : ''}
+                    </div>
+                  )}
+                  {syncDetalle.transacciones > 0 && (
+                    <div className="text-text-muted">
+                      <span className="text-text font-semibold">{syncDetalle.transacciones}</span> transacción{syncDetalle.transacciones !== 1 ? 'es' : ''}
+                    </div>
+                  )}
+                  <div className="mt-1.5 pt-1.5 border-t border-[#334155] text-text-subtle text-[10px]">
+                    sin sincronizar con la nube
+                  </div>
+                </div>
+              )}
+            </div>
           )}
         </div>
       </div>

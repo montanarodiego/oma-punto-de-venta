@@ -176,8 +176,9 @@ contextBridge.exposeInMainWorld('api', {
 
   // Sincronización
   sync: {
-    manual:           ()  => ipcRenderer.invoke('sync:manual'),
-    contarPendientes: ()  => ipcRenderer.invoke('sync:contarPendientes'),
+    manual:            ()  => ipcRenderer.invoke('sync:manual'),
+    contarPendientes:  ()  => ipcRenderer.invoke('sync:contarPendientes'),
+    detallePendientes: ()  => ipcRenderer.invoke('sync:detallePendientes'),
   },
 
   // Autenticación / licencia

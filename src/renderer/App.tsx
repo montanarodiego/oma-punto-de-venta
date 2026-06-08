@@ -11,6 +11,7 @@ import Clientes from './pages/Clientes';
 import Inventario from './pages/Inventario';
 import Informes from './pages/Informes';
 import Proveedores from './pages/Proveedores';
+import PedidosCompra from './pages/PedidosCompra';
 import Turno from './pages/Turno';
 import Configuracion from './pages/Configuracion';
 import Comprobante from './pages/Comprobante';
@@ -32,6 +33,7 @@ export default function App() {
               <Route path="/inventario"     element={<Inventario />} />
               <Route path="/informes"       element={<Informes />} />
               <Route path="/proveedores"    element={<Proveedores />} />
+              <Route path="/pedidos"        element={<PedidosCompra />} />
               <Route path="/turno"          element={<Turno />} />
               <Route path="/configuracion"  element={<Configuracion />} />
               <Route path="*"              element={<Navigate to="/caja" replace />} />
