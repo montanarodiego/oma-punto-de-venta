@@ -7,6 +7,24 @@ export interface Session {
   rol: 'admin' | 'cajero';
 }
 
+export interface PagedResult<T> {
+  rows: T[];
+  total: number;
+}
+
+export interface ArticuloSearchParams {
+  query?: string;
+  departamento_id?: number | null;
+  limit?: number;
+  offset?: number;
+}
+
+export interface ClienteSearchParams {
+  query?: string;
+  limit?: number;
+  offset?: number;
+}
+
 export interface Articulo {
   id: number;
   codigo: string;
@@ -145,6 +163,7 @@ declare global {
         update:          (id: number, data: Partial<Articulo>) => Promise<void>;
         delete:          (id: number) => Promise<void>;
         search:          (query: string) => Promise<Articulo[]>;
+        searchPaged:     (params: ArticuloSearchParams) => Promise<PagedResult<Articulo>>;
         precioHistorial: (id: number) => Promise<any[]>;
       };
       clientes: {
@@ -154,6 +173,7 @@ declare global {
         update:           (id: number, data: Partial<Cliente>) => Promise<void>;
         delete:           (id: number) => Promise<void>;
         search:           (query: string) => Promise<Cliente[]>;
+        searchPaged:      (params: ClienteSearchParams) => Promise<PagedResult<Cliente>>;
         getTransacciones: (id: number) => Promise<Transaccion[]>;
         listarPagos:      (id: number) => Promise<any[]>;
         cancelarPago:     (pagoId: number) => Promise<void>;
@@ -197,6 +217,7 @@ declare global {
         getAll:                () => Promise<Proveedor[]>;
         getById:               (id: number) => Promise<Proveedor>;
         search:                (q: string) => Promise<Proveedor[]>;
+        searchPaged:           (params: ClienteSearchParams) => Promise<PagedResult<Proveedor>>;
         create:                (data: Partial<Proveedor>) => Promise<Proveedor>;
         update:                (id: number, data: Partial<Proveedor>) => Promise<void>;
         delete:                (id: number) => Promise<void>;

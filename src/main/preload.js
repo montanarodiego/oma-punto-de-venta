@@ -34,6 +34,7 @@ contextBridge.exposeInMainWorld('api', {
     update:      (id, data)   => ipcRenderer.invoke('articulos:update', id, data),
     delete:      (id)         => ipcRenderer.invoke('articulos:delete', id),
     search:          (query)  => ipcRenderer.invoke('articulos:search', query),
+    searchPaged:     (params) => ipcRenderer.invoke('articulos:searchPaged', params),
     precioHistorial: (id)     => ipcRenderer.invoke('articulos:precioHistorial', id),
   },
 
@@ -45,6 +46,7 @@ contextBridge.exposeInMainWorld('api', {
     update:  (id, data)   => ipcRenderer.invoke('clientes:update', id, data),
     delete:           (id)         => ipcRenderer.invoke('clientes:delete', id),
     search:           (query)      => ipcRenderer.invoke('clientes:search', query),
+    searchPaged:      (params)     => ipcRenderer.invoke('clientes:searchPaged', params),
     getTransacciones: (id)                  => ipcRenderer.invoke('clientes:getTransacciones', id),
     listarPagos:      (id)                  => ipcRenderer.invoke('clientes:listarPagos', id),
     cancelarPago:     (pagoId)              => ipcRenderer.invoke('clientes:cancelarPago', pagoId),
@@ -97,7 +99,8 @@ contextBridge.exposeInMainWorld('api', {
   proveedores: {
     getAll:    ()           => ipcRenderer.invoke('proveedores:getAll'),
     getById:   (id)         => ipcRenderer.invoke('proveedores:getById', id),
-    search:    (q)          => ipcRenderer.invoke('proveedores:search', q),
+    search:      (q)          => ipcRenderer.invoke('proveedores:search', q),
+    searchPaged: (params)     => ipcRenderer.invoke('proveedores:searchPaged', params),
     create:    (data)       => ipcRenderer.invoke('proveedores:create', data),
     update:    (id, data)   => ipcRenderer.invoke('proveedores:update', id, data),
     delete:    (id)         => ipcRenderer.invoke('proveedores:delete', id),

@@ -13,8 +13,22 @@ function getById(id) {
 function search(query) {
   const like = `%${query}%`;
   return getDb()
-    .prepare('SELECT * FROM clientes WHERE nombre LIKE ? OR telefono LIKE ? ORDER BY nombre')
+    .prepare('SELECT * FROM clientes WHERE nombre LIKE ? OR telefono LIKE ? ORDER BY nombre LIMIT 100')
     .all(like, like);
+}
+
+function searchPaged({ query = '', limit = 200, offset = 0 } = {}) {
+  const db = getDb();
+  const q  = (query ?? '').trim();
+  if (!q) {
+    const total = db.prepare('SELECT COUNT(*) AS c FROM clientes').get().c;
+    const rows  = db.prepare('SELECT * FROM clientes ORDER BY nombre LIMIT ? OFFSET ?').all(limit, offset);
+    return { rows, total };
+  }
+  const like  = `%${q}%`;
+  const total = db.prepare('SELECT COUNT(*) AS c FROM clientes WHERE nombre LIKE ? OR telefono LIKE ?').get(like, like).c;
+  const rows  = db.prepare('SELECT * FROM clientes WHERE nombre LIKE ? OR telefono LIKE ? ORDER BY nombre LIMIT ? OFFSET ?').all(like, like, limit, offset);
+  return { rows, total };
 }
 
 function getTransacciones(clienteId) {
@@ -116,7 +130,7 @@ function remove(id) {
 }
 
 module.exports = {
-  getAll, getById, search, getTransacciones,
+  getAll, getById, search, searchPaged, getTransacciones,
   listarPagos, cancelarPago, liquidarDeuda,
   create, update, registrarPago, remove,
 };

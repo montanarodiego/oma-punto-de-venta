@@ -14,6 +14,7 @@ function initDatabase() {
   db = new Database(dbPath);
 
   db.pragma('journal_mode = WAL');
+  db.pragma('synchronous = NORMAL');
   db.pragma('foreign_keys = ON');
 
   // Schema base (fresh installs) — ya con las columnas nuevas
@@ -572,6 +573,40 @@ function runMigrations(db) {
     CREATE INDEX IF NOT EXISTS idx_pagos_cliente         ON pagos_clientes(cliente_id);
     CREATE INDEX IF NOT EXISTS idx_promociones_articulo  ON promociones(articulo_id);
     CREATE INDEX IF NOT EXISTS idx_precio_hist_art       ON precio_historial(articulo_id);
+    CREATE INDEX IF NOT EXISTS idx_articulos_nombre      ON articulos(nombre);
+    CREATE INDEX IF NOT EXISTS idx_clientes_nombre       ON clientes(nombre);
+    CREATE INDEX IF NOT EXISTS idx_proveedores_nombre    ON proveedores(nombre);
+  `);
+
+  // ── FTS5: búsqueda full-text de artículos ─────────────────────
+  db.exec(`
+    CREATE VIRTUAL TABLE IF NOT EXISTS articulos_fts USING fts5(
+      nombre,
+      codigo,
+      content=articulos,
+      content_rowid=id,
+      tokenize='unicode61'
+    );
+  `);
+
+  // Poblar FTS si está vacía (instalaciones existentes)
+  const ftsCount = db.prepare('SELECT COUNT(*) AS c FROM articulos_fts').get().c;
+  if (ftsCount === 0) {
+    db.exec(`INSERT INTO articulos_fts(rowid, nombre, codigo) SELECT id, nombre, codigo FROM articulos`);
+  }
+
+  // Triggers para mantener FTS sincronizado
+  db.exec(`
+    CREATE TRIGGER IF NOT EXISTS art_fts_ai AFTER INSERT ON articulos BEGIN
+      INSERT INTO articulos_fts(rowid, nombre, codigo) VALUES (new.id, new.nombre, new.codigo);
+    END;
+    CREATE TRIGGER IF NOT EXISTS art_fts_ad AFTER DELETE ON articulos BEGIN
+      INSERT INTO articulos_fts(articulos_fts, rowid, nombre, codigo) VALUES ('delete', old.id, old.nombre, old.codigo);
+    END;
+    CREATE TRIGGER IF NOT EXISTS art_fts_au AFTER UPDATE OF nombre, codigo ON articulos BEGIN
+      INSERT INTO articulos_fts(articulos_fts, rowid, nombre, codigo) VALUES ('delete', old.id, old.nombre, old.codigo);
+      INSERT INTO articulos_fts(rowid, nombre, codigo) VALUES (new.id, new.nombre, new.codigo);
+    END;
   `);
 }
 

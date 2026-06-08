@@ -29,10 +29,85 @@ function getByCodigo(codigo) {
 }
 
 function search(query) {
-  const like = `%${query}%`;
-  return getDb()
-    .prepare(`${SEL} WHERE a.nombre LIKE ? OR a.codigo LIKE ? ORDER BY a.nombre`)
-    .all(like, like);
+  const q = (query ?? '').trim();
+  if (!q) return getDb().prepare(`${SEL} ORDER BY a.nombre LIMIT 100`).all();
+
+  // Código exacto primero
+  const byCode = getDb().prepare(`${SEL} WHERE a.codigo = ?`).get(q);
+  if (byCode) return [byCode];
+
+  // FTS5 con prefijo
+  const term = q.replace(/['"*]/g, '') + '*';
+  try {
+    return getDb()
+      .prepare(`
+        ${SEL}
+        JOIN articulos_fts f ON f.rowid = a.id
+        WHERE articulos_fts MATCH ?
+        ORDER BY f.rank
+        LIMIT 100
+      `)
+      .all(term);
+  } catch {
+    // fallback si FTS falla (primer arranque sin tabla aún)
+    const like = `%${q}%`;
+    return getDb()
+      .prepare(`${SEL} WHERE a.nombre LIKE ? OR a.codigo LIKE ? ORDER BY a.nombre LIMIT 100`)
+      .all(like, like);
+  }
+}
+
+function searchPaged({ query = '', departamento_id = null, limit = 200, offset = 0 } = {}) {
+  const db = getDb();
+  const q  = (query ?? '').trim();
+
+  let rows, total;
+
+  if (!q && departamento_id === null) {
+    total = db.prepare('SELECT COUNT(*) AS c FROM articulos').get().c;
+    rows  = db.prepare(`${SEL} ORDER BY a.nombre LIMIT ? OFFSET ?`).all(limit, offset);
+    return { rows, total };
+  }
+
+  if (!q && departamento_id !== null) {
+    total = db.prepare('SELECT COUNT(*) AS c FROM articulos WHERE departamento_id = ?').get(departamento_id).c;
+    rows  = db.prepare(`${SEL} WHERE a.departamento_id = ? ORDER BY a.nombre LIMIT ? OFFSET ?`).all(departamento_id, limit, offset);
+    return { rows, total };
+  }
+
+  // Búsqueda por texto: FTS5 + filtro de departamento
+  const term = q.replace(/['"*]/g, '') + '*';
+  try {
+    const depFilter = departamento_id !== null ? 'AND a.departamento_id = ?' : '';
+    const countArgs = departamento_id !== null ? [term, departamento_id] : [term];
+    const rowArgs   = departamento_id !== null ? [term, departamento_id, limit, offset] : [term, limit, offset];
+
+    total = db.prepare(`
+      SELECT COUNT(*) AS c
+      FROM articulos_fts f
+      JOIN articulos a ON a.id = f.rowid
+      WHERE articulos_fts MATCH ? ${depFilter}
+    `).get(...countArgs).c;
+
+    rows = db.prepare(`
+      ${SEL}
+      JOIN articulos_fts f ON f.rowid = a.id
+      WHERE articulos_fts MATCH ? ${depFilter}
+      ORDER BY f.rank
+      LIMIT ? OFFSET ?
+    `).all(...rowArgs);
+  } catch {
+    const like = `%${q}%`;
+    if (departamento_id !== null) {
+      total = db.prepare('SELECT COUNT(*) AS c FROM articulos WHERE (nombre LIKE ? OR codigo LIKE ?) AND departamento_id = ?').get(like, like, departamento_id).c;
+      rows  = db.prepare(`${SEL} WHERE (a.nombre LIKE ? OR a.codigo LIKE ?) AND a.departamento_id = ? ORDER BY a.nombre LIMIT ? OFFSET ?`).all(like, like, departamento_id, limit, offset);
+    } else {
+      total = db.prepare('SELECT COUNT(*) AS c FROM articulos WHERE nombre LIKE ? OR codigo LIKE ?').get(like, like).c;
+      rows  = db.prepare(`${SEL} WHERE a.nombre LIKE ? OR a.codigo LIKE ? ORDER BY a.nombre LIMIT ? OFFSET ?`).all(like, like, limit, offset);
+    }
+  }
+
+  return { rows, total };
 }
 
 function create(data) {
@@ -108,4 +183,4 @@ function remove(id) {
   return getDb().prepare('DELETE FROM articulos WHERE id = ?').run(id);
 }
 
-module.exports = { getAll, getById, getByCodigo, search, create, update, remove, getPrecioHistorial };
+module.exports = { getAll, getById, getByCodigo, search, searchPaged, create, update, remove, getPrecioHistorial };

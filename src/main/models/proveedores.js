@@ -24,8 +24,22 @@ function search(q) {
   return getDb().prepare(`
     SELECT * FROM proveedores
     WHERE nombre LIKE ? OR telefono LIKE ? OR email LIKE ?
-    ORDER BY nombre ASC
+    ORDER BY nombre ASC LIMIT 100
   `).all(t, t, t);
+}
+
+function searchPaged({ query = '', limit = 200, offset = 0 } = {}) {
+  const db = getDb();
+  const q  = (query ?? '').trim();
+  if (!q) {
+    const total = db.prepare('SELECT COUNT(*) AS c FROM proveedores').get().c;
+    const rows  = db.prepare('SELECT * FROM proveedores ORDER BY nombre ASC LIMIT ? OFFSET ?').all(limit, offset);
+    return { rows, total };
+  }
+  const t     = `%${q}%`;
+  const total = db.prepare('SELECT COUNT(*) AS c FROM proveedores WHERE nombre LIKE ? OR telefono LIKE ? OR email LIKE ?').get(t, t, t).c;
+  const rows  = db.prepare('SELECT * FROM proveedores WHERE nombre LIKE ? OR telefono LIKE ? OR email LIKE ? ORDER BY nombre ASC LIMIT ? OFFSET ?').all(t, t, t, limit, offset);
+  return { rows, total };
 }
 
 function create(data) {
@@ -188,7 +202,7 @@ function marcarRecibido(pedidoId, itemsRecibidos) {
 }
 
 module.exports = {
-  getAll, getById, getByNombre, search,
+  getAll, getById, getByNombre, search, searchPaged,
   create, update, remove,
   articulosConStockBajo,
   getPedidos, getPedidoById, crearPedido, marcarRecibido,

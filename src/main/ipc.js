@@ -341,6 +341,7 @@ function registerHandlers() {
   ipcMain.handle('articulos:update', (_e, id, data) => { onlyAdmin(); return Articulos.update(id, data, currentUser); });
   ipcMain.handle('articulos:delete', (_e, id) => { onlyAdmin(); return Articulos.remove(id); });
   ipcMain.handle('articulos:search',         (_e, query) => Articulos.search(query));
+  ipcMain.handle('articulos:searchPaged',    (_e, params) => Articulos.searchPaged(params));
   ipcMain.handle('articulos:precioHistorial', (_e, id)    => Articulos.getPrecioHistorial(id));
 
   // ── Clientes ───────────────────────────────────────────────
@@ -349,7 +350,8 @@ function registerHandlers() {
   ipcMain.handle('clientes:create', (_e, data) => Clientes.create(data));
   ipcMain.handle('clientes:update', (_e, id, data) => Clientes.update(id, data));
   ipcMain.handle('clientes:delete', (_e, id) => Clientes.remove(id));
-  ipcMain.handle('clientes:search', (_e, query) => Clientes.search(query));
+  ipcMain.handle('clientes:search',      (_e, query)  => Clientes.search(query));
+  ipcMain.handle('clientes:searchPaged', (_e, params) => Clientes.searchPaged(params));
   ipcMain.handle('clientes:getTransacciones', (_e, id)             => Clientes.getTransacciones(id));
   ipcMain.handle('clientes:listarPagos',     (_e, id)             => Clientes.listarPagos(id));
   ipcMain.handle('clientes:cancelarPago',    (_e, pagoId)         => Clientes.cancelarPago(pagoId));
@@ -392,7 +394,8 @@ function registerHandlers() {
   // ── Proveedores ────────────────────────────────────────────
   ipcMain.handle('proveedores:getAll',    ()           => Proveedores.getAll());
   ipcMain.handle('proveedores:getById',   (_e, id)     => Proveedores.getById(id));
-  ipcMain.handle('proveedores:search',    (_e, q)      => Proveedores.search(q));
+  ipcMain.handle('proveedores:search',      (_e, q)      => Proveedores.search(q));
+  ipcMain.handle('proveedores:searchPaged', (_e, params) => Proveedores.searchPaged(params));
   ipcMain.handle('proveedores:create',    (_e, data)   => Proveedores.create(data));
   ipcMain.handle('proveedores:update',    (_e, id, data) => Proveedores.update(id, data));
   ipcMain.handle('proveedores:delete',    (_e, id)     => Proveedores.remove(id));
