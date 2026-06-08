@@ -80,7 +80,7 @@ export default function Informes() {
                         <td className="text-[12px] text-text-subtle font-bold">{i+1}</td>
                         <td className="text-[13px]">{a.nombre??a.descripcion_libre??'Ítem libre'}</td>
                         <td className="text-right font-mono text-[13px]">{a.cantidad_total}</td>
-                        <td className="text-right font-mono text-[13px]">{fmt(a.monto_total)}</td>
+                        <td className="text-right font-mono text-[13px]">{fmt(a.importe_total)}</td>
                       </tr>
                     ))}
                   </tbody>

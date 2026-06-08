@@ -126,7 +126,7 @@ function utilidadBruta(desde, hasta) {
   `).all(d, h);
 
   const totalUtilidad = items.reduce((s, i) => s + Number(i.utilidad_total), 0);
-  return { items, totalUtilidad };
+  return { items, totalUtilidad, utilidad_bruta: totalUtilidad };
 }
 
 function saldosClientes() {
@@ -159,7 +159,7 @@ function ventasPorDia(desde, hasta) {
     SELECT
       DATE(${dt('t.created_at')})          AS fecha,
       COUNT(*)                             AS cantidad,
-      COALESCE(SUM(t.monto_total), 0)      AS total,
+      COALESCE(SUM(t.monto_total), 0)      AS monto_total,
       COALESCE(SUM(g.ganancia),   0)       AS ganancia
     FROM transacciones t
     LEFT JOIN g ON g.transaccion_id = t.id
@@ -231,7 +231,30 @@ function resumenRapido(desde, hasta) {
       AND t.estado != 'cancelada'
   `).get(d, h);
 
-  return { cantidad: row.cantidad, total: row.total, ganancia_bruta: gan.ganancia_bruta };
+  // Desglose por forma de pago (soporta pagos mixtos con dos métodos)
+  const pagosArr = db.prepare(`
+    SELECT f, SUM(v) AS total FROM (
+      SELECT forma_pago AS f, monto_total - COALESCE(monto_pago_2, 0) AS v
+      FROM transacciones WHERE created_at BETWEEN ? AND ? AND estado != 'cancelada'
+      UNION ALL
+      SELECT forma_pago_2 AS f, monto_pago_2 AS v
+      FROM transacciones WHERE created_at BETWEEN ? AND ? AND estado != 'cancelada' AND forma_pago_2 IS NOT NULL
+    ) GROUP BY f
+  `).all(d, h, d, h);
+
+  const byPago = Object.fromEntries(pagosArr.map(r => [r.f, r.total]));
+
+  return {
+    total_ventas:            row.total,
+    cantidad_ventas:         row.cantidad,
+    ticket_promedio:         row.cantidad > 0 ? row.total / row.cantidad : 0,
+    ganancia_bruta:          gan.ganancia_bruta,
+    ventas_efectivo:         byPago['efectivo']         ?? 0,
+    ventas_debito:           byPago['tarjeta_debito']   ?? 0,
+    ventas_credito:          byPago['tarjeta_credito']  ?? 0,
+    ventas_transferencia:    byPago['transferencia']    ?? 0,
+    ventas_cuenta_corriente: byPago['cuenta_corriente'] ?? 0,
+  };
 }
 
 function ventasPorCliente(desde, hasta) {
