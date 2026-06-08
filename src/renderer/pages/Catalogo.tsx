@@ -1,8 +1,9 @@
-import { useState, useEffect, useMemo, useCallback } from 'react';
-import { motion, AnimatePresence } from 'framer-motion';
+import React, { useState, useEffect, useRef, useMemo, useCallback } from 'react';
+import { useTableKeyboard } from '../hooks/useTableKeyboard';
+import { AnimatePresence, motion } from 'framer-motion';
 import { useToast } from '../context/ToastContext';
 import { useSession } from '../context/SessionContext';
-import { Button, Field, Input, Select, Modal, Badge } from '../components/ui';
+import { Button, Field, Input, Select, Modal, Badge, VirtualTable } from '../components/ui';
 import type { Articulo, Departamento } from '../types/api';
 
 function handleNumericKeyDown(e: React.KeyboardEvent<HTMLInputElement>) {
@@ -59,6 +60,64 @@ function TabBtn({ active, onClick, children }: { active: boolean; onClick: () =>
   );
 }
 
+// ── Fila de artículo memoizada ─────────────────────────────────────────────────
+
+const ArticuloRow = React.memo(function ArticuloRow({
+  a, idx, tableActiveIdx, depNombre, esAdmin, fmt, onVerHistorial, onEditar, onEliminar,
+}: {
+  a: Articulo;
+  idx: number;
+  tableActiveIdx: number;
+  depNombre: string;
+  esAdmin: boolean;
+  fmt: (n: number) => string;
+  onVerHistorial: (a: Articulo) => void;
+  onEditar: (a: Articulo) => void;
+  onEliminar: (id: number) => void;
+}) {
+  return (
+    <tr
+      data-tbl-sel={tableActiveIdx === idx ? 'true' : undefined}
+      className={`group ${tableActiveIdx === idx ? 'bg-[rgba(79,142,245,.08)]' : ''}`}
+    >
+      <td className="font-mono text-[12px] text-text-muted">{a.codigo}</td>
+      <td>
+        <div className="flex items-center gap-2">
+          <span className="font-medium text-[13px]">{a.nombre}</span>
+          {!!a.es_kit && <Badge variant="purple">KIT</Badge>}
+          {!!a.usa_inventario && a.stock_actual <= a.stock_minimo && a.stock_minimo > 0 && <Badge variant="red">Stock bajo</Badge>}
+        </div>
+      </td>
+      <td className="text-[12px] text-text-muted">{depNombre}</td>
+      <td className="text-right font-mono text-[13px]">{fmt(a.costo_unitario)}</td>
+      <td className="text-right font-mono text-[13px] font-medium">{fmt(a.precio_unitario)}</td>
+      <td className="text-right font-mono text-[13px] text-text-muted">{a.precio_mayoreo > 0 ? fmt(a.precio_mayoreo) : '—'}</td>
+      <td className={`text-right font-mono text-[13px] ${a.usa_inventario && a.stock_actual <= 0 ? 'text-danger' : ''}`}>
+        {a.usa_inventario ? a.stock_actual : '—'}
+      </td>
+      <td className="text-right text-[12px] text-text-muted">{a.usa_inventario ? a.stock_minimo : '—'}</td>
+      <td className="text-right text-[12px] text-text-muted">{a.tasa_iva}%</td>
+      <td>
+        <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+          <button onClick={() => onVerHistorial(a)} title="Historial de precios" className="p-1 text-text-subtle hover:text-accent rounded">
+            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><polyline points="23 6 13.5 15.5 8.5 10.5 1 18"/></svg>
+          </button>
+          {esAdmin && (
+            <button onClick={() => onEditar(a)} title="Editar" className="p-1 text-text-subtle hover:text-accent rounded">
+              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
+            </button>
+          )}
+          {esAdmin && (
+            <button onClick={() => onEliminar(a.id)} title="Eliminar" className="p-1 text-text-subtle hover:text-danger rounded">
+              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/></svg>
+            </button>
+          )}
+        </div>
+      </td>
+    </tr>
+  );
+});
+
 // ── Main page ─────────────────────────────────────────────────────────────────
 
 export default function Catalogo() {
@@ -66,12 +125,19 @@ export default function Catalogo() {
   const { session }   = useSession();
   const esAdmin       = session?.rol === 'admin';
 
-  const [articulos,    setArticulos]    = useState<Articulo[]>([]);
-  const [departamentos,setDepartamentos]= useState<Departamento[]>([]);
-  const [busqueda,     setBusqueda]     = useState('');
-  const [filtroDep,    setFiltroDep]    = useState<number | null>(null);
-  const [loading,      setLoading]      = useState(true);
-  const [error,        setError]        = useState('');
+  const [articulos,     setArticulos]     = useState<Articulo[]>([]);
+  const [total,         setTotal]         = useState(0);
+  const [departamentos, setDepartamentos] = useState<Departamento[]>([]);
+  const [busqueda,      setBusqueda]      = useState('');
+  const [filtroDep,     setFiltroDep]     = useState<number | null>(null);
+  const [loading,       setLoading]       = useState(true);
+  const [error,         setError]         = useState('');
+
+  // Mapa de departamentos para lookup O(1)
+  const depMap = useMemo(
+    () => new Map(departamentos.map(d => [d.id, d.nombre])),
+    [departamentos],
+  );
 
   // ── Modal artículo ─────────────────────────────────────────────────────────
   const [modalOpen,  setModalOpen]  = useState(false);
@@ -104,30 +170,33 @@ export default function Catalogo() {
   const [histNombre, setHistNombre] = useState('');
   const [depOpen,    setDepOpen]    = useState(false);
 
-  useEffect(() => { cargar(); }, []);
+  // ── Debounce para búsqueda backend ────────────────────────────────────────
+  const searchTimer = useRef<NodeJS.Timeout | null>(null);
 
-  async function cargar() {
+  const cargar = useCallback(async (query: string, depId: number | null) => {
     setLoading(true); setError('');
     try {
-      const [arts, deps] = await Promise.all([
-        window.api.articulos.getAll(),
+      const [res, deps] = await Promise.all([
+        window.api.articulos.searchPaged({ query: query.trim(), departamento_id: depId, limit: 500 }),
         window.api.departamentos.getAll(),
       ]);
-      setArticulos(arts ?? []);
+      setArticulos(res.rows ?? []);
+      setTotal(res.total ?? 0);
       setDepartamentos(deps ?? []);
     } catch (err: any) {
       setError(err.message ?? 'Error al cargar el catálogo.');
     } finally { setLoading(false); }
-  }
+  }, []);
 
-  const filtrados = useMemo(() => {
-    const q = busqueda.trim().toLowerCase();
-    return articulos.filter(a => {
-      const matchQ = !q || (a.nombre ?? '').toLowerCase().includes(q) || (a.codigo ?? '').toLowerCase().includes(q);
-      const matchD = filtroDep === null || a.departamento_id === filtroDep;
-      return matchQ && matchD;
-    });
-  }, [articulos, busqueda, filtroDep]);
+  // Carga inicial
+  useEffect(() => { cargar('', null); }, [cargar]);
+
+  // Búsqueda con debounce: busqueda/filtroDep → backend
+  useEffect(() => {
+    if (searchTimer.current) clearTimeout(searchTimer.current);
+    searchTimer.current = setTimeout(() => cargar(busqueda, filtroDep), 200);
+    return () => { if (searchTimer.current) clearTimeout(searchTimer.current); };
+  }, [busqueda, filtroDep, cargar]);
 
   // ── Kit search (debounced) ─────────────────────────────────────────────────
   useEffect(() => {
@@ -171,6 +240,19 @@ export default function Catalogo() {
     } catch {}
   }, []);
 
+  const [tableActiveIdx, setTableActiveIdx] = useState(-1);
+  useEffect(() => { setTableActiveIdx(-1); }, [busqueda, filtroDep]);
+  useEffect(() => {
+    document.querySelector('[data-tbl-sel="true"]')?.scrollIntoView({ block: 'nearest' });
+  }, [tableActiveIdx]);
+  useTableKeyboard({
+    items:        articulos,
+    activeIdx:    tableActiveIdx,
+    setActiveIdx: setTableActiveIdx,
+    onOpen:       abrirEditar,
+    enabled:      !modalOpen && !histOpen && !depOpen,
+  });
+
   async function guardar(e: React.FormEvent) {
     e.preventDefault();
     if (!form.codigo?.trim() || !form.nombre?.trim()) { setFormError('Código y nombre son obligatorios.'); return; }
@@ -188,7 +270,7 @@ export default function Catalogo() {
         await window.api.articulos.create(form);
       }
       setModalOpen(false);
-      cargar();
+      cargar(busqueda, filtroDep);
       showToast(editId ? 'Artículo actualizado.' : 'Artículo creado.', 'ok');
     } catch (err: any) { setFormError(err.message ?? 'Error al guardar.'); }
     finally { setSaving(false); }
@@ -197,7 +279,7 @@ export default function Catalogo() {
   async function eliminar(id: number) {
     try {
       await window.api.articulos.delete(id);
-      cargar();
+      cargar(busqueda, filtroDep);
       showToast('Artículo eliminado.', 'ok');
     } catch (err: any) { showToast(err.message ?? 'No se pudo eliminar.', 'error'); }
   }
@@ -210,6 +292,11 @@ export default function Catalogo() {
   const setField = useCallback((k: keyof Articulo, v: any) => setForm(p => ({ ...p, [k]: v })), []);
   const limpiarBusqueda = useCallback(() => { setBusqueda(''); setFiltroDep(null); }, []);
   const hayFiltro = busqueda.trim() !== '' || filtroDep !== null;
+
+  // Callbacks estables para ArticuloRow
+  const onVerHistorial = useCallback((a: Articulo) => verHistorial(a), []);
+  const onEditar       = useCallback((a: Articulo) => abrirEditar(a), [abrirEditar]);
+  const onEliminar     = useCallback((id: number) => eliminar(id), []);
 
   // ── Kit component handlers ─────────────────────────────────────────────────
 
@@ -266,11 +353,26 @@ export default function Catalogo() {
   const showTabComponentes = !!form.es_kit && editId !== null;
   const showTabPromociones  = editId !== null;
 
-  // Si el tab activo ya no está disponible, volver a datos
   const activeTab: ModalTab =
     (modalTab === 'componentes' && !showTabComponentes) ? 'datos' :
     (modalTab === 'promociones' && !showTabPromociones)  ? 'datos' :
     modalTab;
+
+  // ── Table header ───────────────────────────────────────────────────────────
+  const tableHeader = (
+    <tr>
+      <th style={{ width: 100 }}>Código</th>
+      <th>Nombre</th>
+      <th>Departamento</th>
+      <th className="text-right">Costo</th>
+      <th className="text-right">Precio venta</th>
+      <th className="text-right">Mayoreo</th>
+      <th className="text-right">Stock</th>
+      <th className="text-right">Mín.</th>
+      <th className="text-right">IVA</th>
+      <th style={{ width: 80 }}/>
+    </tr>
+  );
 
   // ── Render ─────────────────────────────────────────────────────────────────
 
@@ -309,96 +411,57 @@ export default function Catalogo() {
           {departamentos.map(d => <option key={d.id} value={d.id}>{d.nombre}</option>)}
         </Select>
         <span className="text-[12px] text-text-muted ml-auto flex-shrink-0">
-          {loading ? '…' : `${filtrados.length} artículo${filtrados.length !== 1 ? 's' : ''}`}
+          {loading ? '…' : (
+            total > articulos.length
+              ? `${articulos.length} de ${total} artículo${total !== 1 ? 's' : ''}`
+              : `${articulos.length} artículo${articulos.length !== 1 ? 's' : ''}`
+          )}
         </span>
       </div>
 
-      {/* Tabla */}
-      <div className="flex-1 overflow-y-auto">
-        {loading ? (
-          <div className="flex items-center justify-center h-32 text-text-subtle text-sm gap-2">
-            <svg className="animate-spin" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M12 2v4M12 18v4M4.93 4.93l2.83 2.83M16.24 16.24l2.83 2.83M2 12h4M18 12h4M4.93 19.07l2.83-2.83M16.24 7.76l2.83-2.83"/></svg>
-            Cargando catálogo…
-          </div>
-        ) : error ? (
-          <div className="flex flex-col items-center justify-center h-32 gap-3">
-            <p className="text-[13px] text-[#fca5a5]">{error}</p>
-            <Button size="sm" onClick={cargar}>Reintentar</Button>
-          </div>
-        ) : (
-          <table className="tbl">
-            <thead>
-              <tr>
-                <th style={{ width: 100 }}>Código</th>
-                <th>Nombre</th>
-                <th>Departamento</th>
-                <th className="text-right">Costo</th>
-                <th className="text-right">Precio venta</th>
-                <th className="text-right">Mayoreo</th>
-                <th className="text-right">Stock</th>
-                <th className="text-right">Mín.</th>
-                <th className="text-right">IVA</th>
-                <th style={{ width: 80 }}/>
-              </tr>
-            </thead>
-            <tbody>
-              {filtrados.length === 0 ? (
-                <tr>
-                  <td colSpan={10} className="text-center py-12 text-text-subtle text-[13px]">
-                    {hayFiltro ? (
-                      <span>
-                        Sin resultados.{' '}
-                        <button onClick={limpiarBusqueda} className="text-accent underline-offset-2 hover:underline">Limpiar filtros</button>
-                      </span>
-                    ) : 'Sin artículos. Creá el primero con "+ Nuevo artículo".'}
-                  </td>
-                </tr>
-              ) : (
-                filtrados.map(a => (
-                  <motion.tr key={a.id} initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ duration: 0.12 }} className="group">
-                    <td className="font-mono text-[12px] text-text-muted">{a.codigo}</td>
-                    <td>
-                      <div className="flex items-center gap-2">
-                        <span className="font-medium text-[13px]">{a.nombre}</span>
-                        {!!a.es_kit && <Badge variant="purple">KIT</Badge>}
-                        {!!a.usa_inventario && a.stock_actual <= a.stock_minimo && a.stock_minimo > 0 && <Badge variant="red">Stock bajo</Badge>}
-                      </div>
-                    </td>
-                    <td className="text-[12px] text-text-muted">
-                      {departamentos.find(d => d.id === a.departamento_id)?.nombre ?? '—'}
-                    </td>
-                    <td className="text-right font-mono text-[13px]">{fmt(a.costo_unitario)}</td>
-                    <td className="text-right font-mono text-[13px] font-medium">{fmt(a.precio_unitario)}</td>
-                    <td className="text-right font-mono text-[13px] text-text-muted">{a.precio_mayoreo > 0 ? fmt(a.precio_mayoreo) : '—'}</td>
-                    <td className={`text-right font-mono text-[13px] ${a.usa_inventario && a.stock_actual <= 0 ? 'text-danger' : ''}`}>
-                      {a.usa_inventario ? a.stock_actual : '—'}
-                    </td>
-                    <td className="text-right text-[12px] text-text-muted">{a.usa_inventario ? a.stock_minimo : '—'}</td>
-                    <td className="text-right text-[12px] text-text-muted">{a.tasa_iva}%</td>
-                    <td>
-                      <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
-                        <button onClick={() => verHistorial(a)} title="Historial de precios" className="p-1 text-text-subtle hover:text-accent rounded">
-                          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><polyline points="23 6 13.5 15.5 8.5 10.5 1 18"/></svg>
-                        </button>
-                        {esAdmin && (
-                          <button onClick={() => abrirEditar(a)} title="Editar" className="p-1 text-text-subtle hover:text-accent rounded">
-                            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
-                          </button>
-                        )}
-                        {esAdmin && (
-                          <button onClick={() => eliminar(a.id)} title="Eliminar" className="p-1 text-text-subtle hover:text-danger rounded">
-                            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/></svg>
-                          </button>
-                        )}
-                      </div>
-                    </td>
-                  </motion.tr>
-                ))
-              )}
-            </tbody>
-          </table>
-        )}
-      </div>
+      {/* Tabla virtualizada */}
+      {loading ? (
+        <div className="flex items-center justify-center h-32 text-text-subtle text-sm gap-2">
+          <svg className="animate-spin" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M12 2v4M12 18v4M4.93 4.93l2.83 2.83M16.24 16.24l2.83 2.83M2 12h4M18 12h4M4.93 19.07l2.83-2.83M16.24 7.76l2.83-2.83"/></svg>
+          Cargando catálogo…
+        </div>
+      ) : error ? (
+        <div className="flex flex-col items-center justify-center h-32 gap-3">
+          <p className="text-[13px] text-[#fca5a5]">{error}</p>
+          <Button size="sm" onClick={() => cargar(busqueda, filtroDep)}>Reintentar</Button>
+        </div>
+      ) : (
+        <VirtualTable
+          items={articulos}
+          estimateSize={40}
+          colSpan={10}
+          header={tableHeader}
+          emptyState={
+            <div className="text-center py-12 text-text-subtle text-[13px]">
+              {hayFiltro ? (
+                <span>
+                  Sin resultados.{' '}
+                  <button onClick={limpiarBusqueda} className="text-accent underline-offset-2 hover:underline">Limpiar filtros</button>
+                </span>
+              ) : 'Sin artículos. Creá el primero con "+ Nuevo artículo".'}
+            </div>
+          }
+          renderRow={(a, idx) => (
+            <ArticuloRow
+              key={a.id}
+              a={a}
+              idx={idx}
+              tableActiveIdx={tableActiveIdx}
+              depNombre={depMap.get(a.departamento_id ?? -1) ?? '—'}
+              esAdmin={esAdmin}
+              fmt={fmt}
+              onVerHistorial={onVerHistorial}
+              onEditar={onEditar}
+              onEliminar={onEliminar}
+            />
+          )}
+        />
+      )}
 
       {/* ── Modal artículo ───────────────────────────────────────────────────── */}
       <Modal
@@ -518,10 +581,8 @@ export default function Catalogo() {
           {activeTab === 'componentes' && showTabComponentes && (
             <div className="flex flex-col gap-3">
               <p className="text-[12px] text-text-muted">
-                Definí qué artículos componen este kit y en qué cantidad. Al vender el kit, el stock de cada componente se descontará automáticamente.
+                Definí qué artículos componen este kit y en qué cantidad.
               </p>
-
-              {/* Buscador de componentes */}
               <div className="relative">
                 <Input
                   placeholder="Buscar artículo para agregar como componente..."
@@ -547,8 +608,6 @@ export default function Catalogo() {
                   </div>
                 )}
               </div>
-
-              {/* Tabla de componentes */}
               {kitComps.length > 0 ? (
                 <div className="border border-border rounded-[var(--r)] overflow-hidden">
                   <table className="w-full text-[12px]">
@@ -594,7 +653,6 @@ export default function Catalogo() {
                   Buscá artículos arriba para agregar componentes al kit.
                 </div>
               )}
-
               <p className="text-[11px] text-text-muted">
                 Los cambios se guardan al hacer clic en <strong>Guardar</strong>.
               </p>
@@ -609,58 +667,28 @@ export default function Catalogo() {
                   Precio especial por volumen. Precio regular: <strong className="text-text">{fmt(form.precio_unitario ?? 0)}</strong>
                 </p>
               </div>
-
-              {/* Formulario para nueva promo */}
               <div className="bg-surface-2 border border-border rounded-[var(--r)] p-3 flex flex-col gap-3">
                 <div className="text-[11px] font-semibold text-text-muted uppercase tracking-wider">Nueva promoción</div>
                 <div className="grid grid-cols-4 gap-2">
                   <Field label="Cant. desde">
-                    <Input
-                      type="number" min="1" step="1" placeholder="Ej: 6"
-                      value={promoDesde}
-                      onChange={e => setPromoDesde(e.target.value)}
-                      onKeyDown={handleNumericKeyDown}
-                    />
+                    <Input type="number" min="1" step="1" placeholder="Ej: 6" value={promoDesde} onChange={e => setPromoDesde(e.target.value)} onKeyDown={handleNumericKeyDown}/>
                   </Field>
                   <Field label="Cant. hasta (opcional)">
-                    <Input
-                      type="number" min="1" step="1" placeholder="Vacío = sin límite"
-                      value={promoHasta}
-                      onChange={e => setPromoHasta(e.target.value)}
-                      onKeyDown={handleNumericKeyDown}
-                    />
+                    <Input type="number" min="1" step="1" placeholder="Vacío = sin límite" value={promoHasta} onChange={e => setPromoHasta(e.target.value)} onKeyDown={handleNumericKeyDown}/>
                   </Field>
                   <Field label="Precio promo *">
-                    <Input
-                      type="number" min="0.01" step="0.01" placeholder="Ej: 750"
-                      value={promoPrecio}
-                      onChange={e => setPromoPrecio(e.target.value)}
-                      onKeyDown={handleNumericKeyDown}
-                    />
+                    <Input type="number" min="0.01" step="0.01" placeholder="Ej: 750" value={promoPrecio} onChange={e => setPromoPrecio(e.target.value)} onKeyDown={handleNumericKeyDown}/>
                   </Field>
                   <Field label="Etiqueta (opcional)">
-                    <Input
-                      placeholder="Ej: 6x1"
-                      value={promoNombre}
-                      onChange={e => setPromoNombre(e.target.value)}
-                    />
+                    <Input placeholder="Ej: 6x1" value={promoNombre} onChange={e => setPromoNombre(e.target.value)}/>
                   </Field>
                 </div>
                 <div className="flex justify-end">
-                  <Button
-                    type="button"
-                    variant="primary"
-                    size="sm"
-                    loading={promoSaving}
-                    onClick={agregarPromo}
-                    disabled={!promoDesde || !promoPrecio}
-                  >
+                  <Button type="button" variant="primary" size="sm" loading={promoSaving} onClick={agregarPromo} disabled={!promoDesde || !promoPrecio}>
                     Agregar promoción
                   </Button>
                 </div>
               </div>
-
-              {/* Lista de promos existentes */}
               {promos.length > 0 ? (
                 <div className="border border-border rounded-[var(--r)] overflow-hidden">
                   <table className="w-full text-[12px]">
@@ -686,9 +714,7 @@ export default function Catalogo() {
                             <td className="px-3 py-2 font-medium text-text">{p.nombre || '—'}</td>
                             <td className="px-3 py-2 text-center text-text-muted">{rango}</td>
                             <td className="px-3 py-2 text-right font-mono font-semibold text-[#4ade80]">{fmt(p.precio_promocional)}</td>
-                            <td className="px-3 py-2 text-right text-text-muted">
-                              {desc > 0 ? `-${desc.toFixed(1)}%` : '—'}
-                            </td>
+                            <td className="px-3 py-2 text-right text-text-muted">{desc > 0 ? `-${desc.toFixed(1)}%` : '—'}</td>
                             <td className="px-2 py-2">
                               <button type="button" onClick={() => eliminarPromo(p.id)} className="text-text-subtle hover:text-danger p-0.5">
                                 <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round">
@@ -752,7 +778,7 @@ export default function Catalogo() {
 
       {/* Modal departamentos */}
       {depOpen && (
-        <DepartamentosModal departamentos={departamentos} onClose={() => { setDepOpen(false); cargar(); }}/>
+        <DepartamentosModal departamentos={departamentos} onClose={() => { setDepOpen(false); cargar(busqueda, filtroDep); }}/>
       )}
     </div>
   );

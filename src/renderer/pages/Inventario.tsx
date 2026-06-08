@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef } from 'react';
 import { useToast } from '../context/ToastContext';
-import { Card, CardHeader, CardBody, Button, Field, Input, Select, Modal } from '../components/ui';
+import { Card, CardHeader, CardBody, Button, Field, Input, Select, Modal, VirtualTable } from '../components/ui';
 
 function fmt(n: number) { return new Intl.NumberFormat('es-AR',{style:'currency',currency:'ARS',minimumFractionDigits:2}).format(n??0); }
 function fmtFecha(s: string) { return s ? new Date(s).toLocaleString('es-AR',{day:'2-digit',month:'2-digit',year:'numeric',hour:'2-digit',minute:'2-digit'}) : '—'; }
@@ -86,48 +86,52 @@ export default function Inventario() {
         ))}
       </div>
 
-      <div className="flex-1 overflow-y-auto">
-        {loading ? <div className="flex items-center justify-center h-full text-text-subtle text-sm">Cargando...</div> : (
-          <>
-            {tab === 'movimientos' && (
-              <table className="tbl">
-                <thead><tr><th>Fecha</th><th>Artículo</th><th>Tipo</th><th className="text-right">Antes</th><th className="text-right">Cambio</th><th className="text-right">Después</th><th>Motivo</th><th>Usuario</th></tr></thead>
-                <tbody>
-                  {movimientos.length === 0 ? <tr><td colSpan={8} className="text-center py-10 text-text-subtle text-[13px]">Sin movimientos.</td></tr> :
-                  movimientos.slice(0,200).map((m,i) => (
-                    <tr key={i}>
-                      <td className="text-[12px] whitespace-nowrap">{fmtFecha(m.created_at)}</td>
-                      <td className="text-[13px]">{m.articulo_nombre??m.articulo_id}</td>
-                      <td><span className={`text-[11px] px-1.5 rounded font-semibold ${m.tipo==='entrada'?'bg-[rgba(34,197,94,.12)] text-[#4ade80]':m.tipo==='salida'?'bg-[rgba(239,68,68,.12)] text-[#f87171]':'bg-[rgba(79,142,245,.12)] text-accent'}`}>{m.tipo}</span></td>
-                      <td className="text-right font-mono text-[12px]">{m.cantidad_anterior}</td>
-                      <td className={`text-right font-mono text-[12px] ${m.cantidad_cambio>0?'text-[#4ade80]':'text-[#f87171]'}`}>{m.cantidad_cambio>0?'+':''}{m.cantidad_cambio}</td>
-                      <td className="text-right font-mono text-[12px] font-semibold">{m.cantidad_resultante}</td>
-                      <td className="text-[12px] text-text-muted">{m.motivo}</td>
-                      <td className="text-[12px] text-text-muted">{m.usuario||'—'}</td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            )}
-            {tab === 'stock-bajo' && (
+      {loading ? (
+        <div className="flex-1 flex items-center justify-center text-text-subtle text-sm">Cargando…</div>
+      ) : (
+        <>
+          {tab === 'movimientos' && (
+            <VirtualTable
+              items={movimientos}
+              estimateSize={40}
+              colSpan={8}
+              header={<tr><th>Fecha</th><th>Artículo</th><th>Tipo</th><th className="text-right">Antes</th><th className="text-right">Cambio</th><th className="text-right">Después</th><th>Motivo</th><th>Usuario</th></tr>}
+              emptyState={<div className="text-center py-10 text-text-subtle text-[13px]">Sin movimientos.</div>}
+              renderRow={(m, i) => (
+                <tr key={i}>
+                  <td className="text-[12px] whitespace-nowrap">{fmtFecha(m.created_at)}</td>
+                  <td className="text-[13px]">{m.articulo_nombre ?? m.articulo_id}</td>
+                  <td><span className={`text-[11px] px-1.5 rounded font-semibold ${m.tipo==='entrada'?'bg-[rgba(34,197,94,.12)] text-[#4ade80]':m.tipo==='salida'?'bg-[rgba(239,68,68,.12)] text-[#f87171]':'bg-[rgba(79,142,245,.12)] text-accent'}`}>{m.tipo}</span></td>
+                  <td className="text-right font-mono text-[12px]">{m.cantidad_anterior}</td>
+                  <td className={`text-right font-mono text-[12px] ${m.cantidad_cambio>0?'text-[#4ade80]':'text-[#f87171]'}`}>{m.cantidad_cambio>0?'+':''}{m.cantidad_cambio}</td>
+                  <td className="text-right font-mono text-[12px] font-semibold">{m.cantidad_resultante}</td>
+                  <td className="text-[12px] text-text-muted">{m.motivo}</td>
+                  <td className="text-[12px] text-text-muted">{m.usuario || '—'}</td>
+                </tr>
+              )}
+            />
+          )}
+          {tab === 'stock-bajo' && (
+            <div className="flex-1 overflow-y-auto">
               <table className="tbl">
                 <thead><tr><th>Artículo</th><th>Código</th><th className="text-right">Stock actual</th><th className="text-right">Stock mínimo</th></tr></thead>
                 <tbody>
-                  {stockBajo.length === 0 ? <tr><td colSpan={4} className="text-center py-10 text-[#4ade80] text-[13px]">✓ Todo el stock está bien.</td></tr> :
-                  stockBajo.map(a => (
-                    <tr key={a.id}>
-                      <td className="font-medium text-[13px]">{a.nombre}</td>
-                      <td className="font-mono text-[12px] text-text-muted">{a.codigo}</td>
-                      <td className={`text-right font-mono text-[13px] font-semibold ${a.stock_actual<=0?'text-danger':'text-warning'}`}>{a.stock_actual}</td>
-                      <td className="text-right font-mono text-[12px] text-text-muted">{a.stock_minimo}</td>
-                    </tr>
-                  ))}
+                  {stockBajo.length === 0
+                    ? <tr><td colSpan={4} className="text-center py-10 text-[#4ade80] text-[13px]">✓ Todo el stock está bien.</td></tr>
+                    : stockBajo.map(a => (
+                      <tr key={a.id}>
+                        <td className="font-medium text-[13px]">{a.nombre}</td>
+                        <td className="font-mono text-[12px] text-text-muted">{a.codigo}</td>
+                        <td className={`text-right font-mono text-[13px] font-semibold ${a.stock_actual<=0?'text-danger':'text-warning'}`}>{a.stock_actual}</td>
+                        <td className="text-right font-mono text-[12px] text-text-muted">{a.stock_minimo}</td>
+                      </tr>
+                    ))}
                 </tbody>
               </table>
-            )}
-          </>
-        )}
-      </div>
+            </div>
+          )}
+        </>
+      )}
 
       {/* Modal ajuste */}
       <Modal open={ajusteOpen} onClose={() => setAjusteOpen(false)} title="Ajuste de stock"
