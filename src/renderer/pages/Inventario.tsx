@@ -1,5 +1,6 @@
 import { useState, useEffect, useRef } from 'react';
 import { useToast } from '../context/ToastContext';
+import { useSession } from '../context/SessionContext';
 import { Card, CardHeader, CardBody, Button, Field, Input, Select, Modal, VirtualTable } from '../components/ui';
 
 function fmt(n: number) { return new Intl.NumberFormat('es-AR',{style:'currency',currency:'ARS',minimumFractionDigits:2}).format(n??0); }
@@ -19,6 +20,7 @@ function handleNumericKeyDown(e: React.KeyboardEvent<HTMLInputElement>) {
 
 export default function Inventario() {
   const { showToast } = useToast();
+  const { session }   = useSession();
   const [movimientos, setMovimientos] = useState<any[]>([]);
   const [stockBajo, setStockBajo] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
@@ -64,7 +66,13 @@ export default function Inventario() {
     if (isNaN(cant) || cant <= 0) { setError('Ingresá una cantidad válida.'); return; }
     setAjustando(true); setError('');
     try {
-      await window.api.inventario.ajustar({ articulo_id: artSel.id, tipo, cantidad: cant, motivo: motivo.trim() || tipo, usuario: 'sistema' });
+      await window.api.inventario.ajustar({
+        articulo_id: artSel.id,
+        tipo_ajuste: tipo === 'ajuste' ? 'correccion' : tipo,
+        cantidad:    cant,
+        motivo:      motivo.trim() || tipo,
+        usuario:     session?.nombre ?? 'sistema',
+      });
       setAjusteOpen(false); setArtSel(null); setArtBusqueda(''); setCantidad(''); setMotivo('');
       await cargar(); showToast('Ajuste registrado.', 'ok');
     } catch (err: any) { setError(err.message ?? 'Error.'); }
@@ -99,7 +107,7 @@ export default function Inventario() {
               emptyState={<div className="text-center py-10 text-text-subtle text-[13px]">Sin movimientos.</div>}
               renderRow={(m, i) => (
                 <tr key={i}>
-                  <td className="text-[12px] whitespace-nowrap">{fmtFecha(m.created_at)}</td>
+                  <td className="text-[12px] whitespace-nowrap">{fmtFecha(m.fecha)}</td>
                   <td className="text-[13px]">{m.articulo_nombre ?? m.articulo_id}</td>
                   <td><span className={`text-[11px] px-1.5 rounded font-semibold ${m.tipo==='entrada'?'bg-[rgba(34,197,94,.12)] text-[#4ade80]':m.tipo==='salida'?'bg-[rgba(239,68,68,.12)] text-[#f87171]':'bg-[rgba(79,142,245,.12)] text-accent'}`}>{m.tipo}</span></td>
                   <td className="text-right font-mono text-[12px]">{m.cantidad_anterior}</td>
