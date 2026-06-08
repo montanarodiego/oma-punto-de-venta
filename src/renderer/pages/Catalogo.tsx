@@ -803,9 +803,12 @@ function DepartamentosModal({ departamentos, onClose }: { departamentos: Departa
   }
 
   async function eliminar(id: number) {
+    const dep = lista.find(d => d.id === id);
+    if (!window.confirm(`¿Eliminar el departamento "${dep?.nombre}"?\nLos artículos asignados quedarán sin departamento.`)) return;
     try {
       await window.api.departamentos.delete(id);
       setLista(p => p.filter(d => d.id !== id));
+      showToast('Departamento eliminado.', 'ok');
     } catch (err: any) { showToast(err.message ?? 'No se pudo eliminar.', 'error'); }
   }
 
