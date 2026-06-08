@@ -15,7 +15,8 @@ function obtenerActivo() {
 function abrir(efectivoInicial) {
   const db = getDb();
 
-  // Auto-cerrar cualquier turno abierto de un día anterior (vencido)
+  // Auto-cerrar cualquier turno abierto de un día anterior (vencido).
+  // Calcula el resumen antes de cerrar para que el historial no quede en NULL.
   const vencido = db.prepare(`
     SELECT id FROM turnos
     WHERE estado = 'abierto'
@@ -23,8 +24,32 @@ function abrir(efectivoInicial) {
     ORDER BY id DESC LIMIT 1
   `).get();
   if (vencido) {
-    db.prepare("UPDATE turnos SET estado = 'cerrado', fecha_cierre = datetime('now') WHERE id = ?")
-      .run(vencido.id);
+    const rv = calcularResumen(vencido.id);
+    db.prepare(`
+      UPDATE turnos SET
+        estado                  = 'cerrado',
+        fecha_cierre            = datetime('now'),
+        efectivo_esperado       = ?,
+        total_ventas            = ?,
+        total_transacciones     = ?,
+        ventas_efectivo         = ?,
+        ventas_debito           = ?,
+        ventas_credito          = ?,
+        ventas_transferencia    = ?,
+        ventas_cuenta_corriente = ?,
+        notas                   = CASE WHEN (notas IS NULL OR notas = '') THEN 'Cerrado automáticamente al abrir nuevo turno' ELSE notas END
+      WHERE id = ?
+    `).run(
+      rv.efectivo_esperado,
+      rv.total_ventas,
+      rv.total_transacciones,
+      rv.ventas_efectivo,
+      rv.ventas_debito,
+      rv.ventas_credito,
+      rv.ventas_transferencia,
+      rv.ventas_cuenta_corriente,
+      vencido.id,
+    );
   }
 
   if (obtenerActivo()) throw new Error('Ya hay un turno activo. Cerrá el turno actual antes de abrir uno nuevo.');
