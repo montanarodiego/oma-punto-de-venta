@@ -1,71 +1,47 @@
 # RETOMAR — Estado de OmaTech POS
 
 **Fecha:** 9 jun 2026
-**Rama:** main (34+ commits adelante de origin/main — pendiente push)
+**Rama:** main (sincronizada con origin/main — 41 commits pusheados hoy)
 
 ---
 
-## LO QUE SE HIZO HOY (sesión 2026-06-09) — Tipado IPC completo
+## LO QUE SE HIZO HOY (sesión 2026-06-09)
 
-### FASE 1 — Reescritura de api.d.ts (`a70e9e8`)
-- Eliminados todos los `Promise<any>` del preload bridge
-- ~35 interfaces nuevas derivadas de los SQL aliases de los modelos backend
-- Tipos concretos para todas las ~56 funciones de `window.api`
-- Correcciones post-tsc: `ReporteEmailConfig` camelCase, `soporte.enviarReporte` params reales, callbacks de updater, `RecibirItemData` con `item_id/costo_unitario`
+### Tipado IPC completo (FASE 1–3)
 
-### FASE 2 — Reemplazar `useState<any>` en páginas clave (`180111a`)
-- `Informes.tsx`: `ResumenRapido|null`, `ArticuloVendido[]`, `VentaDia[]`, `UtilidadBrutaResult|null`
-- `Turno.tsx`: `TurnoResumen|null`
-- `Inventario.tsx`: `MovimientoInventario[]`, `Articulo[]`, `Articulo|null`
-- `PedidosCompra.tsx`: corregida interfaz local `PedidoDB` (`proveedor_label: string|null`, `total_items?: number`)
+| Commit | Descripción |
+|--------|-------------|
+| `a70e9e8` | FASE 1: reescritura de `api.d.ts` — ~35 interfaces, 0 `Promise<any>` |
+| `180111a` | FASE 2: reemplazar `useState<any>` en Informes, Turno, Inventario, PedidosCompra |
+| `38dfb7f` | FASE 3: tests de contrato backend (`tests/contrato_backend.test.js`) |
 
-### FASE 3 — Tests de contrato backend (`38dfb7f`)
-- `tests/contrato_backend.test.js`: llama modelos reales contra DB en memoria
-- Verifica campos exactos de `ResumenRapido` e `TurnoResumen` + valores calculados
-- Requiere `npx electron tests/contrato_backend.test.js` (better-sqlite3 nativo)
-- Prueba de robustez confirmada: renombrar campo en backend → test FALLA
+### Bugs de runtime corregidos por el tipado
 
-### Bugs adicionales descubiertos por el tipado
+| Commit | Archivo | Bug |
+|--------|---------|-----|
+| `3f91810` | `Caja.tsx:1735` | `turno_id` → `turnoId` en movimientos.registrar |
+| `3f91810` | `Caja.tsx:691` | null guard faltante en getById antes de `t.detalle` |
+| `c16b235` | `Caja.tsx:534` | **CRÍTICO**: ventas completamente rotas — create recibía objeto plano, modelo espera `{ transaccion, detalle }`. Test de integración agregado (`tests/cobro_integracion.test.js`, 5 escenarios pasando) |
 
-| Archivo | Línea | Descripción | Commit |
-|---------|-------|-------------|--------|
-| `Caja.tsx` | 1735 | `movimientos.registrar({ turno_id })` pero modelo espera `{ turnoId }` → movimiento sin turno | `3f91810` |
-| `Caja.tsx` | 691 | `t` (resultado de `getById`) podía ser `null` sin guardia → crash en `t.detalle` | `3f91810` |
+### 3 fixes de UX/layout
 
----
-
-## BUG CRÍTICO PENDIENTE — VENTAS ROTAS (`Caja.tsx:534`)
-
-**Acción requerida: probar una venta real en la app.**
-
-`Caja.tsx` llama `window.api.transacciones.create(flatObject)` donde `flatObject` tiene
-`{ turno_id, monto_total, ..., items: [] }` (objeto plano).
-
-Pero `transacciones.js` hace `function create({ transaccion, detalle })` — destructura
-`transaccion = undefined`, y la primera línea `transaccion.descuento_global` tira
-`TypeError: Cannot read properties of undefined`.
-
-El `try/catch` en `Caja.tsx:551` atraparía el error y mostraría en UI:
-`"Cannot read properties of undefined (reading 'descuento_global')"`.
-
-**Si la venta funciona**: el código de Caja.tsx está bien y el tipo en `api.d.ts` miente
-(hay que cambiar `CreateTransaccionData` a aceptar el formato plano). Verificar en `transacciones.js`
-qué destructura realmente.
-
-**Si la venta falla** con ese error: es un bug funcional real. El fix sería restructurar
-el `data` en Caja.tsx para que tenga las claves `transaccion` y `detalle`.
+| Commit | Fix |
+|--------|-----|
+| `02af0c4` | `html/body { overflow:hidden }` — capa de seguridad contra scroll del documento |
+| `30b8367` | **Layout**: sidebar y headers de columna fijos al scrollear listas largas. Causas: wrapper explícito 100vh alrededor de AnimatePresence + `min-h-0` en VirtualTable + `border-collapse:separate` para sticky headers |
+| `9fed747` | **Buscador F10**: "pancho" ahora encuentra "1 SUPER PANCHO CON PAPAS" — FTS fallaba silenciosamente; reemplazado por LIKE con AND por palabra |
+| `252acbc` | **Impresoras**: filtro por `PortName` y `Name` para excluir OneNote/PDF/Fax y no despertar apps virtuales al listar |
 
 ---
 
-## PENDIENTE DESPUÉS (prioridades)
+## PENDIENTE (prioridades)
 
-1. **Verificar venta real** (ver sección anterior) — bloquea cualquier release
-2. **Error Boundary global**: la app no tiene manejo de errores de renderizado
-3. **Tests de regresión** para cierre de turno, ajuste de stock, informes
-4. **Informes avanzados**: 8 reportes definidos en el backend sin UI React
-5. **Log de actividad** (ítem 12 de la lista de mejoras)
-6. **Excel import con preview** (ítem 13)
-7. **Vuln B — firmar license.json**: token offline editable con Notepad
+1. **Error Boundary global**: la app no tiene manejo de errores de renderizado React
+2. **Tests de regresión**: cierre de turno, ajuste de stock, informes
+3. **Informes avanzados**: 8 reportes definidos en el backend sin UI React
+4. **Log de actividad** (ítem 12 de la lista de mejoras)
+5. **Excel import con preview** (ítem 13)
+6. **Vuln B — firmar license.json**: token offline editable con Notepad
 
 ---
 
