@@ -1,6 +1,6 @@
 import { useState, useEffect, useMemo } from 'react';
 import { Card, CardHeader, CardBody, VirtualTable } from '../components/ui';
-import type { ResumenRapido, ArticuloVendido, VentaDia, UtilidadBrutaResult, UtilidadItem } from '../types/api';
+import type { ResumenRapido, ArticuloVendido, VentaDia, UtilidadBrutaResult, UtilidadItem, MejorDia } from '../types/api';
 
 type UtilSortKey = 'utilidad_total' | 'margen' | 'nombre';
 function fmtPct(n: number) { return `${(n ?? 0).toFixed(1)}%`; }
@@ -17,6 +17,7 @@ export default function Informes() {
   const [topArticulos, setTopArticulos] = useState<ArticuloVendido[]>([]);
   const [ventasPorDia, setVentasPorDia] = useState<VentaDia[]>([]);
   const [utilidad, setUtilidad] = useState<UtilidadBrutaResult | null>(null);
+  const [mejor,   setMejor]   = useState<MejorDia | null>(null);
   const [loading, setLoading] = useState(false);
   const [utilSort, setUtilSort] = useState<UtilSortKey>('utilidad_total');
   const [utilDir,  setUtilDir]  = useState<'asc' | 'desc'>('desc');
@@ -59,13 +60,14 @@ export default function Informes() {
 
   async function cargar() {
     setLoading(true);
-    const [r, top, util, dias] = await Promise.all([
+    const [r, top, util, dias, mej] = await Promise.all([
       window.api.informes.resumenRapido(desde, hasta),
       window.api.informes.articulosMasVendidos(desde, hasta),
       window.api.informes.utilidadBruta(desde, hasta),
       window.api.informes.ventasPorDia(desde, hasta),
+      window.api.informes.mejorDia(desde, hasta),
     ]);
-    setResumen(r); setTopArticulos(top ?? []); setUtilidad(util); setVentasPorDia(dias ?? []);
+    setResumen(r); setTopArticulos(top ?? []); setUtilidad(util); setVentasPorDia(dias ?? []); setMejor(mej);
     setLoading(false);
   }
 
@@ -90,7 +92,7 @@ export default function Informes() {
         <div className="max-w-[1100px] mx-auto flex flex-col gap-5">
 
           {/* KPIs */}
-          <div className="grid grid-cols-4 gap-4">
+          <div className="grid grid-cols-5 gap-4">
             {[
               { label:'Ventas totales',      value:fmt(resumen?.total_ventas??0),        color:'text-text' },
               { label:'Cantidad de ventas',  value:String(resumen?.cantidad_ventas??0),  color:'text-text' },
@@ -104,6 +106,22 @@ export default function Informes() {
                 </CardBody>
               </Card>
             ))}
+            <Card>
+              <CardBody>
+                <div className="text-[11px] font-bold text-text-subtle uppercase tracking-widest mb-2">Mejor día</div>
+                {mejor ? (
+                  <>
+                    <div className="text-[28px] font-black font-mono tabular-nums leading-none text-text">{fmt(mejor.total)}</div>
+                    <div className="text-[11px] text-text-muted mt-1.5">
+                      {new Date(mejor.fecha+'T00:00:00').toLocaleDateString('es-AR',{weekday:'short',day:'2-digit',month:'2-digit'})}
+                      {' · '}{mejor.cantidad} {mejor.cantidad === 1 ? 'venta' : 'ventas'}
+                    </div>
+                  </>
+                ) : (
+                  <div className="text-[28px] font-black font-mono leading-none text-text-subtle">—</div>
+                )}
+              </CardBody>
+            </Card>
           </div>
 
           {/* Top artículos + Ventas por día */}
