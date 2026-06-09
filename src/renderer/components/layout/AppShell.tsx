@@ -12,18 +12,21 @@ export function AppShell() {
   return (
     <div style={{ display: 'flex', width: '100%', height: '100vh', overflow: 'hidden' }}>
       <Sidebar />
-      <AnimatePresence mode="wait">
-        <motion.div
-          key={location.pathname}
-          className="page-content"
-          initial={{ opacity: 0, x: 8 }}
-          animate={{ opacity: 1, x: 0 }}
-          exit={{ opacity: 0, x: -8 }}
-          transition={{ duration: 0.18, ease: [0.4, 0, 0.2, 1] }}
-        >
-          <Outlet />
-        </motion.div>
-      </AnimatePresence>
+      {/* Wrapper con altura explícita — motion.div hereda 100vh sin depender de align-items:stretch */}
+      <div style={{ flex: 1, height: '100vh', overflow: 'hidden', display: 'flex', flexDirection: 'column' }}>
+        <AnimatePresence mode="wait">
+          <motion.div
+            key={location.pathname}
+            className="page-content"
+            initial={{ opacity: 0, x: 8 }}
+            animate={{ opacity: 1, x: 0 }}
+            exit={{ opacity: 0, x: -8 }}
+            transition={{ duration: 0.18, ease: [0.4, 0, 0.2, 1] }}
+          >
+            <Outlet />
+          </motion.div>
+        </AnimatePresence>
+      </div>
     </div>
   );
 }

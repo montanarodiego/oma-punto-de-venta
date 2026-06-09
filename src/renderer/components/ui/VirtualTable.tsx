@@ -41,7 +41,7 @@ export function VirtualTable<T>({
     : 0;
 
   return (
-    <div ref={parentRef} className={`flex-1 overflow-y-auto ${className ?? ''}`}>
+    <div ref={parentRef} className={`flex-1 min-h-0 overflow-y-auto ${className ?? ''}`}>
       <table className="tbl">
         <thead>{header}</thead>
         <tbody>
