@@ -1,4 +1,5 @@
 const { ipcMain, shell, dialog, BrowserWindow, app, safeStorage } = require('electron');
+const log            = require('electron-log');
 const path           = require('path');
 const fs             = require('fs');
 const os             = require('os');
@@ -651,6 +652,11 @@ function registerHandlers() {
     } catch (err) {
       return { ok: false, error: err.message };
     }
+  });
+
+  // ── Log desde renderer ────────────────────────────────────────
+  ipcMain.on('log:error', (_e, message, detail) => {
+    log.error('[renderer]', message, detail || '');
   });
 
   // ── Reporte automático por email ───────────────────────────────

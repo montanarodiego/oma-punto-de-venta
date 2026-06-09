@@ -4,6 +4,7 @@ import { SessionProvider } from './context/SessionContext';
 import { ToastProvider } from './context/ToastContext';
 import { AppShell } from './components/layout/AppShell';
 import { UpdaterModal } from './components/UpdaterModal';
+import { ErrorBoundary } from './components/ErrorBoundary';
 import Login from './pages/Login';
 import Caja from './pages/Caja';
 import Catalogo from './pages/Catalogo';
@@ -23,19 +24,19 @@ export default function App() {
         <UpdaterModal />
         <HashRouter>
           <Routes>
-            <Route path="/login"       element={<Login />} />
-            <Route path="/comprobante" element={<Comprobante />} />
+            <Route path="/login"       element={<ErrorBoundary><Login /></ErrorBoundary>} />
+            <Route path="/comprobante" element={<ErrorBoundary><Comprobante /></ErrorBoundary>} />
             <Route element={<AppShell />}>
               <Route index                  element={<Navigate to="/caja" replace />} />
-              <Route path="/caja"           element={<Caja />} />
-              <Route path="/catalogo"       element={<Catalogo />} />
-              <Route path="/clientes"       element={<Clientes />} />
-              <Route path="/inventario"     element={<Inventario />} />
-              <Route path="/informes"       element={<Informes />} />
-              <Route path="/proveedores"    element={<Proveedores />} />
-              <Route path="/pedidos"        element={<PedidosCompra />} />
-              <Route path="/turno"          element={<Turno />} />
-              <Route path="/configuracion"  element={<Configuracion />} />
+              <Route path="/caja"           element={<ErrorBoundary><Caja /></ErrorBoundary>} />
+              <Route path="/catalogo"       element={<ErrorBoundary><Catalogo /></ErrorBoundary>} />
+              <Route path="/clientes"       element={<ErrorBoundary><Clientes /></ErrorBoundary>} />
+              <Route path="/inventario"     element={<ErrorBoundary><Inventario /></ErrorBoundary>} />
+              <Route path="/informes"       element={<ErrorBoundary><Informes /></ErrorBoundary>} />
+              <Route path="/proveedores"    element={<ErrorBoundary><Proveedores /></ErrorBoundary>} />
+              <Route path="/pedidos"        element={<ErrorBoundary><PedidosCompra /></ErrorBoundary>} />
+              <Route path="/turno"          element={<ErrorBoundary><Turno /></ErrorBoundary>} />
+              <Route path="/configuracion"  element={<ErrorBoundary><Configuracion /></ErrorBoundary>} />
               <Route path="*"              element={<Navigate to="/caja" replace />} />
             </Route>
           </Routes>

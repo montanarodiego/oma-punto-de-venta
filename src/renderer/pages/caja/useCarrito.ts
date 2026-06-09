@@ -1,4 +1,4 @@
-import { useState, useRef, useCallback, useMemo } from 'react';
+import { useState, useRef, useCallback, useMemo, useEffect } from 'react';
 import type { Articulo } from '../../types/api';
 import { type CartItem, type Ticket, type PromoItem, UNIDADES_CONTINUAS, MAX_TICKETS, mkItem, aplicarPromoAItem } from './types';
 import { calcularTotales, type Totales } from './calculosFiscales';
@@ -46,11 +46,20 @@ export interface UseCarritoReturn {
 export function useCarrito({
   modoNegocio, tasaIva, mostrarIva, mayoreoMode, propina, showToast, focusCodigo, clearCodigo,
 }: UseCarritoOptions): UseCarritoReturn {
-  const [tickets, setTickets] = useState<Ticket[]>([{
-    id: Date.now(), nombre: 'Venta', carrito: [],
-    clienteSeleccionado: null, formaPago: 'efectivo',
-    descGlobalTipo: 'ninguno', descGlobalValor: 0, notas: '', itemSelIdx: null,
-  }]);
+  const [tickets, setTickets] = useState<Ticket[]>(() => {
+    try {
+      const saved = localStorage.getItem('oma_tickets_backup');
+      if (saved) {
+        const parsed: Ticket[] = JSON.parse(saved);
+        if (Array.isArray(parsed) && parsed.length > 0) return parsed;
+      }
+    } catch {}
+    return [{
+      id: Date.now(), nombre: 'Venta', carrito: [],
+      clienteSeleccionado: null, formaPago: 'efectivo',
+      descGlobalTipo: 'ninguno', descGlobalValor: 0, notas: '', itemSelIdx: null,
+    }];
+  });
   const [activeIdx, setActiveIdx] = useState(0);
 
   const activeIdxRef   = useRef(activeIdx);
@@ -59,6 +68,12 @@ export function useCarrito({
   activeIdxRef.current   = activeIdx;
   ticketsRef.current     = tickets;
   mayoreoModeRef.current = mayoreoMode;
+
+  useEffect(() => {
+    try {
+      localStorage.setItem('oma_tickets_backup', JSON.stringify(tickets));
+    } catch {}
+  }, [tickets]);
 
   const ticket = tickets[activeIdx];
 
@@ -88,6 +103,7 @@ export function useCarrito({
   function limpiarTicket(idx: number) {
     updateTicket(idx, { carrito: [], clienteSeleccionado: null, formaPago: 'efectivo', descGlobalTipo: 'ninguno', descGlobalValor: 0, notas: '', itemSelIdx: null });
     clearCodigo();
+    try { localStorage.removeItem('oma_tickets_backup'); } catch {}
   }
 
   function updateTicket(idx: number, patch: Partial<Ticket>) {

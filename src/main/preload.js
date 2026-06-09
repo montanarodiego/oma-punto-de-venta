@@ -222,6 +222,11 @@ contextBridge.exposeInMainWorld('api', {
     imprimirEstadoCuenta:  (clienteId)  => ipcRenderer.invoke('printer:imprimirEstadoCuenta', clienteId),
   },
 
+  // Log desde renderer → electron-log en el proceso principal
+  log: {
+    error: (message, detail) => ipcRenderer.send('log:error', message, detail),
+  },
+
   // Navegación (main process loadFile — funciona aunque location.href falle en Electron)
   navegar: (file) => ipcRenderer.invoke('navegar', file),
 

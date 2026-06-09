@@ -784,6 +784,9 @@ declare global {
         imprimirCorteZ:        (turnoId: number) => Promise<void>;
         imprimirEstadoCuenta:  (clienteId: number) => Promise<void>;
       };
+      log: {
+        error: (message: string, detail?: string) => void;
+      };
       navegar:       (file: string) => Promise<void>;
       modalState:    (open: boolean) => void;
       setModalCobro: (open: boolean) => void;
