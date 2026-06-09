@@ -1,11 +1,58 @@
 # RETOMAR — Estado de OmaTech POS
 
-**Fecha:** 9 jun 2026
-**Rama:** main (sincronizada con origin/main — 41 commits pusheados hoy)
+**Fecha:** 9 jun 2026 (actualizado al final de sesión)
+**Rama:** main
 
 ---
 
-## LO QUE SE HIZO HOY (sesión 2026-06-09)
+## LO QUE SE HIZO: refactor Caja.tsx → caja/ (sesión 2026-06-09 tarde)
+
+**Resultado:** `Caja.tsx` pasó de **1776 → 436 líneas** (75% reducción). Refactor puro — cero cambio de comportamiento.
+
+### Módulos extraídos a `src/renderer/pages/caja/`
+
+| Commit | Módulo | Descripción |
+|--------|--------|-------------|
+| `69c7cc7` | `types.ts` | Interfaces, constantes, utils puros (CartItem, Ticket, PromoItem, fmt, mkItem, aplicarPromoAItem, WIZARD_MODOS) |
+| `084d46f` | `calculosFiscales.ts` + `tests/calculos_fiscales.test.js` | Función pura de cálculo fiscal. **13 tests cubriendo todos los modos** (mono, restaurante, RI, mayorista, farmacia, personalizado, descuentos, IVA proporcional) |
+| `c6b5931` | `useCarrito.ts` | Hook con todo el estado del carrito multi-ticket |
+| `e8ba7d9` | `TicketTabs.tsx` | Tabs de tickets |
+| `7ddc189` | `BuscadorArticulos.tsx` | Overlay buscador F10 con estado interno |
+| `31f1623` | `CarritoLista.tsx` + `CartRow` | Tabla del carrito con fila memoizada |
+| `8f05ad7` | `ModalCobro.tsx` | Modal de cobro con `forwardRef/useImperativeHandle` para IPC |
+| `08e3ace` | `ModalAnular.tsx` | Modal anular/devolver con init via `useEffect` on open |
+| `e188286` | `ui.tsx`, `CodigoInput.tsx`, `ModalMovimiento.tsx` | Componentes UI compartidos, input de código con scanner, modal de movimiento |
+| `432c686` | `ModalWizard.tsx`, `ModalesInline.tsx`, `CajaPie.tsx` | Wizard de modo, 4 modales pequeños, footer del pie de caja |
+
+### Arquitectura resultante de caja/
+
+```
+src/renderer/pages/caja/
+  types.ts              ← interfaces + constants + pure utils
+  calculosFiscales.ts   ← pure fiscal function (testable)
+  useCarrito.ts         ← multi-ticket state hook
+  TicketTabs.tsx        ← tab bar
+  BuscadorArticulos.tsx ← F10 overlay (self-contained)
+  CarritoLista.tsx      ← cart table + CartRow (React.memo)
+  ModalCobro.tsx        ← cobro modal (forwardRef, exposes cobrar())
+  ModalAnular.tsx       ← anular/devolver modal
+  ModalMovimiento.tsx   ← entrada/salida de caja
+  CodigoInput.tsx       ← scanner input (forwardRef, handle: focus/animOk/animError/clear)
+  ui.tsx                ← ToolbarBtn, PieStat, ModalOverlay, ModalBox
+  ModalWizard.tsx       ← primera configuración de modo negocio
+  ModalesInline.tsx     ← ModalLibre, ModalDescItem, ModalRenombrar, ModalQtyEditor
+  CajaPie.tsx           ← pie de caja (totales + botón cobrar)
+```
+
+### Tests
+
+```bash
+node tests/calculos_fiscales.test.js   # 13 assertions — todos pasan
+```
+
+---
+
+## LO QUE SE HIZO ANTES (sesión 2026-06-09 mañana)
 
 ### Tipado IPC completo (FASE 1–3)
 
