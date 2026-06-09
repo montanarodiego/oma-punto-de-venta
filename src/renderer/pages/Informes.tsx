@@ -1,6 +1,9 @@
-import { useState, useEffect } from 'react';
-import { Card, CardHeader, CardBody } from '../components/ui';
-import type { ResumenRapido, ArticuloVendido, VentaDia, UtilidadBrutaResult } from '../types/api';
+import { useState, useEffect, useMemo } from 'react';
+import { Card, CardHeader, CardBody, VirtualTable } from '../components/ui';
+import type { ResumenRapido, ArticuloVendido, VentaDia, UtilidadBrutaResult, UtilidadItem } from '../types/api';
+
+type UtilSortKey = 'utilidad_total' | 'margen' | 'nombre';
+function fmtPct(n: number) { return `${(n ?? 0).toFixed(1)}%`; }
 
 function fmt(n: number) { return new Intl.NumberFormat('es-AR',{style:'currency',currency:'ARS',minimumFractionDigits:2}).format(n??0); }
 
@@ -15,6 +18,42 @@ export default function Informes() {
   const [ventasPorDia, setVentasPorDia] = useState<VentaDia[]>([]);
   const [utilidad, setUtilidad] = useState<UtilidadBrutaResult | null>(null);
   const [loading, setLoading] = useState(false);
+  const [utilSort, setUtilSort] = useState<UtilSortKey>('utilidad_total');
+  const [utilDir,  setUtilDir]  = useState<'asc' | 'desc'>('desc');
+
+  const utilItems = useMemo((): (UtilidadItem & { margen: number })[] => {
+    if (!utilidad?.items) return [];
+    return [...utilidad.items]
+      .map(it => ({
+        ...it,
+        margen: it.precio_venta_promedio > 0 && it.cantidad_total > 0
+          ? (it.utilidad_total / (it.precio_venta_promedio * it.cantidad_total)) * 100
+          : 0,
+      }))
+      .sort((a, b) => {
+        const v = utilSort === 'nombre'
+          ? a.nombre.localeCompare(b.nombre, 'es')
+          : utilSort === 'margen' ? a.margen - b.margen
+          : a.utilidad_total - b.utilidad_total;
+        return utilDir === 'asc' ? v : -v;
+      });
+  }, [utilidad, utilSort, utilDir]);
+
+  function sortTh(col: UtilSortKey, label: string, cls = '') {
+    const active = utilSort === col;
+    return (
+      <th
+        key={col}
+        className={`cursor-pointer select-none ${cls} ${active ? 'text-[#4f8ef5]' : ''}`}
+        onClick={() => {
+          if (utilSort === col) setUtilDir(d => d === 'asc' ? 'desc' : 'asc');
+          else { setUtilSort(col); setUtilDir('desc'); }
+        }}
+      >
+        {label}{active ? (utilDir === 'desc' ? ' ↓' : ' ↑') : ''}
+      </th>
+    );
+  }
 
   useEffect(() => { cargar(); }, []);
 
@@ -133,6 +172,51 @@ export default function Informes() {
               </CardBody>
             </Card>
           )}
+
+          {/* Utilidad bruta por artículo */}
+          <Card>
+            <CardHeader className="flex items-center justify-between">
+              <span>Utilidad bruta por artículo</span>
+              <span className="text-[12px] text-text-muted font-normal">
+                Total: <span className="text-[#4ade80] font-bold">{fmt(utilidad?.utilidad_bruta ?? 0)}</span>
+                &nbsp;· Clic en columna para ordenar
+              </span>
+            </CardHeader>
+            <div className="flex flex-col" style={{ height: 400 }}>
+              <VirtualTable
+                items={utilItems}
+                estimateSize={36}
+                colSpan={7}
+                header={
+                  <tr>
+                    <th className="text-text-subtle text-[11px] w-8">#</th>
+                    {sortTh('nombre', 'Artículo')}
+                    <th className="text-right">Costo</th>
+                    <th className="text-right">P. venta prom.</th>
+                    <th className="text-right">Cant.</th>
+                    {sortTh('utilidad_total', 'Utilidad', 'text-right')}
+                    {sortTh('margen', 'Margen %', 'text-right')}
+                  </tr>
+                }
+                renderRow={(it, i) => (
+                  <tr key={it.codigo + i}>
+                    <td className="text-[12px] text-text-subtle">{i + 1}</td>
+                    <td className="text-[13px]">{it.nombre}</td>
+                    <td className="text-right font-mono text-[13px] text-text-muted">{fmt(it.costo_unitario)}</td>
+                    <td className="text-right font-mono text-[13px]">{fmt(it.precio_venta_promedio)}</td>
+                    <td className="text-right font-mono text-[13px]">{it.cantidad_total}</td>
+                    <td className="text-right font-mono text-[13px] text-[#4ade80]">{fmt(it.utilidad_total)}</td>
+                    <td className="text-right font-mono text-[13px]">
+                      <span className={it.margen >= 30 ? 'text-[#4ade80]' : it.margen >= 10 ? 'text-[#f59e0b]' : 'text-danger'}>
+                        {fmtPct(it.margen)}
+                      </span>
+                    </td>
+                  </tr>
+                )}
+                emptyState={<div className="text-center py-6 text-text-subtle text-[13px]">Sin datos.</div>}
+              />
+            </div>
+          </Card>
 
         </div>
       </main>
