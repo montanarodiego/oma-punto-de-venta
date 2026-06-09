@@ -1,8 +1,7 @@
-import React, { useState, useEffect, useRef, useCallback, useMemo, forwardRef, useImperativeHandle } from 'react';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { AnimatePresence, motion } from 'framer-motion';
 import { useToast } from '../context/ToastContext';
-import { useFocusTrap } from '../hooks/useFocusTrap';
 import { useCarritoKeyboard } from '../hooks/useCarritoKeyboard';
 import type { Articulo } from '../types/api';
 import {
@@ -17,6 +16,9 @@ import { BuscadorArticulos } from './caja/BuscadorArticulos';
 import { CarritoLista } from './caja/CarritoLista';
 import { ModalCobro, type ModalCobroHandle } from './caja/ModalCobro';
 import { ModalAnular } from './caja/ModalAnular';
+import { ToolbarBtn, PieStat, ModalOverlay, ModalBox } from './caja/ui';
+import { CodigoInput, type CodigoInputHandle } from './caja/CodigoInput';
+import { ModalMovimiento } from './caja/ModalMovimiento';
 
 // ── Main component ──────────────────────────────────────────────────────────
 export default function Caja() {
@@ -469,7 +471,7 @@ export default function Caja() {
       </AnimatePresence>
 
       {/* ── Modal Movimiento de caja ── */}
-      {movOpen && <MovimientoModal turnoActivo={turnoActivo} onClose={() => setMovOpen(false)} onDone={() => { setMovOpen(false); showToast('Movimiento registrado.', 'ok'); }} />}
+      {movOpen && <ModalMovimiento turnoActivo={turnoActivo} onClose={() => setMovOpen(false)} onDone={() => { setMovOpen(false); showToast('Movimiento registrado.', 'ok'); }} />}
 
       {/* ── Modal Renombrar ticket ── */}
       <AnimatePresence>
@@ -552,203 +554,3 @@ export default function Caja() {
   );
 }
 
-// ── Helper components ──────────────────────────────────────────────
-function ToolbarBtn({ icon, label, kbd, onClick, variant, active, disabled }: {
-  icon: React.ReactNode; label: string; kbd?: string; onClick?: () => void;
-  variant?: 'default'|'danger'|'success'|'warning'; active?: boolean; disabled?: boolean;
-}) {
-  const base = 'flex items-center gap-1.5 px-3 h-10 rounded-[var(--r)] border text-[13px] font-semibold transition-all cursor-pointer font-[inherit] disabled:opacity-40 disabled:cursor-not-allowed';
-  const variants = {
-    default: active ? 'bg-[rgba(79,142,245,.12)] border-accent text-accent' : 'bg-surface-2 border-[var(--surface-3)] text-text-muted hover:bg-surface-3 hover:text-text hover:border-[#475569]',
-    danger:  'bg-[rgba(239,68,68,.08)] border-[rgba(239,68,68,.3)] text-danger hover:bg-[rgba(239,68,68,.18)]',
-    success: 'bg-success border-success-hover text-white font-bold hover:bg-success-hover',
-    warning: active ? 'bg-[rgba(245,158,11,.18)] border-[rgba(245,158,11,.5)] text-[#fbbf24]' : 'bg-[rgba(245,158,11,.08)] border-[rgba(245,158,11,.25)] text-[#f59e0b] hover:bg-[rgba(245,158,11,.18)]',
-  };
-  return (
-    <button onClick={onClick} disabled={disabled} className={`${base} ${variants[variant ?? 'default']}`}>
-      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="flex-shrink-0">{icon}</svg>
-      {label}
-      {kbd && <span className="ml-0.5 text-[10px] font-bold px-1.5 py-0.5 rounded border border-current/20 bg-black/30 opacity-60">{kbd}</span>}
-    </button>
-  );
-}
-
-function PieStat({ label, value, size, muted, color }: { label: string; value: string; size?: 'lg'; muted?: boolean; color?: string }) {
-  return (
-    <div className="flex flex-col items-end gap-0.5">
-      <div className="text-[11px] font-semibold uppercase tracking-widest text-text-subtle">{label}</div>
-      <div
-        className={`font-mono tabular-nums leading-none ${
-          size === 'lg'
-            ? 'text-[26px] font-black text-text'
-            : 'text-[15px] font-bold'
-        } ${muted ? 'text-text-muted' : ''}`}
-        style={color ? { color } : undefined}
-      >
-        {value}
-      </div>
-    </div>
-  );
-}
-
-function ModalOverlay({ children, onClose }: { children: React.ReactNode; onClose: () => void }) {
-  return (
-    <motion.div
-      className="fixed inset-0 z-[9999] bg-[rgba(15,23,42,.85)] flex items-center justify-center p-5"
-      initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
-      onClick={e => e.target === e.currentTarget && onClose()}
-    >
-      {children}
-    </motion.div>
-  );
-}
-
-function ModalBox({ title, onClose, children, maxWidth = 460 }: { title: string; onClose: () => void; children: React.ReactNode; maxWidth?: number }) {
-  const boxRef = useRef<HTMLDivElement>(null);
-  useFocusTrap(boxRef, true, onClose);
-  return (
-    <motion.div
-      ref={boxRef}
-      data-modal
-      initial={{ scale: 0.95, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} exit={{ scale: 0.95, opacity: 0 }}
-      className="bg-surface border border-border rounded-[var(--r-card)] shadow-[var(--shadow-lg)] w-full"
-      style={{ maxWidth }}
-    >
-      <div className="modal-header">
-        <h3 className="modal-title">{title}</h3>
-        <button className="modal-close" onClick={onClose}>×</button>
-      </div>
-      <div className="modal-body">{children}</div>
-    </motion.div>
-  );
-}
-
-// ── CodigoInput ────────────────────────────────────────────────────────────────
-// Self-contained input with scanner detection. Owns codigoVal and codigoAnim so
-// every keystroke only re-renders this component, not the entire Caja.
-
-interface CodigoInputHandle {
-  focus(): void;
-  animOk(): void;
-  animError(): void;
-  clear(): void;
-}
-
-const CodigoInput = forwardRef<CodigoInputHandle, {
-  onSubmit: (codigo: string) => void;
-  onValueChange?: (val: string) => void;
-}>(function CodigoInput({ onSubmit, onValueChange }, ref) {
-  const [val, setVal]   = useState('');
-  const [anim, setAnim] = useState('');
-  const inputRef        = useRef<HTMLInputElement>(null);
-  const scannerLastMs   = useRef(0);
-  const scannerCharCnt  = useRef(0);
-  const timer           = useRef<NodeJS.Timeout | null>(null);
-  const onSubmitRef     = useRef(onSubmit);
-  onSubmitRef.current   = onSubmit;
-
-  useImperativeHandle(ref, () => ({
-    focus:    () => setTimeout(() => inputRef.current?.focus(), 50),
-    animOk:   () => { setAnim('scan-ok');    setTimeout(() => setAnim(''), 600); },
-    animError:() => { setAnim('scan-error'); setTimeout(() => setAnim(''), 600); },
-    clear:    () => { setVal(''); onValueChange?.(''); },
-  }));
-
-  useEffect(() => () => { if (timer.current) clearTimeout(timer.current); }, []);
-
-  function submit(codigo: string) {
-    setVal(''); onValueChange?.('');
-    onSubmitRef.current(codigo);
-  }
-
-  function handleKeyDown(e: React.KeyboardEvent<HTMLInputElement>) {
-    if (e.key === 'Enter') { submit(val); return; }
-    const now = Date.now();
-    const delta = now - scannerLastMs.current;
-    scannerLastMs.current = now;
-    if (delta < 50) scannerCharCnt.current++; else scannerCharCnt.current = 1;
-  }
-
-  function handleChange(e: React.ChangeEvent<HTMLInputElement>) {
-    const v = e.target.value;
-    setVal(v); onValueChange?.(v);
-    if (timer.current) clearTimeout(timer.current);
-    if (v.length >= 3 && scannerCharCnt.current >= 3) {
-      timer.current = setTimeout(() => submit(v), 120);
-    }
-  }
-
-  return (
-    <input
-      ref={inputRef}
-      value={val}
-      onChange={handleChange}
-      onKeyDown={handleKeyDown}
-      className={`flex-1 text-[16px] font-medium px-3 py-2 rounded-[var(--r)] border-2 border-accent bg-bg text-text outline-none transition-all ${anim}`}
-      placeholder="Escaneá o escribí el código..."
-      autoComplete="off"
-      spellCheck={false}
-      autoFocus
-    />
-  );
-});
-
-
-function MovimientoModal({ turnoActivo, onClose, onDone }: { turnoActivo: any; onClose: () => void; onDone: () => void }) {
-  const [tipo, setTipo] = useState<'entrada'|'salida'>('entrada');
-  const [categoria, setCategoria] = useState('fondo_cambio');
-  const [monto, setMonto] = useState('');
-  const [desc, setDesc] = useState('');
-  const [error, setError] = useState('');
-  const [loading, setLoading] = useState(false);
-
-  const catEntrada = [['fondo_cambio','Fondo de cambio'],['cobro_deuda','Cobro de deuda'],['devol_proveedor','Devol. proveedor'],['otro','Otro']];
-  const catSalida  = [['retiro_banco','Retiro de banco'],['retiro_dueno','Retiro del dueño'],['pago_proveedor','Pago proveedor'],['gasto_operativo','Gasto operativo'],['pago_servicio','Pago servicio'],['deposito_banco','Depósito banco'],['devol_cliente','Devol. cliente'],['otro','Otro']];
-  const cats = tipo === 'entrada' ? catEntrada : catSalida;
-
-  async function submit(e: React.FormEvent) {
-    e.preventDefault();
-    const m = parseFloat(monto);
-    if (isNaN(m) || m <= 0) { setError('Ingresá un monto válido.'); return; }
-    if (!turnoActivo) { setError('No hay turno abierto.'); return; }
-    setLoading(true);
-    try {
-      await window.api.movimientos.registrar({ turnoId: turnoActivo.id, tipo, categoria, monto: m, descripcion: desc.trim() || categoria });
-      onDone();
-    } catch (err: any) { setError(err.message); }
-    finally { setLoading(false); }
-  }
-
-  return (
-    <ModalOverlay onClose={onClose}>
-      <ModalBox title="Movimiento de caja" onClose={onClose} maxWidth={400}>
-        <form onSubmit={submit} className="flex flex-col gap-4">
-          <div className="flex gap-2">
-            {(['entrada','salida'] as const).map(t => (
-              <label key={t} className={`flex-1 flex items-center gap-2 p-3 rounded-[var(--r-in)] border cursor-pointer transition-all ${tipo===t ? t==='entrada'?'border-success bg-[rgba(34,197,94,.08)]':'border-danger bg-[rgba(239,68,68,.08)]' : 'border-border bg-surface-2'}`}>
-                <input type="radio" className="hidden" checked={tipo===t} onChange={() => setTipo(t)} />
-                <span className={`text-[13px] font-semibold ${t==='entrada'?'text-[#4ade80]':'text-[#f87171]'}`}>{t==='entrada'?'↓ Entrada':'↑ Salida'}</span>
-              </label>
-            ))}
-          </div>
-          <div className="field"><label className="field-label">Categoría *</label>
-            <select className="inp" value={categoria} onChange={e => setCategoria(e.target.value)}>
-              {cats.map(([v,l]) => <option key={v} value={v}>{l}</option>)}
-            </select>
-          </div>
-          <div className="field"><label className="field-label">Monto *</label>
-            <input autoFocus className="inp text-[18px] font-bold font-mono" type="number" step="0.01" min="0.01" value={monto} onChange={e => setMonto(e.target.value)} placeholder="0,00" required />
-          </div>
-          <div className="field"><label className="field-label">Detalle adicional</label>
-            <input className="inp" type="text" value={desc} onChange={e => setDesc(e.target.value)} placeholder="Opcional: proveedor, factura..." />
-          </div>
-          {error && <div className="text-[12px] text-danger px-3 py-2 bg-[rgba(239,68,68,.1)] border border-[rgba(239,68,68,.25)] rounded-[var(--r-in)]">{error}</div>}
-          <div className="flex gap-2 justify-end mt-1">
-            <button type="button" className="btn btn-ghost" onClick={onClose}>Cancelar</button>
-            <button type="submit" disabled={loading} className="btn btn-primary">Registrar</button>
-          </div>
-        </form>
-      </ModalBox>
-    </ModalOverlay>
-  );
-}
