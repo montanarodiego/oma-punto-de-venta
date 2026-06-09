@@ -1,14 +1,9 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { AnimatePresence, motion } from 'framer-motion';
 import { useToast } from '../context/ToastContext';
 import { useCarritoKeyboard } from '../hooks/useCarritoKeyboard';
 import type { Articulo } from '../types/api';
-import {
-  type CartItem, type Ticket,
-  MODOS_SIN_IVA, MODOS_IVA_DESGLOSADO, UNIDADES_CONTINUAS,
-  fmt, mkItem, WIZARD_MODOS,
-} from './caja/types';
+import { mkItem } from './caja/types';
 import type { Totales } from './caja/calculosFiscales';
 import { useCarrito } from './caja/useCarrito';
 import { TicketTabs } from './caja/TicketTabs';
@@ -16,9 +11,12 @@ import { BuscadorArticulos } from './caja/BuscadorArticulos';
 import { CarritoLista } from './caja/CarritoLista';
 import { ModalCobro, type ModalCobroHandle } from './caja/ModalCobro';
 import { ModalAnular } from './caja/ModalAnular';
-import { ToolbarBtn, PieStat, ModalOverlay, ModalBox } from './caja/ui';
+import { ToolbarBtn } from './caja/ui';
+import { CajaPie } from './caja/CajaPie';
 import { CodigoInput, type CodigoInputHandle } from './caja/CodigoInput';
 import { ModalMovimiento } from './caja/ModalMovimiento';
+import { ModalWizard } from './caja/ModalWizard';
+import { ModalLibre, ModalDescItem, ModalRenombrar, ModalQtyEditor } from './caja/ModalesInline';
 
 // ── Main component ──────────────────────────────────────────────────────────
 export default function Caja() {
@@ -351,51 +349,16 @@ export default function Caja() {
       )}
 
       {/* ── Pie de caja ── */}
-      <div className="flex items-center bg-surface border-t-2 border-border flex-shrink-0 min-h-[72px]">
-        <div className="px-5 py-3 border-r border-border flex flex-col justify-center min-w-[90px]">
-          <div className="text-[11px] font-semibold text-text-subtle uppercase tracking-wider">Ítems</div>
-          <div className="text-[26px] font-black tabular-nums leading-tight">
-            {ticket.carrito.reduce((s, i) => s + i.cantidad, 0)}
-          </div>
-        </div>
-        <div className="flex-1 px-5 flex items-center gap-6 justify-center">
-          <PieStat label="Total" value={fmt(totales.total)} size="lg" />
-          {totales.desc > 0 && <PieStat label="Descuento" value={`-${fmt(totales.desc)}`} color="#f59e0b" />}
-          {mostrarIva && MODOS_IVA_DESGLOSADO.has(modoNegocio) && totales.iva > 0 && (
-            <>
-              <PieStat label="Subtotal" value={fmt(totales.subtotalConDesc)} muted />
-              <PieStat label={`IVA ${tasaIva}%`} value={fmt(totales.iva)} muted />
-            </>
-          )}
-          {totales.propAmt > 0 && <PieStat label="Propina" value={fmt(totales.propAmt)} color="#a78bfa" />}
-        </div>
-        <div className="px-3 flex items-center gap-2 flex-shrink-0">
-          {ultimaTransId && (
-            <button
-              className="flex flex-col items-center justify-center px-3 py-2 rounded-[var(--r)] bg-surface-2 border border-border text-text-muted hover:bg-surface-3 transition-all gap-1"
-              onClick={() => ultimaTransId && window.api.caja.abrirComprobante({ transaccionId: ultimaTransId, montoRecibido: 0, vuelto: 0, propina: 0 })}
-              title="Reimprimir último comprobante"
-            >
-              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round">
-                <polyline points="6 9 6 2 18 2 18 9"/>
-                <path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2"/>
-                <rect x="6" y="14" width="12" height="8"/>
-              </svg>
-              <span className="text-[11px] font-semibold">Reimprimir</span>
-            </button>
-          )}
-          <button
-            disabled={!canCobrar}
-            onClick={() => setCobroOpen(true)}
-            className="flex flex-col items-center justify-center px-6 py-3 rounded-[var(--r)] bg-gradient-to-br from-[#2dda6e] to-[#16a34a] text-white min-w-[145px] min-h-[64px] disabled:opacity-40 disabled:cursor-not-allowed hover:from-[#38e87a] hover:to-[#1ab84e] hover:-translate-y-0.5 transition-all shadow-lg gap-0.5"
-            style={{ animation: canCobrar ? 'pulse-cobrar 4s ease-in-out 2s infinite' : 'none' }}
-          >
-            <span className="text-[11px] opacity-70 font-bold tracking-widest">F12</span>
-            <span className="text-[28px] font-black font-mono leading-none tabular-nums">{fmt(totales.total)}</span>
-            <span className="text-[13px] font-black tracking-widest uppercase">COBRAR</span>
-          </button>
-        </div>
-      </div>
+      <CajaPie
+        carrito={ticket.carrito}
+        totales={totales}
+        mostrarIva={mostrarIva}
+        modoNegocio={modoNegocio}
+        tasaIva={tasaIva}
+        canCobrar={canCobrar}
+        ultimaTransId={ultimaTransId}
+        onCobrar={() => setCobroOpen(true)}
+      />
 
       {/* ── Buscador overlay (F10) ── */}
       <BuscadorArticulos open={buscadorOpen} onClose={() => setBuscadorOpen(false)} onSelect={agregarArticulo} />
@@ -417,76 +380,37 @@ export default function Caja() {
         onVentaRegistrada={setUltimaTransId}
       />
 
-      {/* ── Modal Ítem libre ── */}
-      <AnimatePresence>
-        {libreOpen && (
-          <ModalOverlay onClose={() => setLibreOpen(false)}>
-            <ModalBox title="Ítem libre" onClose={() => setLibreOpen(false)} maxWidth={380}>
-              <form onSubmit={agregarLibre} className="flex flex-col gap-4">
-                <div className="field"><label className="field-label">Descripción <span className="text-danger">*</span></label>
-                  <input autoFocus className="inp" value={libreDesc} onChange={e => setLibreDesc(e.target.value)} placeholder="Ej: Coca Cola 500ml" required />
-                </div>
-                <div className="grid grid-cols-2 gap-3">
-                  <div className="field"><label className="field-label">Precio <span className="text-danger">*</span></label>
-                    <input className="inp" type="number" step="0.01" min="0.01" value={librePrecio} onChange={e => setLibrePrecio(e.target.value)} required />
-                  </div>
-                  <div className="field"><label className="field-label">Cantidad</label>
-                    <input className="inp" type="number" step="any" min="0.001" value={libreCant} onChange={e => setLibreCant(e.target.value)} />
-                  </div>
-                </div>
-                <div className="modal-footer px-0 pb-0">
-                  <button type="button" className="btn btn-ghost" onClick={() => setLibreOpen(false)}>Cancelar</button>
-                  <button type="submit" className="btn btn-primary">Agregar al carrito</button>
-                </div>
-              </form>
-            </ModalBox>
-          </ModalOverlay>
-        )}
-      </AnimatePresence>
-
-      {/* ── Modal Descuento ítem ── */}
-      <AnimatePresence>
-        {descItemOpen && descItemIdx !== null && (
-          <ModalOverlay onClose={() => setDescItemOpen(false)}>
-            <ModalBox title="Aplicar descuento" onClose={() => setDescItemOpen(false)} maxWidth={360}>
-              <div className="flex flex-col gap-4">
-                <div className="text-[13px] text-text-muted">{ticket.carrito[descItemIdx]?.nombre}</div>
-                <div className="flex gap-2">
-                  <button className={`flex-1 py-2 rounded-[var(--r-in)] border text-[12px] font-semibold transition-all ${descItemTipo==='pct' ? 'bg-[#ca8a04] text-white border-[#ca8a04]' : 'border-border text-text-muted bg-transparent'}`} onClick={() => setDescItemTipo('pct')}>Porcentaje (%)</button>
-                  <button className={`flex-1 py-2 rounded-[var(--r-in)] border text-[12px] font-semibold transition-all ${descItemTipo==='monto' ? 'bg-[#ca8a04] text-white border-[#ca8a04]' : 'border-border text-text-muted bg-transparent'}`} onClick={() => setDescItemTipo('monto')}>Monto fijo ($)</button>
-                </div>
-                <div className="field">
-                  <label className="field-label">{descItemTipo === 'pct' ? 'Porcentaje' : 'Monto'} de descuento</label>
-                  <input autoFocus className="inp" type="number" min="0" step="0.01" value={descItemVal} onChange={e => setDescItemVal(e.target.value)} />
-                </div>
-              </div>
-              <div className="modal-footer px-0 pb-0 mt-4">
-                <button className="btn btn-ghost text-danger mr-auto" onClick={() => { if (descItemIdx !== null) { const c = [...ticket.carrito]; c[descItemIdx] = { ...c[descItemIdx], descPct: 0 }; updateTicket(activeIdx, { carrito: c }); } setDescItemOpen(false); }}>Quitar descuento</button>
-                <button className="btn btn-ghost" onClick={() => setDescItemOpen(false)}>Cancelar</button>
-                <button className="btn btn-primary" onClick={aplicarDescItem}>Aplicar</button>
-              </div>
-            </ModalBox>
-          </ModalOverlay>
-        )}
-      </AnimatePresence>
+      {/* ── Modales pequeños ── */}
+      <ModalLibre
+        open={libreOpen} onClose={() => setLibreOpen(false)}
+        desc={libreDesc} precio={librePrecio} cant={libreCant}
+        setDesc={setLibreDesc} setPrecio={setLibrePrecio} setCant={setLibreCant}
+        onSubmit={agregarLibre}
+      />
+      <ModalDescItem
+        open={descItemOpen && descItemIdx !== null} onClose={() => setDescItemOpen(false)}
+        itemNombre={descItemIdx !== null ? ticket.carrito[descItemIdx]?.nombre : undefined}
+        tipo={descItemTipo} val={descItemVal}
+        setTipo={setDescItemTipo} setVal={setDescItemVal}
+        onApply={aplicarDescItem}
+        onRemove={() => {
+          if (descItemIdx !== null) {
+            const c = [...ticket.carrito];
+            c[descItemIdx] = { ...c[descItemIdx], descPct: 0 };
+            updateTicket(activeIdx, { carrito: c });
+          }
+          setDescItemOpen(false);
+        }}
+      />
 
       {/* ── Modal Movimiento de caja ── */}
       {movOpen && <ModalMovimiento turnoActivo={turnoActivo} onClose={() => setMovOpen(false)} onDone={() => { setMovOpen(false); showToast('Movimiento registrado.', 'ok'); }} />}
 
-      {/* ── Modal Renombrar ticket ── */}
-      <AnimatePresence>
-        {renombrarOpen && (
-          <ModalOverlay onClose={() => setRenombrarOpen(false)}>
-            <ModalBox title="Nombre del ticket" onClose={() => setRenombrarOpen(false)} maxWidth={320}>
-              <input autoFocus className="inp" value={renombrarVal} onChange={e => setRenombrarVal(e.target.value)} maxLength={30} onKeyDown={e => e.key === 'Enter' && (updateTicket(activeIdx, { nombre: renombrarVal.trim() || ticket.nombre }), setRenombrarOpen(false))} />
-              <div className="modal-footer px-0 pb-0 mt-4">
-                <button className="btn btn-ghost" onClick={() => setRenombrarOpen(false)}>Cancelar</button>
-                <button className="btn btn-primary" onClick={() => { updateTicket(activeIdx, { nombre: renombrarVal.trim() || ticket.nombre }); setRenombrarOpen(false); }}>Aceptar</button>
-              </div>
-            </ModalBox>
-          </ModalOverlay>
-        )}
-      </AnimatePresence>
+      <ModalRenombrar
+        open={renombrarOpen} onClose={() => setRenombrarOpen(false)}
+        val={renombrarVal} setVal={setRenombrarVal}
+        onApply={() => { updateTicket(activeIdx, { nombre: renombrarVal.trim() || ticket.nombre }); setRenombrarOpen(false); }}
+      />
 
       {/* ── Modal Anular / Devolver ── */}
       <ModalAnular
@@ -496,60 +420,16 @@ export default function Caja() {
         showToast={showToast}
       />
 
-      {/* ── Modal editor de cantidad (*) ── */}
-      <AnimatePresence>
-        {qtyEditorOpen && (
-          <ModalOverlay onClose={() => { setQtyEditorOpen(false); recuperarFocoCodigo(); }}>
-            <ModalBox title="Cantidad" onClose={() => { setQtyEditorOpen(false); recuperarFocoCodigo(); }} maxWidth={280}>
-              <form onSubmit={e => { e.preventDefault(); if (qtyEditorIdx !== null) confirmQtyEditor(qtyEditorIdx, qtyEditorVal); }} className="flex flex-col gap-4">
-                {qtyEditorIdx !== null && (
-                  <div className="text-[13px] text-text-muted truncate">{ticket.carrito[qtyEditorIdx]?.nombre}</div>
-                )}
-                <input
-                  autoFocus
-                  type="number"
-                  step="any"
-                  min="0.001"
-                  value={qtyEditorVal}
-                  onChange={e => setQtyEditorVal(e.target.value)}
-                  className="inp text-[22px] font-bold font-mono text-center"
-                />
-                <div className="modal-footer px-0 pb-0">
-                  <button type="button" className="btn btn-ghost" onClick={() => { setQtyEditorOpen(false); recuperarFocoCodigo(); }}>Cancelar</button>
-                  <button type="submit" className="btn btn-primary">Aceptar</button>
-                </div>
-              </form>
-            </ModalBox>
-          </ModalOverlay>
-        )}
-      </AnimatePresence>
+      <ModalQtyEditor
+        open={qtyEditorOpen}
+        onClose={() => { setQtyEditorOpen(false); recuperarFocoCodigo(); }}
+        itemNombre={qtyEditorIdx !== null ? ticket.carrito[qtyEditorIdx]?.nombre : undefined}
+        val={qtyEditorVal} setVal={setQtyEditorVal}
+        onConfirm={() => { if (qtyEditorIdx !== null) confirmQtyEditor(qtyEditorIdx, qtyEditorVal); }}
+      />
 
       {/* ── Wizard modo negocio ── */}
-      <AnimatePresence>
-        {wizardOpen && (
-          <motion.div className="fixed inset-0 z-[9999] bg-[rgba(15,23,42,.97)] flex items-center justify-center p-5" initial={{ opacity: 0 }} animate={{ opacity: 1 }}>
-            <div className="max-w-[800px] w-full bg-[#1e293b] border border-[#334155] rounded-2xl p-8 flex flex-col gap-6">
-              <div className="text-center">
-                <div className="text-[22px] font-bold text-[#f1f5f9] mb-2">¿Qué tipo de negocio es?</div>
-                <div className="text-[13px] text-[#94a3b8]">Elegí el modo que mejor describe tu comercio. Podés cambiarlo desde Configuración.</div>
-              </div>
-              <div className="grid grid-cols-3 gap-3.5">
-                {WIZARD_MODOS.map(m => (
-                  <button
-                    key={m.id}
-                    onClick={() => seleccionarModo(m.id)}
-                    className="bg-[#0f172a] border-2 border-[#334155] rounded-[10px] p-5 text-left flex flex-col gap-2.5 transition-all hover:border-[#3b82f6] hover:bg-[rgba(59,130,246,.07)] outline-none"
-                  >
-                    <div className="font-bold text-[14px] text-[#f1f5f9]">{m.nombre}</div>
-                    <div className="text-[12px] text-[#94a3b8] leading-snug">{m.desc}</div>
-                    {m.ejemplos && <div className="text-[11px] text-[#64748b]">{m.ejemplos}</div>}
-                  </button>
-                ))}
-              </div>
-            </div>
-          </motion.div>
-        )}
-      </AnimatePresence>
+      <ModalWizard open={wizardOpen} onSelect={seleccionarModo} />
     </div>
   );
 }
