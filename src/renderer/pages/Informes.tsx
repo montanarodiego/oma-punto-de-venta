@@ -73,15 +73,16 @@ export default function Informes() {
               <CardHeader>Top artículos más vendidos</CardHeader>
               <CardBody className="p-0">
                 <table className="tbl">
-                  <thead><tr><th>#</th><th>Artículo</th><th className="text-right">Cant.</th><th className="text-right">Total</th></tr></thead>
+                  <thead><tr><th>#</th><th>Artículo</th><th className="text-right">Cant.</th><th className="text-right">Total</th><th className="text-right">Ganancia</th></tr></thead>
                   <tbody>
-                    {topArticulos.length === 0 ? <tr><td colSpan={4} className="text-center py-6 text-text-subtle text-[13px]">Sin datos.</td></tr> :
+                    {topArticulos.length === 0 ? <tr><td colSpan={5} className="text-center py-6 text-text-subtle text-[13px]">Sin datos.</td></tr> :
                     topArticulos.slice(0,10).map((a,i) => (
                       <tr key={i}>
                         <td className="text-[12px] text-text-subtle font-bold">{i+1}</td>
                         <td className="text-[13px]">{a.nombre ?? 'Ítem libre'}</td>
                         <td className="text-right font-mono text-[13px]">{a.cantidad_total}</td>
                         <td className="text-right font-mono text-[13px]">{fmt(a.importe_total)}</td>
+                        <td className="text-right font-mono text-[13px] text-[#4ade80]">{fmt(a.ganancia)}</td>
                       </tr>
                     ))}
                   </tbody>
@@ -93,14 +94,15 @@ export default function Informes() {
               <CardHeader>Ventas por día</CardHeader>
               <CardBody className="p-0">
                 <table className="tbl">
-                  <thead><tr><th>Fecha</th><th className="text-right">Ventas</th><th className="text-right">Monto</th></tr></thead>
+                  <thead><tr><th>Fecha</th><th className="text-right">Ventas</th><th className="text-right">Monto</th><th className="text-right">Ganancia</th></tr></thead>
                   <tbody>
-                    {ventasPorDia.length === 0 ? <tr><td colSpan={3} className="text-center py-6 text-text-subtle text-[13px]">Sin datos.</td></tr> :
+                    {ventasPorDia.length === 0 ? <tr><td colSpan={4} className="text-center py-6 text-text-subtle text-[13px]">Sin datos.</td></tr> :
                     ventasPorDia.map((d,i) => (
                       <tr key={i}>
                         <td className="text-[12px]">{new Date(d.fecha+'T00:00:00').toLocaleDateString('es-AR',{weekday:'short',day:'2-digit',month:'2-digit'})}</td>
                         <td className="text-right font-mono text-[13px]">{d.cantidad}</td>
                         <td className="text-right font-mono text-[13px] font-semibold">{fmt(d.monto_total)}</td>
+                        <td className="text-right font-mono text-[13px] text-[#4ade80]">{fmt(d.ganancia)}</td>
                       </tr>
                     ))}
                   </tbody>
