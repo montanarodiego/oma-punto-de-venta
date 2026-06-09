@@ -1,11 +1,13 @@
 import { useState, useEffect, useRef, useMemo } from 'react';
 import { Card, CardHeader, CardBody, VirtualTable } from '../components/ui';
-import type { ResumenRapido, ArticuloVendido, VentaDia, UtilidadBrutaResult, UtilidadItem, MejorDia, VentaDepto } from '../types/api';
+import type { ResumenRapido, ArticuloVendido, VentaDia, UtilidadBrutaResult, UtilidadItem, MejorDia, VentaDepto, VentaMes } from '../types/api';
 import { Chart, registerables } from 'chart.js';
 
 Chart.register(...registerables);
 
 const CHART_COLORS = ['#4f8ef5','#2dda6e','#f59e0b','#ef4444','#a78bfa','#38bdf8','#fb923c','#34d399','#f472b6','#818cf8'];
+const MESES = ['ene','feb','mar','abr','may','jun','jul','ago','sep','oct','nov','dic'];
+function fmtMes(ym: string) { const [y, m] = ym.split('-'); return `${MESES[+m - 1]} ${y.slice(2)}`; }
 
 type UtilSortKey = 'utilidad_total' | 'margen' | 'nombre';
 function fmtPct(n: number) { return `${(n ?? 0).toFixed(1)}%`; }
@@ -24,9 +26,11 @@ export default function Informes() {
   const [utilidad, setUtilidad] = useState<UtilidadBrutaResult | null>(null);
   const [mejor,        setMejor]       = useState<MejorDia | null>(null);
   const [ventasDeptos, setVentasDeptos] = useState<VentaDepto[]>([]);
+  const [ventasMes,    setVentasMes]    = useState<VentaMes[]>([]);
   const [loading, setLoading] = useState(false);
 
   const deptoChartRef = useRef<HTMLCanvasElement>(null);
+  const mesChartRef   = useRef<HTMLCanvasElement>(null);
   const [utilSort, setUtilSort] = useState<UtilSortKey>('utilidad_total');
   const [utilDir,  setUtilDir]  = useState<'asc' | 'desc'>('desc');
 
@@ -68,16 +72,17 @@ export default function Informes() {
 
   async function cargar() {
     setLoading(true);
-    const [r, top, util, dias, mej, deptos] = await Promise.all([
+    const [r, top, util, dias, mej, deptos, meses] = await Promise.all([
       window.api.informes.resumenRapido(desde, hasta),
       window.api.informes.articulosMasVendidos(desde, hasta),
       window.api.informes.utilidadBruta(desde, hasta),
       window.api.informes.ventasPorDia(desde, hasta),
       window.api.informes.mejorDia(desde, hasta),
       window.api.informes.ventasPorDepartamento(desde, hasta),
+      window.api.informes.ventasPorMes(desde, hasta),
     ]);
     setResumen(r); setTopArticulos(top ?? []); setUtilidad(util); setVentasPorDia(dias ?? []);
-    setMejor(mej); setVentasDeptos(deptos ?? []);
+    setMejor(mej); setVentasDeptos(deptos ?? []); setVentasMes(meses ?? []);
     setLoading(false);
   }
 
@@ -114,6 +119,59 @@ export default function Informes() {
     });
     return () => chart.destroy();
   }, [ventasDeptos]);
+
+  useEffect(() => {
+    if (!mesChartRef.current || !ventasMes.length) return;
+    const chart = new Chart(mesChartRef.current, {
+      type: 'line',
+      data: {
+        labels: ventasMes.map(m => fmtMes(m.mes)),
+        datasets: [
+          {
+            label: 'Ventas',
+            data: ventasMes.map(m => m.total),
+            borderColor: '#4f8ef5',
+            backgroundColor: 'rgba(79,142,245,0.08)',
+            fill: true,
+            tension: 0.4,
+            pointRadius: 4,
+            pointBackgroundColor: '#4f8ef5',
+          },
+          {
+            label: 'Ganancia',
+            data: ventasMes.map(m => m.ganancia),
+            borderColor: '#2dda6e',
+            backgroundColor: 'rgba(45,218,110,0.06)',
+            fill: true,
+            tension: 0.4,
+            pointRadius: 4,
+            pointBackgroundColor: '#2dda6e',
+          },
+        ],
+      },
+      options: {
+        responsive: true,
+        maintainAspectRatio: false,
+        plugins: {
+          legend: { labels: { color: '#8fa3bd', boxWidth: 12, padding: 16 } },
+          tooltip: {
+            callbacks: { label: ctx => ` ${ctx.dataset.label}: ${fmt(ctx.parsed.y)}` },
+          },
+        },
+        scales: {
+          x: {
+            ticks: { color: '#8fa3bd' },
+            grid:  { color: '#1c2a3f' },
+          },
+          y: {
+            ticks: { color: '#8fa3bd', callback: v => fmt(Number(v)) },
+            grid:  { color: '#1c2a3f' },
+          },
+        },
+      },
+    });
+    return () => chart.destroy();
+  }, [ventasMes]);
 
   return (
     <div className="page-content">
@@ -230,6 +288,18 @@ export default function Informes() {
                       <div className="text-[20px] font-black font-mono tabular-nums">{fmt(f.value)}</div>
                     </div>
                   ))}
+                </div>
+              </CardBody>
+            </Card>
+          )}
+
+          {/* Evolución mensual */}
+          {ventasMes.length > 0 && (
+            <Card>
+              <CardHeader>Evolución mensual — Ventas y ganancia</CardHeader>
+              <CardBody>
+                <div style={{ position: 'relative', height: 260 }}>
+                  <canvas ref={mesChartRef} />
                 </div>
               </CardBody>
             </Card>
