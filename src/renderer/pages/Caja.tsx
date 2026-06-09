@@ -686,6 +686,7 @@ export default function Caja() {
   async function seleccionarTransAnular(transId: number) {
     try {
       const t = await window.api.transacciones.getById(transId);
+      if (!t) { setAnularError('Transacción no encontrada.'); return; }
       setAnularSelTrans(t);
       const qtys: Record<number, number> = {};
       for (const item of t.detalle) qtys[item.id] = item.cantidad;
@@ -1732,7 +1733,7 @@ function MovimientoModal({ turnoActivo, onClose, onDone }: { turnoActivo: any; o
     if (!turnoActivo) { setError('No hay turno abierto.'); return; }
     setLoading(true);
     try {
-      await window.api.movimientos.registrar({ turno_id: turnoActivo.id, tipo, categoria, monto: m, descripcion: desc.trim() || categoria });
+      await window.api.movimientos.registrar({ turnoId: turnoActivo.id, tipo, categoria, monto: m, descripcion: desc.trim() || categoria });
       onDone();
     } catch (err: any) { setError(err.message); }
     finally { setLoading(false); }
