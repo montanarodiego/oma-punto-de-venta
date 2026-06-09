@@ -1,11 +1,26 @@
 # RETOMAR — Estado de OmaTech POS
 
-**Fecha:** 9 jun 2026 (actualizado al final de sesión)
-**Rama:** main
+**Fecha:** 9 jun 2026 (actualizado al final de sesión — noche)
+**Rama:** main · 12 commits pendientes de push (sesión de hoy)
 
 ---
 
-## LO QUE SE HIZO: refactor Caja.tsx → caja/ (sesión 2026-06-09 tarde)
+## LO QUE SE HIZO: robustez — error boundary + recuperación de carrito (2026-06-09 noche)
+
+| Commit | Descripción |
+|--------|-------------|
+| `57aa686` | Error boundary por ruta + localStorage backup del carrito |
+
+### Detalle
+
+- **`src/renderer/components/ErrorBoundary.tsx`** (nuevo): componente de clase que captura errores de render con `componentDidCatch`, los loguea via `window.api.log.error` → `electron-log`, y muestra pantalla de recuperación con tema oscuro (CSS variables, sin fondo blanco). Botones: **Reintentar** (resetea estado del boundary) y **Volver a Caja** (`window.location.hash = '#/caja'`).
+- **`App.tsx`**: cada ruta envuelta en su propio `<ErrorBoundary>` — un crash en Informes no tumba la venta en Caja.
+- **`useCarrito.ts`**: lazy init restaura desde `localStorage` (`oma_tickets_backup`) si existe; `useEffect([tickets])` guarda en cada cambio; `limpiarTicket` elimina el backup tras la venta.
+- **`ipc.js` + `preload.js` + `api.d.ts`**: nuevo canal `log:error` (`ipcMain.on` / `ipcRenderer.send`, fire-and-forget).
+
+---
+
+## LO QUE SE HIZO: refactor Caja.tsx → caja/ (2026-06-09 tarde)
 
 **Resultado:** `Caja.tsx` pasó de **1776 → 436 líneas** (75% reducción). Refactor puro — cero cambio de comportamiento.
 
@@ -23,6 +38,7 @@
 | `08e3ace` | `ModalAnular.tsx` | Modal anular/devolver con init via `useEffect` on open |
 | `e188286` | `ui.tsx`, `CodigoInput.tsx`, `ModalMovimiento.tsx` | Componentes UI compartidos, input de código con scanner, modal de movimiento |
 | `432c686` | `ModalWizard.tsx`, `ModalesInline.tsx`, `CajaPie.tsx` | Wizard de modo, 4 modales pequeños, footer del pie de caja |
+| `f4f2bbf` | — | Eliminación del código legacy vanilla JS/HTML (ya reemplazado por React SPA) |
 
 ### Arquitectura resultante de caja/
 
@@ -30,7 +46,7 @@
 src/renderer/pages/caja/
   types.ts              ← interfaces + constants + pure utils
   calculosFiscales.ts   ← pure fiscal function (testable)
-  useCarrito.ts         ← multi-ticket state hook
+  useCarrito.ts         ← multi-ticket state hook (+ localStorage backup)
   TicketTabs.tsx        ← tab bar
   BuscadorArticulos.tsx ← F10 overlay (self-contained)
   CarritoLista.tsx      ← cart table + CartRow (React.memo)
@@ -52,7 +68,7 @@ node tests/calculos_fiscales.test.js   # 13 assertions — todos pasan
 
 ---
 
-## LO QUE SE HIZO ANTES (sesión 2026-06-09 mañana)
+## LO QUE SE HIZO: tipado IPC + bugs críticos (2026-06-09 mañana)
 
 ### Tipado IPC completo (FASE 1–3)
 
@@ -62,44 +78,52 @@ node tests/calculos_fiscales.test.js   # 13 assertions — todos pasan
 | `180111a` | FASE 2: reemplazar `useState<any>` en Informes, Turno, Inventario, PedidosCompra |
 | `38dfb7f` | FASE 3: tests de contrato backend (`tests/contrato_backend.test.js`) |
 
-### Bugs de runtime corregidos por el tipado
+### Bugs de runtime corregidos
 
-| Commit | Archivo | Bug |
-|--------|---------|-----|
-| `3f91810` | `Caja.tsx:1735` | `turno_id` → `turnoId` en movimientos.registrar |
-| `3f91810` | `Caja.tsx:691` | null guard faltante en getById antes de `t.detalle` |
-| `c16b235` | `Caja.tsx:534` | **CRÍTICO**: ventas completamente rotas — create recibía objeto plano, modelo espera `{ transaccion, detalle }`. Test de integración agregado (`tests/cobro_integracion.test.js`, 5 escenarios pasando) |
-
-### 3 fixes de UX/layout
-
-| Commit | Fix |
+| Commit | Bug |
 |--------|-----|
-| `02af0c4` | `html/body { overflow:hidden }` — capa de seguridad contra scroll del documento |
-| `30b8367` | **Layout**: sidebar y headers de columna fijos al scrollear listas largas. Causas: wrapper explícito 100vh alrededor de AnimatePresence + `min-h-0` en VirtualTable + `border-collapse:separate` para sticky headers |
-| `9fed747` | **Buscador F10**: "pancho" ahora encuentra "1 SUPER PANCHO CON PAPAS" — FTS fallaba silenciosamente; reemplazado por LIKE con AND por palabra |
-| `252acbc` | **Impresoras**: filtro por `PortName` y `Name` para excluir OneNote/PDF/Fax y no despertar apps virtuales al listar |
+| `3f91810` | `turno_id` → `turnoId` en movimientos.registrar; null guard en getById |
+| `c16b235` | **CRÍTICO**: ventas nunca se guardaban — create recibía objeto plano en vez de `{ transaccion, detalle }`. Test de integración: `tests/cobro_integracion.test.js` (5 escenarios) |
+| `02af0c4` | `html/body { overflow:hidden }` — scroll del documento apagado |
+| `30b8367` | Layout: sidebar y headers de columna fijos; scroll solo en área de tabla |
+| `9fed747` | Buscador F10: búsqueda por substring + multi-palabra (FTS fallaba silenciosamente) |
+| `252acbc` | Impresoras: excluir OneNote/PDF/Fax para no despertar apps virtuales |
+
+### Navegación por teclado
+
+| Commit | Descripción |
+|--------|-------------|
+| `d4a6c39` | Hooks de navegación por teclado (`modalNav.ts`, `useCarritoKeyboard.ts`, `useTableKeyboard.ts`) |
+
+---
+
+## LO QUE SE HIZO: bugs de runtime (2026-06-08)
+
+| Commit | Bug |
+|--------|-----|
+| `435ad05` | Catálogo: `limit:500` cortaba → 196 artículos inalcanzables |
+| `fa53baf` | Departamentos: eliminación bloqueada con artículos asignados |
+| `01a9bdf` | Turnos: auto-cierre al cruzar medianoche no guardaba totales (historial en NULL/$0) |
+| `0edbd80` | Inventario: FECHA mostraba '—' (campo `fecha` vs `created_at`) y ajuste fallaba por mismatch de params |
 
 ---
 
 ## PENDIENTE (prioridades)
 
-1. **Error Boundary global**: la app no tiene manejo de errores de renderizado React
-2. **Tests de regresión**: cierre de turno, ajuste de stock, informes
-3. **Informes avanzados**: 8 reportes definidos en el backend sin UI React
-4. **Log de actividad** (ítem 12 de la lista de mejoras)
-5. **Excel import con preview** (ítem 13)
-6. **Vuln B — firmar license.json**: token offline editable con Notepad
+1. **Tests de regresión**: cierre de turno, ajuste de stock, informes — no hay tests de integración para estos flujos
+2. **Informes avanzados**: 8 reportes definidos en el backend (`informes.js`) sin UI React todavía
+3. **Log de actividad** (ítem 12): tabla `actividad_log`, loguear ventas/cancelaciones/cambios de precio/movimientos de caja; UI en Configuracion solo para admin
+4. **Excel import con preview** (ítem 13): preview + filas en rojo por error + progreso por lotes
+5. **Vuln B — firmar license.json**: token offline editable con Notepad (AES cifrado pero sin firma)
 
 ---
 
 ## HECHO EN SESIONES ANTERIORES
 
-- **5 bugs de runtime cerrados** (sesión 2026-06-08): Informes $0, Inventario fecha/usuario '—', Turnos $0 al cruzar medianoche, departamentos bloqueados, catálogo 500 límite
 - **Auditoría de runtime completa**: 12 bugs cerrados (BUG-01 a BUG-12)
 - **Seguridad**: Firebase rules publicadas, credenciales de Gmail gitignoreadas
 - **UX**: vuelto no obligatorio, "Cerrar sesión"
 - **WMIC → Get-Printer**
-- **Navegación sin mouse**: flechas en carrito, focus trap, atajos F1–F9
 - **Performance FASE 0–4**: VirtualTable + searchPaged, framer-motion auditado
 - **UX/UI** oscuro moderno: glassmorphism, gradientes, animaciones
 
