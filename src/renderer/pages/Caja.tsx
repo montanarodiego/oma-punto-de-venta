@@ -10,6 +10,7 @@ import {
   MODOS_SIN_IVA, MODOS_IVA_DESGLOSADO, UNIDADES_CONTINUAS, MAX_TICKETS,
   fmt, mkItem, aplicarPromoAItem, WIZARD_MODOS,
 } from './caja/types';
+import { calcularTotales, type Totales } from './caja/calculosFiscales';
 
 // ── Main component ──────────────────────────────────────────────────────────
 export default function Caja() {
@@ -280,33 +281,10 @@ export default function Caja() {
   }
 
   // ── Cart helpers ───────────────────────────────────────────────
-  const totales = useMemo(() => {
-    const t = ticket;
-    let sub = 0;
-    for (const item of t.carrito) {
-      const base = item.precio * item.cantidad;
-      sub += item.descPct > 0 ? base * (1 - item.descPct / 100) : base;
-    }
-    let desc = 0;
-    if (t.descGlobalTipo === 'pct') desc = sub * t.descGlobalValor / 100;
-    else if (t.descGlobalTipo === 'monto') desc = Math.min(t.descGlobalValor, sub);
-    const subtotalConDesc = sub - desc;
-
-    let iva = 0;
-    if (mostrarIva && MODOS_IVA_DESGLOSADO.has(modoNegocio)) {
-      for (const item of t.carrito) {
-        const tasa = item.tasaIva ?? tasaIva;
-        const base = item.precio * item.cantidad;
-        const baseDesc = item.descPct > 0 ? base * (1 - item.descPct / 100) : base;
-        iva += baseDesc * tasa / 100;
-      }
-      if (desc > 0) iva *= (1 - desc / sub);
-    }
-
-    const propAmt = parseFloat(propina) || 0;
-    const total = subtotalConDesc + iva + propAmt;
-    return { sub, desc, subtotalConDesc, iva, total: Math.max(0, total), propAmt };
-  }, [ticket, mostrarIva, modoNegocio, tasaIva, propina]);
+  const totales: Totales = useMemo(
+    () => calcularTotales(ticket.carrito, ticket.descGlobalTipo, ticket.descGlobalValor, propina, modoNegocio, mostrarIva, tasaIva),
+    [ticket, propina, modoNegocio, mostrarIva, tasaIva],
+  );
 
   const agregarArticulo = useCallback(async (art: Articulo, cantidad = 1) => {
     // Fetch promos solo si el artículo probablemente no está en el carrito aún.
