@@ -13,6 +13,7 @@ import {
 import type { Totales } from './caja/calculosFiscales';
 import { useCarrito } from './caja/useCarrito';
 import { TicketTabs } from './caja/TicketTabs';
+import { BuscadorArticulos } from './caja/BuscadorArticulos';
 
 // ── Main component ──────────────────────────────────────────────────────────
 export default function Caja() {
@@ -51,9 +52,6 @@ export default function Caja() {
 
   // UI state
   const [buscadorOpen, setBuscadorOpen] = useState(false);
-  const [buscadorQuery, setBuscadorQuery] = useState('');
-  const [buscadorItems, setBuscadorItems] = useState<Articulo[]>([]);
-  const [buscadorIdx, setBuscadorIdx] = useState(-1);
   const [cobroOpen, setCobroOpen] = useState(false);
   const [descInlineOpen, setDescInlineOpen] = useState(false);
   const [descTipo, setDescTipo] = useState<'pct'|'monto'>('pct');
@@ -98,19 +96,15 @@ export default function Caja() {
   const [mixtoEfectivoRecibido, setMixtoEfectivoRecibido] = useState('');
 
   const codigoIsEmptyRef = useRef(true);
-  const buscadorRef    = useRef<HTMLInputElement>(null);
-  const timerBuscador  = useRef<NodeJS.Timeout|null>(null);
   const timerCliente   = useRef<NodeJS.Timeout|null>(null);
   const cobrarRef      = useRef<(conTicket: boolean) => void>(() => {});
   const hotkeyRef      = useRef<(e: KeyboardEvent) => void>(() => {});
 
   const cobModalRef    = useRef<HTMLDivElement>(null);
   const anularModalRef = useRef<HTMLDivElement>(null);
-  const buscadorBoxRef = useRef<HTMLDivElement>(null);
 
   useFocusTrap(cobModalRef,    cobroOpen,    () => { setCobroOpen(false); window.api.setModalCobro(false); });
   useFocusTrap(anularModalRef, anularOpen,   () => setAnularOpen(false));
-  useFocusTrap(buscadorBoxRef, buscadorOpen, () => setBuscadorOpen(false));
 
   // ── Init ────────────────────────────────────────────────────────
   useEffect(() => {
@@ -140,7 +134,6 @@ export default function Caja() {
     const u3 = window.api.onAbrirCobro(() => setCobroOpen(true));
     return () => {
       u1(); u2(); u3();
-      if (timerBuscador.current) clearTimeout(timerBuscador.current);
       if (timerCliente.current)  clearTimeout(timerCliente.current);
     };
   }, []);
@@ -237,29 +230,7 @@ export default function Caja() {
     }
   }, [showToast]); // agregarArticulo uses activeIdxRef internally
 
-  // ── Buscador F10 ────────────────────────────────────────────────
-  function abrirBuscador() { setBuscadorOpen(true); setBuscadorQuery(''); setBuscadorItems([]); setBuscadorIdx(-1); }
-
-  async function buscarArticulos(q: string) {
-    if (!q.trim()) { setBuscadorItems([]); return; }
-    const res = await window.api.articulos.search(q);
-    setBuscadorItems(res);
-    setBuscadorIdx(-1);
-  }
-
-  function handleBuscadorKeyDown(e: React.KeyboardEvent) {
-    if (e.key === 'ArrowDown') { e.preventDefault(); setBuscadorIdx(i => Math.min(i + 1, buscadorItems.length - 1)); }
-    else if (e.key === 'ArrowUp') { e.preventDefault(); setBuscadorIdx(i => Math.max(i - 1, 0)); }
-    else if (e.key === 'Enter') {
-      if (buscadorIdx >= 0 && buscadorItems[buscadorIdx]) { seleccionarDelBuscador(buscadorItems[buscadorIdx]); }
-    }
-    else if (e.key === 'Escape') setBuscadorOpen(false);
-  }
-
-  function seleccionarDelBuscador(art: Articulo) {
-    agregarArticulo(art);
-    setBuscadorOpen(false);
-  }
+  function abrirBuscador() { setBuscadorOpen(true); }
 
   // ── Ítem libre ─────────────────────────────────────────────────
   function agregarLibre(e: React.FormEvent) {
@@ -652,56 +623,7 @@ export default function Caja() {
       </div>
 
       {/* ── Buscador overlay (F10) ── */}
-      <AnimatePresence>
-        {buscadorOpen && (
-          <motion.div
-            className="fixed inset-0 z-[100] bg-black/70 backdrop-blur-sm flex items-start justify-center pt-20"
-            initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
-            onClick={e => e.target === e.currentTarget && setBuscadorOpen(false)}
-          >
-            <motion.div
-              ref={buscadorBoxRef}
-              className="w-[560px] max-w-[95vw] bg-surface border border-border rounded-[var(--r-card)] shadow-[var(--shadow-lg)] overflow-hidden"
-              initial={{ y: -20, scale: 0.97 }} animate={{ y: 0, scale: 1 }} exit={{ y: -20, scale: 0.97 }}
-              transition={{ duration: 0.2 }}
-            >
-              <input
-                ref={buscadorRef}
-                autoFocus
-                value={buscadorQuery}
-                onChange={e => { setBuscadorQuery(e.target.value); if (timerBuscador.current) clearTimeout(timerBuscador.current); timerBuscador.current = setTimeout(() => buscarArticulos(e.target.value), 200); }}
-                onKeyDown={handleBuscadorKeyDown}
-                className="w-full px-5 py-4 text-[17px] bg-transparent border-b border-border outline-none text-text placeholder:text-text-subtle"
-                placeholder="Buscá por nombre, código o descripción..."
-              />
-              <div className="max-h-[400px] overflow-y-auto">
-                {buscadorItems.length === 0 ? (
-                  <div className="py-10 text-center text-text-subtle text-[14px]">
-                    {buscadorQuery ? 'Sin resultados' : 'Escribí para buscar artículos'}
-                  </div>
-                ) : (
-                  buscadorItems.map((art, i) => (
-                    <div
-                      key={art.id}
-                      onClick={() => seleccionarDelBuscador(art)}
-                      className={`flex items-center gap-4 px-5 py-3 cursor-pointer border-b border-border-sub transition-colors ${buscadorIdx === i ? 'bg-[rgba(79,142,245,.12)]' : 'hover:bg-surface-2'}`}
-                    >
-                      <div className="flex-1 min-w-0">
-                        <div className="text-[15px] font-semibold text-text truncate">{art.nombre}</div>
-                        <div className="text-[12px] text-text-muted mt-0.5">{art.codigo} · Stock: {art.stock_actual} {art.unidad_medida}</div>
-                      </div>
-                      <div className="text-[18px] font-black font-mono text-text tabular-nums">{fmt(art.precio_unitario)}</div>
-                    </div>
-                  ))
-                )}
-              </div>
-              <div className="px-5 py-2.5 border-t border-border text-[12px] text-text-subtle flex gap-4">
-                <span>↑↓ navegar</span><span>Enter seleccionar</span><span>Esc cerrar</span>
-              </div>
-            </motion.div>
-          </motion.div>
-        )}
-      </AnimatePresence>
+      <BuscadorArticulos open={buscadorOpen} onClose={() => setBuscadorOpen(false)} onSelect={agregarArticulo} />
 
       {/* ── Modal Cobro (F12) ── */}
       <AnimatePresence>
