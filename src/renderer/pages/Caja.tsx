@@ -3,7 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { useToast } from '../context/ToastContext';
 import { useCarritoKeyboard } from '../hooks/useCarritoKeyboard';
 import type { Articulo } from '../types/api';
-import { mkItem } from './caja/types';
+import { mkItem, WIZARD_MODOS } from './caja/types';
 import type { Totales } from './caja/calculosFiscales';
 import { useCarrito } from './caja/useCarrito';
 import { TicketTabs } from './caja/TicketTabs';
@@ -33,6 +33,7 @@ export default function Caja() {
   const [wizardOpen, setWizardOpen] = useState(false);
   const [mayoreoMode, setMayoreoMode] = useState(false);
   const [mostrarPrecioConIva, setMostrarPrecioConIva] = useState(false);
+  const [propina, setPropina] = useState(''); // debe declararse antes de useCarrito
 
   const codigoRef = useRef<CodigoInputHandle>(null);
   const recuperarFocoCodigo = useCallback(() => { setTimeout(() => codigoRef.current?.focus(), 50); }, []);
@@ -61,7 +62,6 @@ export default function Caja() {
   const [descVal, setDescVal] = useState('');
   const [notasOpen, setNotasOpen] = useState(false);
   const [showPropina, setShowPropina] = useState(false);
-  const [propina, setPropina] = useState('');
   const [ultimaTransId, setUltimaTransId] = useState<number|null>(null);
 
   // Modals
