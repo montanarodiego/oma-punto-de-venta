@@ -4,7 +4,7 @@ import { AnimatePresence, motion } from 'framer-motion';
 import { useToast } from '../context/ToastContext';
 import { useFocusTrap } from '../hooks/useFocusTrap';
 import { useCarritoKeyboard } from '../hooks/useCarritoKeyboard';
-import type { Articulo, Cliente } from '../types/api';
+import type { Articulo, Cliente, CreateTransaccionData } from '../types/api';
 
 // ── Types ──────────────────────────────────────────────────────────
 interface PromoItem {
@@ -509,26 +509,28 @@ export default function Caja() {
       const propAmt  = parseFloat(propina) || 0;
       const mixtoMonto2Calc = forma === 'mixto' ? Math.max(0, total - (parseFloat(mixtoMonto1) || 0)) : 0;
 
-      const data = {
-        turno_id:        turnoActivo.id,
-        monto_total:     total,
-        subtotal:        totales.subtotalConDesc,
-        monto_impuesto:  totales.iva,
-        descuento_global: totales.desc,
-        propina:         propAmt,
-        forma_pago:      forma === 'mixto' ? mixtoMetodo1 : forma,
-        forma_pago_2:    forma === 'mixto' ? mixtoMetodo2 : null,
-        monto_pago_2:    forma === 'mixto' ? mixtoMonto2Calc : null,
-        cuenta_cliente_id: cobroCliente?.id ?? null,
-        items: ticket.carrito.map(it => ({
-          articulo_id:       it.articuloId ?? null,
-          descripcion_libre: it.esLibre ? it.nombre : (it.nombre),
-          cantidad:          it.cantidad,
-          precio_al_momento: it.precio,
+      const data: CreateTransaccionData = {
+        transaccion: {
+          turno_id:          turnoActivo.id,
+          monto_total:       total,
+          subtotal:          totales.subtotalConDesc,
+          monto_impuesto:    totales.iva,
+          descuento_global:  totales.desc,
+          propina:           propAmt,
+          forma_pago:        forma === 'mixto' ? mixtoMetodo1 : forma,
+          forma_pago_2:      forma === 'mixto' ? mixtoMetodo2 : null,
+          monto_pago_2:      forma === 'mixto' ? mixtoMonto2Calc : null,
+          cuenta_cliente_id: cobroCliente?.id ?? null,
+          notas:             ticket.notas || null,
+        },
+        detalle: ticket.carrito.map(it => ({
+          articulo_id:          it.articuloId ?? null,
+          descripcion_libre:    it.esLibre ? it.nombre : it.nombre,
+          cantidad:             it.cantidad,
+          precio_al_momento:    it.precio,
           descuento_porcentaje: it.descPct,
-          importe_total:     it.precio * it.cantidad * (1 - it.descPct / 100),
+          importe_total:        it.precio * it.cantidad * (1 - it.descPct / 100),
         })),
-        notas: ticket.notas,
       };
 
       const res = await window.api.transacciones.create(data);
