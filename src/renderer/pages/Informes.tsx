@@ -1,6 +1,11 @@
-import { useState, useEffect, useMemo } from 'react';
+import { useState, useEffect, useRef, useMemo } from 'react';
 import { Card, CardHeader, CardBody, VirtualTable } from '../components/ui';
-import type { ResumenRapido, ArticuloVendido, VentaDia, UtilidadBrutaResult, UtilidadItem, MejorDia } from '../types/api';
+import type { ResumenRapido, ArticuloVendido, VentaDia, UtilidadBrutaResult, UtilidadItem, MejorDia, VentaDepto } from '../types/api';
+import { Chart, registerables } from 'chart.js';
+
+Chart.register(...registerables);
+
+const CHART_COLORS = ['#4f8ef5','#2dda6e','#f59e0b','#ef4444','#a78bfa','#38bdf8','#fb923c','#34d399','#f472b6','#818cf8'];
 
 type UtilSortKey = 'utilidad_total' | 'margen' | 'nombre';
 function fmtPct(n: number) { return `${(n ?? 0).toFixed(1)}%`; }
@@ -17,8 +22,11 @@ export default function Informes() {
   const [topArticulos, setTopArticulos] = useState<ArticuloVendido[]>([]);
   const [ventasPorDia, setVentasPorDia] = useState<VentaDia[]>([]);
   const [utilidad, setUtilidad] = useState<UtilidadBrutaResult | null>(null);
-  const [mejor,   setMejor]   = useState<MejorDia | null>(null);
+  const [mejor,        setMejor]       = useState<MejorDia | null>(null);
+  const [ventasDeptos, setVentasDeptos] = useState<VentaDepto[]>([]);
   const [loading, setLoading] = useState(false);
+
+  const deptoChartRef = useRef<HTMLCanvasElement>(null);
   const [utilSort, setUtilSort] = useState<UtilSortKey>('utilidad_total');
   const [utilDir,  setUtilDir]  = useState<'asc' | 'desc'>('desc');
 
@@ -60,16 +68,52 @@ export default function Informes() {
 
   async function cargar() {
     setLoading(true);
-    const [r, top, util, dias, mej] = await Promise.all([
+    const [r, top, util, dias, mej, deptos] = await Promise.all([
       window.api.informes.resumenRapido(desde, hasta),
       window.api.informes.articulosMasVendidos(desde, hasta),
       window.api.informes.utilidadBruta(desde, hasta),
       window.api.informes.ventasPorDia(desde, hasta),
       window.api.informes.mejorDia(desde, hasta),
+      window.api.informes.ventasPorDepartamento(desde, hasta),
     ]);
-    setResumen(r); setTopArticulos(top ?? []); setUtilidad(util); setVentasPorDia(dias ?? []); setMejor(mej);
+    setResumen(r); setTopArticulos(top ?? []); setUtilidad(util); setVentasPorDia(dias ?? []);
+    setMejor(mej); setVentasDeptos(deptos ?? []);
     setLoading(false);
   }
+
+  useEffect(() => {
+    if (!deptoChartRef.current || !ventasDeptos.length) return;
+    const chart = new Chart(deptoChartRef.current, {
+      type: 'bar',
+      data: {
+        labels: ventasDeptos.map(d => d.departamento),
+        datasets: [{
+          label: 'Ventas',
+          data: ventasDeptos.map(d => d.total),
+          backgroundColor: ventasDeptos.map((_, i) => CHART_COLORS[i % CHART_COLORS.length]),
+          borderWidth: 0,
+          borderRadius: 4,
+        }],
+      },
+      options: {
+        indexAxis: 'y',
+        responsive: true,
+        maintainAspectRatio: false,
+        plugins: { legend: { display: false } },
+        scales: {
+          x: {
+            ticks: { color: '#8fa3bd', callback: v => fmt(Number(v)) },
+            grid:  { color: '#1c2a3f' },
+          },
+          y: {
+            ticks: { color: '#eef2f8', font: { size: 12 } },
+            grid:  { display: false },
+          },
+        },
+      },
+    });
+    return () => chart.destroy();
+  }, [ventasDeptos]);
 
   return (
     <div className="page-content">
@@ -186,6 +230,18 @@ export default function Informes() {
                       <div className="text-[20px] font-black font-mono tabular-nums">{fmt(f.value)}</div>
                     </div>
                   ))}
+                </div>
+              </CardBody>
+            </Card>
+          )}
+
+          {/* Ventas por departamento */}
+          {ventasDeptos.length > 0 && (
+            <Card>
+              <CardHeader>Ventas por departamento</CardHeader>
+              <CardBody>
+                <div style={{ position: 'relative', height: Math.max(180, ventasDeptos.length * 44) }}>
+                  <canvas ref={deptoChartRef} />
                 </div>
               </CardBody>
             </Card>
