@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
 import { Card, CardHeader, CardBody } from '../components/ui';
+import type { ResumenRapido, ArticuloVendido, VentaDia, UtilidadBrutaResult } from '../types/api';
 
 function fmt(n: number) { return new Intl.NumberFormat('es-AR',{style:'currency',currency:'ARS',minimumFractionDigits:2}).format(n??0); }
 
@@ -9,10 +10,10 @@ function primerDiaMes() { const d = new Date(); d.setDate(1); return d.toISOStri
 export default function Informes() {
   const [desde, setDesde] = useState(primerDiaMes());
   const [hasta, setHasta] = useState(hoy());
-  const [resumen, setResumen] = useState<any>(null);
-  const [topArticulos, setTopArticulos] = useState<any[]>([]);
-  const [ventasPorDia, setVentasPorDia] = useState<any[]>([]);
-  const [utilidad, setUtilidad] = useState<any>(null);
+  const [resumen, setResumen] = useState<ResumenRapido | null>(null);
+  const [topArticulos, setTopArticulos] = useState<ArticuloVendido[]>([]);
+  const [ventasPorDia, setVentasPorDia] = useState<VentaDia[]>([]);
+  const [utilidad, setUtilidad] = useState<UtilidadBrutaResult | null>(null);
   const [loading, setLoading] = useState(false);
 
   useEffect(() => { cargar(); }, []);
@@ -78,7 +79,7 @@ export default function Informes() {
                     topArticulos.slice(0,10).map((a,i) => (
                       <tr key={i}>
                         <td className="text-[12px] text-text-subtle font-bold">{i+1}</td>
-                        <td className="text-[13px]">{a.nombre??a.descripcion_libre??'Ítem libre'}</td>
+                        <td className="text-[13px]">{a.nombre ?? 'Ítem libre'}</td>
                         <td className="text-right font-mono text-[13px]">{a.cantidad_total}</td>
                         <td className="text-right font-mono text-[13px]">{fmt(a.importe_total)}</td>
                       </tr>

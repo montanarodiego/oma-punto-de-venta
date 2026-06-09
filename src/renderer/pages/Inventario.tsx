@@ -2,6 +2,7 @@ import { useState, useEffect, useRef } from 'react';
 import { useToast } from '../context/ToastContext';
 import { useSession } from '../context/SessionContext';
 import { Card, CardHeader, CardBody, Button, Field, Input, Select, Modal, VirtualTable } from '../components/ui';
+import type { MovimientoInventario, Articulo } from '../types/api';
 
 function fmt(n: number) { return new Intl.NumberFormat('es-AR',{style:'currency',currency:'ARS',minimumFractionDigits:2}).format(n??0); }
 function fmtFecha(s: string) { return s ? new Date(s).toLocaleString('es-AR',{day:'2-digit',month:'2-digit',year:'numeric',hour:'2-digit',minute:'2-digit'}) : '—'; }
@@ -21,8 +22,8 @@ function handleNumericKeyDown(e: React.KeyboardEvent<HTMLInputElement>) {
 export default function Inventario() {
   const { showToast } = useToast();
   const { session }   = useSession();
-  const [movimientos, setMovimientos] = useState<any[]>([]);
-  const [stockBajo, setStockBajo] = useState<any[]>([]);
+  const [movimientos, setMovimientos] = useState<MovimientoInventario[]>([]);
+  const [stockBajo, setStockBajo] = useState<Articulo[]>([]);
   const [loading, setLoading] = useState(true);
   const [tab, setTab] = useState<'movimientos'|'stock-bajo'>('movimientos');
   const [ajusteOpen, setAjusteOpen] = useState(false);
@@ -32,8 +33,8 @@ export default function Inventario() {
   const [motivo, setMotivo] = useState('');
   const [ajustando, setAjustando] = useState(false);
   const [artBusqueda, setArtBusqueda] = useState('');
-  const [artResultados, setArtResultados] = useState<any[]>([]);
-  const [artSel, setArtSel] = useState<any|null>(null);
+  const [artResultados, setArtResultados] = useState<Articulo[]>([]);
+  const [artSel, setArtSel] = useState<Articulo | null>(null);
   const [error, setError] = useState('');
 
   const buscarTimer = useRef<NodeJS.Timeout | null>(null);

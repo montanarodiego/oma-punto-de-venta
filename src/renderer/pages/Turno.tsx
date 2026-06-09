@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
 import { useToast } from '../context/ToastContext';
 import { Card, CardHeader, CardBody, Button, Field, Input, Modal } from '../components/ui';
-import type { Turno, MovimientoCaja } from '../types/api';
+import type { Turno, MovimientoCaja, TurnoResumen } from '../types/api';
 
 const CAT_LABELS: Record<string,string> = {
   fondo_cambio:'Fondo de cambio', retiro_banco:'Retiro de banco', cobro_deuda:'Cobro de deuda',
@@ -22,7 +22,7 @@ export default function TurnoPage() {
   const { showToast } = useToast();
   const [turno, setTurno] = useState<Turno|null>(null);
   const [historial, setHistorial] = useState<Turno[]>([]);
-  const [resumen, setResumen] = useState<any>(null);
+  const [resumen, setResumen] = useState<TurnoResumen | null>(null);
   const [movimientos, setMovimientos] = useState<MovimientoCaja[]>([]);
   const [loading, setLoading] = useState(true);
 

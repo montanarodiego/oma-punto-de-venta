@@ -1,4 +1,5 @@
 import { useState, useEffect, useMemo } from 'react';
+import { useTableKeyboard } from '../hooks/useTableKeyboard';
 import { useToast } from '../context/ToastContext';
 import { useSession } from '../context/SessionContext';
 import { Button, Field, Input, Modal, Badge } from '../components/ui';
@@ -35,13 +36,13 @@ interface PedidoDB {
   id: number;
   proveedor_id: number | null;
   proveedor_nombre: string | null;
-  proveedor_label: string;
+  proveedor_label: string | null;
   estado: EstadoPedido;
   notas: string | null;
   fecha_creacion: string;
   fecha_envio: string | null;
   fecha_recepcion: string | null;
-  total_items: number;
+  total_items?: number;
   items?: PedidoItemDB[];
 }
 
@@ -728,6 +729,19 @@ export default function PedidosCompra() {
     }),
   [pedidos, filtro, busqueda]);
 
+  const [tableActiveIdx, setTableActiveIdx] = useState(-1);
+  useEffect(() => { setTableActiveIdx(-1); }, [busqueda, filtro]);
+  useEffect(() => {
+    document.querySelector('[data-tbl-sel="true"]')?.scrollIntoView({ block: 'nearest' });
+  }, [tableActiveIdx]);
+  useTableKeyboard({
+    items:        filtrados,
+    activeIdx:    tableActiveIdx,
+    setActiveIdx: setTableActiveIdx,
+    onOpen:       abrirDetalle,
+    enabled:      !modalNuevo && !modalRecibir && !modalDetalle,
+  });
+
   // ── Acciones ─────────────────────────────────────────────────────────────
 
   async function abrirEditar(p: PedidoDB) {
@@ -874,12 +888,13 @@ export default function PedidosCompra() {
               </tr>
             </thead>
             <tbody>
-              {filtrados.map(p => {
+              {filtrados.map((p, idx) => {
                 const { label, variant } = ESTADO_BADGE[p.estado] ?? { label: p.estado, variant: 'gray' as const };
                 return (
                   <tr
                     key={p.id}
-                    className="group cursor-pointer"
+                    data-tbl-sel={tableActiveIdx === idx ? 'true' : undefined}
+                    className={`group cursor-pointer ${tableActiveIdx === idx ? 'bg-[rgba(79,142,245,.08)]' : ''}`}
                     onClick={() => abrirDetalle(p)}
                   >
                     <td className="font-mono text-[12px] text-text-muted">#{p.id}</td>
