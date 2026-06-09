@@ -4,13 +4,14 @@ import { AnimatePresence, motion } from 'framer-motion';
 import { useToast } from '../context/ToastContext';
 import { useFocusTrap } from '../hooks/useFocusTrap';
 import { useCarritoKeyboard } from '../hooks/useCarritoKeyboard';
-import type { Articulo, CreateTransaccionData } from '../types/api';
+import type { Articulo, Cliente, CreateTransaccionData } from '../types/api';
 import {
-  type PromoItem, type CartItem, type Ticket,
-  MODOS_SIN_IVA, MODOS_IVA_DESGLOSADO, UNIDADES_CONTINUAS, MAX_TICKETS,
-  fmt, mkItem, aplicarPromoAItem, WIZARD_MODOS,
+  type CartItem, type Ticket,
+  MODOS_SIN_IVA, MODOS_IVA_DESGLOSADO, UNIDADES_CONTINUAS,
+  fmt, mkItem, WIZARD_MODOS,
 } from './caja/types';
-import { calcularTotales, type Totales } from './caja/calculosFiscales';
+import type { Totales } from './caja/calculosFiscales';
+import { useCarrito } from './caja/useCarrito';
 
 // ── Main component ──────────────────────────────────────────────────────────
 export default function Caja() {
@@ -28,10 +29,24 @@ export default function Caja() {
   const [mayoreoMode, setMayoreoMode] = useState(false);
   const [mostrarPrecioConIva, setMostrarPrecioConIva] = useState(false);
 
-  // Tickets (multi-tab)
-  const [tickets, setTickets] = useState<Ticket[]>([{ id: Date.now(), nombre: 'Venta', carrito: [], clienteSeleccionado: null, formaPago: 'efectivo', descGlobalTipo: 'ninguno', descGlobalValor: 0, notas: '', itemSelIdx: null }]);
-  const [activeIdx, setActiveIdx] = useState(0);
-  const ticket = tickets[activeIdx];
+  const codigoRef = useRef<CodigoInputHandle>(null);
+  const recuperarFocoCodigo = useCallback(() => { setTimeout(() => codigoRef.current?.focus(), 50); }, []);
+
+  const {
+    tickets, activeIdx, setActiveIdx, ticket, totales,
+    activeIdxRef, ticketsRef, mayoreoModeRef,
+    nuevoTicket, cerrarTicket, limpiarTicket, updateTicket,
+    agregarArticulo, borrarItemSel,
+    onCartToggleSelect, onCartDecrement, onCartIncrement, onCartQtyChange,
+    qtyEditorOpen, qtyEditorVal, qtyEditorIdx,
+    setQtyEditorOpen, setQtyEditorVal,
+    openQtyEditor, confirmQtyEditor,
+  } = useCarrito({
+    modoNegocio, tasaIva, mostrarIva, mayoreoMode, propina,
+    showToast,
+    focusCodigo:  recuperarFocoCodigo,
+    clearCodigo:  () => codigoRef.current?.clear(),
+  });
 
   // UI state
   const [buscadorOpen, setBuscadorOpen] = useState(false);
@@ -68,11 +83,6 @@ export default function Caja() {
   const [renombrarOpen, setRenombrarOpen] = useState(false);
   const [renombrarVal, setRenombrarVal] = useState('');
 
-  // Qty editor (*) modal
-  const [qtyEditorOpen, setQtyEditorOpen] = useState(false);
-  const [qtyEditorVal,  setQtyEditorVal]  = useState('');
-  const [qtyEditorIdx,  setQtyEditorIdx]  = useState<number | null>(null);
-
   // Cobro state
   const [cobroFormaPago, setCobroFormaPago] = useState('efectivo');
   const [cobroMonto, setCobroMonto] = useState('');
@@ -86,23 +96,13 @@ export default function Caja() {
   const [mixtoMonto1, setMixtoMonto1] = useState('');
   const [mixtoEfectivoRecibido, setMixtoEfectivoRecibido] = useState('');
 
-  // codigoIsEmptyRef: tracks whether the código input is currently empty,
-  // updated by CodigoInput without causing parent re-renders.
   const codigoIsEmptyRef = useRef(true);
-  // activeIdxRef: stable ref so callbacks can read activeIdx without being recreated.
-  const activeIdxRef = useRef(activeIdx);
-  activeIdxRef.current = activeIdx;
-
-  const codigoRef = useRef<CodigoInputHandle>(null);
-  const buscadorRef = useRef<HTMLInputElement>(null);
-  const timerBuscador = useRef<NodeJS.Timeout|null>(null);
-  const timerCliente = useRef<NodeJS.Timeout|null>(null);
+  const buscadorRef    = useRef<HTMLInputElement>(null);
+  const timerBuscador  = useRef<NodeJS.Timeout|null>(null);
+  const timerCliente   = useRef<NodeJS.Timeout|null>(null);
   const cobrarRef      = useRef<(conTicket: boolean) => void>(() => {});
   const hotkeyRef      = useRef<(e: KeyboardEvent) => void>(() => {});
-  const mayoreoModeRef = useRef(mayoreoMode);
-  mayoreoModeRef.current = mayoreoMode;
 
-  // Refs para focus trap en los modales inline (cobro, anular, buscador)
   const cobModalRef    = useRef<HTMLDivElement>(null);
   const anularModalRef = useRef<HTMLDivElement>(null);
   const buscadorBoxRef = useRef<HTMLDivElement>(null);
@@ -197,7 +197,7 @@ export default function Caja() {
     return () => document.removeEventListener('keydown', handler, true);
   }, []);
 
-  // Teclas de carrito en capture phase: intercepta ANTES que el input de código reciba el evento
+  // Teclas de carrito en capture phase
   useCarritoKeyboard({
     enabled:  noModal,
     hasItems: ticket.carrito.length > 0,
@@ -213,38 +213,9 @@ export default function Caja() {
       });
       recuperarFocoCodigo();
     },
-    onPlus: () => {
-      const idx = ticket.itemSelIdx ?? ticket.carrito.length - 1;
-      const selItem = ticket.carrito[idx];
-      if (!selItem) return;
-      const isConti = UNIDADES_CONTINUAS.has(selItem.unidadMedida ?? '');
-      const c = [...ticket.carrito];
-      c[idx] = aplicarPromoAItem({ ...selItem, cantidad: selItem.cantidad + (isConti ? 0.1 : 1) });
-      updateTicket(activeIdx, { carrito: c, itemSelIdx: idx });
-      recuperarFocoCodigo();
-    },
-    onMinus: () => {
-      const idx = ticket.itemSelIdx ?? ticket.carrito.length - 1;
-      const selItem = ticket.carrito[idx];
-      if (!selItem) return;
-      const isConti = UNIDADES_CONTINUAS.has(selItem.unidadMedida ?? '');
-      const step = isConti ? 0.1 : 1;
-      const minQty = isConti ? 0.001 : 1;
-      if (selItem.cantidad <= minQty) return;
-      const c = [...ticket.carrito];
-      c[idx] = aplicarPromoAItem({ ...selItem, cantidad: selItem.cantidad - step });
-      updateTicket(activeIdx, { carrito: c, itemSelIdx: idx });
-      recuperarFocoCodigo();
-    },
-    onStar: () => {
-      const idx = ticket.itemSelIdx ?? ticket.carrito.length - 1;
-      const item = ticket.carrito[idx];
-      if (!item) return;
-      setTickets(prev => prev.map((t, i) => i === activeIdx ? { ...t, itemSelIdx: idx } : t));
-      setQtyEditorIdx(idx);
-      setQtyEditorVal(String(item.cantidad));
-      setQtyEditorOpen(true);
-    },
+    onPlus:  () => { onCartIncrement(ticket.itemSelIdx ?? ticket.carrito.length - 1); recuperarFocoCodigo(); },
+    onMinus: () => { onCartDecrement(ticket.itemSelIdx ?? ticket.carrito.length - 1); recuperarFocoCodigo(); },
+    onStar:  () => { openQtyEditor(ticket.itemSelIdx ?? ticket.carrito.length - 1); },
   });
 
   function aplicarModo(modo: string) {
@@ -252,81 +223,7 @@ export default function Caja() {
     setMostrarPrecioConIva(modo === 'mayorista');
   }
 
-  function recuperarFocoCodigo() {
-    codigoRef.current?.focus();
-  }
-
-  // ── Ticket management ──────────────────────────────────────────
-  function nuevoTicket() {
-    if (tickets.length >= MAX_TICKETS) { showToast('Máximo 5 tickets simultáneos.', 'error'); return; }
-    const newIdx = tickets.length;
-    const n: Ticket = { id: Date.now(), nombre: `Ticket ${newIdx + 1}`, carrito: [], clienteSeleccionado: null, formaPago: 'efectivo', descGlobalTipo: 'ninguno', descGlobalValor: 0, notas: '', itemSelIdx: null };
-    setTickets(prev => [...prev, n]);
-    setActiveIdx(newIdx);
-  }
-
-  function cerrarTicket(idx: number) {
-    if (tickets.length === 1) { limpiarTicket(0); return; }
-    setTickets(prev => prev.filter((_, i) => i !== idx));
-    setActiveIdx(prev => Math.max(0, prev >= idx ? prev - 1 : prev));
-  }
-
-  function limpiarTicket(idx: number) {
-    updateTicket(idx, { carrito: [], clienteSeleccionado: null, formaPago: 'efectivo', descGlobalTipo: 'ninguno', descGlobalValor: 0, notas: '', itemSelIdx: null });
-    codigoRef.current?.clear();
-  }
-
-  function updateTicket(idx: number, patch: Partial<Ticket>) {
-    setTickets(prev => prev.map((t, i) => i === idx ? { ...t, ...patch } : t));
-  }
-
-  // ── Cart helpers ───────────────────────────────────────────────
-  const totales: Totales = useMemo(
-    () => calcularTotales(ticket.carrito, ticket.descGlobalTipo, ticket.descGlobalValor, propina, modoNegocio, mostrarIva, tasaIva),
-    [ticket, propina, modoNegocio, mostrarIva, tasaIva],
-  );
-
-  const agregarArticulo = useCallback(async (art: Articulo, cantidad = 1) => {
-    // Fetch promos solo si el artículo probablemente no está en el carrito aún.
-    // La verificación definitiva ocurre dentro del functional updater de setTickets,
-    // usando el estado más reciente (prev), por lo que llamadas concurrentes no se pisan.
-    const ai = activeIdxRef.current;
-    const probablyNew = !tickets[ai]?.carrito.some(
-      i => i.articuloId === art.id && i.descPct === 0 && !i.esLibre,
-    );
-    let promos: PromoItem[] = [];
-    if (probablyNew) {
-      try { promos = await window.api.promociones.listarPorArticulo(art.id); } catch {}
-    }
-
-    setTickets(prev => {
-      const t = prev[ai];
-      const existing = t.carrito.findIndex(
-        i => i.articuloId === art.id && i.descPct === 0 && !i.esLibre,
-      );
-      let newCarrito: CartItem[];
-      if (existing >= 0) {
-        newCarrito = t.carrito.map((it, i) =>
-          i === existing ? aplicarPromoAItem({ ...it, cantidad: it.cantidad + cantidad }) : it,
-        );
-      } else {
-        // precio calculado aquí con el ref para evitar stale closure si F11 cambió durante el await
-        const precio = (mayoreoModeRef.current && art.precio_mayoreo > 0) ? art.precio_mayoreo : art.precio_unitario;
-        const item = mkItem({
-          articuloId: art.id, codigo: art.codigo, nombre: art.nombre, precio,
-          costo: art.costo_unitario, cantidad, stockActual: art.stock_actual,
-          usaInventario: !!art.usa_inventario, unidadMedida: art.unidad_medida,
-          tasaIva: art.tasa_iva, precioBase: art.precio_unitario, promos,
-        });
-        newCarrito = [...t.carrito, aplicarPromoAItem(item)];
-      }
-      const newItemSelIdx = existing >= 0 ? existing : newCarrito.length - 1;
-      return prev.map((tk, i) => i === ai ? { ...tk, carrito: newCarrito, itemSelIdx: newItemSelIdx } : tk);
-    });
-  }, [tickets]); // tickets needed only for the `probablyNew` check before the async gap
-
   // ── Código input ───────────────────────────────────────────────
-  // procesarCodigoRef: stable ref so CodigoInput doesn't need to recreate on every render.
   const procesarCodigoFn = useCallback(async (codigo: string) => {
     if (!codigo.trim()) return;
     const art = await window.api.articulos.getByCodigo(codigo.trim());
@@ -361,25 +258,6 @@ export default function Caja() {
   function seleccionarDelBuscador(art: Articulo) {
     agregarArticulo(art);
     setBuscadorOpen(false);
-  }
-
-  // ── Borrar ítem seleccionado ────────────────────────────────────
-  function borrarItemSel() {
-    if (ticket.itemSelIdx === null) return;
-    const newCarrito = ticket.carrito.filter((_, i) => i !== ticket.itemSelIdx);
-    updateTicket(activeIdx, { carrito: newCarrito, itemSelIdx: null });
-  }
-
-  function confirmQtyEditor(e: React.FormEvent) {
-    e.preventDefault();
-    if (qtyEditorIdx === null) return;
-    const qty = parseFloat(qtyEditorVal);
-    if (isNaN(qty) || qty <= 0) return;
-    const c = [...ticket.carrito];
-    c[qtyEditorIdx] = aplicarPromoAItem({ ...c[qtyEditorIdx], cantidad: qty });
-    updateTicket(activeIdx, { carrito: c });
-    setQtyEditorOpen(false);
-    recuperarFocoCodigo();
   }
 
   // ── Ítem libre ─────────────────────────────────────────────────
@@ -498,7 +376,8 @@ export default function Caja() {
 
   // ── Descuento ítem ──────────────────────────────────────────────
   function abrirDescItem(idx: number) {
-    const item = ticket.carrito[idx];
+    const item = ticketsRef.current[activeIdxRef.current]?.carrito[idx];
+    if (!item) return;
     setDescItemIdx(idx);
     setDescItemTipo('pct');
     setDescItemVal(item.descPct > 0 ? String(item.descPct) : '');
@@ -513,70 +392,14 @@ export default function Caja() {
     setDescItemOpen(false);
   }
 
-  // ticketsRef: stable snapshot for callbacks that need the current cart without recreating.
-  const ticketsRef = useRef(tickets);
-  ticketsRef.current = tickets;
-
-  // ── Callbacks estables para CartRow (usan activeIdxRef/ticketsRef) ──
-  const onCartToggleSelect = useCallback((idx: number) => {
-    const ai = activeIdxRef.current;
-    setTickets(prev => {
-      const t = prev[ai];
-      return prev.map((tk, i) => i === ai ? { ...tk, itemSelIdx: t.itemSelIdx === idx ? null : idx } : tk);
-    });
-    recuperarFocoCodigo();
-  }, []);
-
-  const onCartDecrement = useCallback((idx: number) => {
-    setTickets(prev => {
-      const ai = activeIdxRef.current;
-      const t = prev[ai];
-      const item = t.carrito[idx];
-      if (!item) return prev;
-      const isConti = UNIDADES_CONTINUAS.has(item.unidadMedida ?? '');
-      const step = isConti ? 0.1 : 1;
-      const minQty = isConti ? 0.001 : 1;
-      if (item.cantidad <= minQty) return prev;
-      const c = [...t.carrito];
-      c[idx] = aplicarPromoAItem({ ...item, cantidad: item.cantidad - step });
-      return prev.map((tk, i) => i === ai ? { ...tk, carrito: c } : tk);
-    });
-  }, []);
-
-  const onCartIncrement = useCallback((idx: number) => {
-    setTickets(prev => {
-      const ai = activeIdxRef.current;
-      const t = prev[ai];
-      const item = t.carrito[idx];
-      if (!item) return prev;
-      const isConti = UNIDADES_CONTINUAS.has(item.unidadMedida ?? '');
-      const c = [...t.carrito];
-      c[idx] = aplicarPromoAItem({ ...item, cantidad: item.cantidad + (isConti ? 0.1 : 1) });
-      return prev.map((tk, i) => i === ai ? { ...tk, carrito: c } : tk);
-    });
-  }, []);
-
-  const onCartQtyChange = useCallback((idx: number, qty: number) => {
-    setTickets(prev => {
-      const ai = activeIdxRef.current;
-      const t = prev[ai];
-      const item = t.carrito[idx];
-      if (!item) return prev;
-      const c = [...t.carrito];
-      c[idx] = aplicarPromoAItem({ ...item, cantidad: qty });
-      return prev.map((tk, i) => i === ai ? { ...tk, carrito: c } : tk);
-    });
-  }, []);
-
   const onCartDescuento = useCallback((idx: number) => {
-    const ai = activeIdxRef.current;
-    const item = ticketsRef.current[ai]?.carrito[idx];
+    const item = ticketsRef.current[activeIdxRef.current]?.carrito[idx];
     if (!item) return;
     setDescItemIdx(idx);
     setDescItemTipo('pct');
     setDescItemVal(item.descPct > 0 ? String(item.descPct) : '');
     setDescItemOpen(true);
-  }, []);
+  }, [ticketsRef, activeIdxRef]);
 
   // ── Anular / devolver ──────────────────────────────────────────
   async function openAnularModal() {
@@ -1365,7 +1188,7 @@ export default function Caja() {
         {qtyEditorOpen && (
           <ModalOverlay onClose={() => { setQtyEditorOpen(false); recuperarFocoCodigo(); }}>
             <ModalBox title="Cantidad" onClose={() => { setQtyEditorOpen(false); recuperarFocoCodigo(); }} maxWidth={280}>
-              <form onSubmit={confirmQtyEditor} className="flex flex-col gap-4">
+              <form onSubmit={e => { e.preventDefault(); if (qtyEditorIdx !== null) confirmQtyEditor(qtyEditorIdx, qtyEditorVal); }} className="flex flex-col gap-4">
                 {qtyEditorIdx !== null && (
                   <div className="text-[13px] text-text-muted truncate">{ticket.carrito[qtyEditorIdx]?.nombre}</div>
                 )}
