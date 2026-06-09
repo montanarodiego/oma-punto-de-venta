@@ -29,32 +29,23 @@ function getByCodigo(codigo) {
 }
 
 function search(query) {
-  const q = (query ?? '').trim();
-  if (!q) return getDb().prepare(`${SEL} ORDER BY a.nombre LIMIT 100`).all();
+  const db = getDb();
+  const q  = (query ?? '').trim();
+  if (!q) return db.prepare(`${SEL} ORDER BY a.nombre LIMIT 100`).all();
 
-  // Código exacto primero
-  const byCode = getDb().prepare(`${SEL} WHERE a.codigo = ?`).get(q);
+  // Código exacto → sólo ese ítem (lectores de código de barras)
+  const byCode = db.prepare(`${SEL} WHERE a.codigo = ?`).get(q);
   if (byCode) return [byCode];
 
-  // FTS5 con prefijo
-  const term = q.replace(/['"*]/g, '') + '*';
-  try {
-    return getDb()
-      .prepare(`
-        ${SEL}
-        JOIN articulos_fts f ON f.rowid = a.id
-        WHERE articulos_fts MATCH ?
-        ORDER BY f.rank
-        LIMIT 100
-      `)
-      .all(term);
-  } catch {
-    // fallback si FTS falla (primer arranque sin tabla aún)
-    const like = `%${q}%`;
-    return getDb()
-      .prepare(`${SEL} WHERE a.nombre LIKE ? OR a.codigo LIKE ? ORDER BY a.nombre LIMIT 100`)
-      .all(like, like);
+  // Cada palabra del query debe aparecer en nombre o código (AND implícito)
+  const words = q.split(/\s+/).filter(Boolean);
+  if (words.length === 1) {
+    const like = `%${words[0]}%`;
+    return db.prepare(`${SEL} WHERE a.nombre LIKE ? OR a.codigo LIKE ? ORDER BY a.nombre LIMIT 100`).all(like, like);
   }
+  const conds  = words.map(() => '(a.nombre LIKE ? OR a.codigo LIKE ?)').join(' AND ');
+  const params = words.flatMap(w => [`%${w}%`, `%${w}%`]);
+  return db.prepare(`${SEL} WHERE ${conds} ORDER BY a.nombre LIMIT 100`).all(...params);
 }
 
 function searchPaged({ query = '', departamento_id = null, limit = 200, offset = 0 } = {}) {
