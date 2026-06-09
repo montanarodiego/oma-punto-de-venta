@@ -103,7 +103,20 @@
       "PowerShell($pids = netstat -ano | Select-String \":5173\" | ForEach-Object { \\($_ -split '\\\\s+'\\)[-1] } | Sort-Object -Unique; foreach \\($p in $pids\\) { if \\($p -match '^\\\\d+$'\\) { Stop-Process -Id $p -Force -ErrorAction SilentlyContinue } }; Write-Output \"killed port 5173\")",
       "PowerShell($pids = netstat -ano | Select-String \":5173\" | ForEach-Object { \\($_ -split '\\\\s+'\\)[-1] } | Sort-Object -Unique; foreach \\($p in $pids\\) { if \\($p -match '^\\\\d+$'\\) { Stop-Process -Id $p -Force -ErrorAction SilentlyContinue } }; Write-Output \"ok\")",
       "PowerShell(Get-Process *)",
-      "PowerShell(netstat *)"
+      "PowerShell(netstat *)",
+      "Bash(git rm *)",
+      "Bash(Get-Process -Name \"node\",\"electron\" -ErrorAction SilentlyContinue)",
+      "Bash(Stop-Process -Force)",
+      "Bash(Start-Sleep -Milliseconds 500)",
+      "Bash(Write-Output \"Procesos terminados\")",
+      "Bash(where sqlite3 *)",
+      "Bash(python -c \"import sqlite3; print\\('python sqlite ok'\\)\")",
+      "Bash(echo \"Vite started in background, PID: $!\")",
+      "Bash(curl -s http://localhost:5173)",
+      "Bash(python *)",
+      "Bash(dir *)",
+      "Skill(run)",
+      "Bash(npx electron *)"
     ]
   }
 }
