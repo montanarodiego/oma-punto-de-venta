@@ -190,12 +190,24 @@ function buildPruebaBuffer(cfg) {
   return Buffer.concat(parts);
 }
 
-// ── Listar impresoras (PowerShell Get-Printer) ───────────────────
+// ── Listar impresoras físicas (excluye virtuales) ────────────────
 async function listarImpresoras() {
+  // Filtros:
+  //   PortName: excluye puertos virtuales conocidos
+  //     nul        → OneNote (captura a null)
+  //     PORTPROMPT → Fax de Windows (pide archivo al imprimir)
+  //     Microsoft  → "Microsoft Print to PDF:", "Microsoft XPS Document Writer:"
+  //   Name: excluye por nombre los casos que escapan al filtro de puerto
+  const cmd = [
+    'Get-Printer |',
+    "Where-Object { $_.PortName -notmatch '^(nul|PORTPROMPT|Microsoft)' -and",
+    "$_.Name -notmatch 'OneNote|Send to' } |",
+    'Select-Object -ExpandProperty Name',
+  ].join(' ');
+
   const { stdout } = await execFileAsync(
     'powershell.exe',
-    ['-NonInteractive', '-NoProfile', '-Command',
-     'Get-Printer | Select-Object -ExpandProperty Name'],
+    ['-NonInteractive', '-NoProfile', '-Command', cmd],
     { timeout: 8000 }
   );
   return stdout
