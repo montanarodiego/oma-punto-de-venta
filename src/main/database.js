@@ -9,10 +9,12 @@ function getDb() {
   return db;
 }
 
-function initDatabase() {
-  const dbPath = path.join(app.getPath('userData'), 'oma-pos.db');
-  db = new Database(dbPath);
-
+/**
+ * Aplica el schema completo (CREATE TABLE + migraciones + índices + FTS)
+ * sobre cualquier instancia de Database. Usado por initDatabase() y por
+ * el script de recuperación (recover-db.js).
+ */
+function applySchemaTo(db) {
   db.pragma('journal_mode = WAL');
   db.pragma('synchronous = NORMAL');
   db.pragma('foreign_keys = ON');
@@ -243,7 +245,12 @@ function initDatabase() {
 
   // Migraciones para bases existentes
   runMigrations(db);
+}
 
+function initDatabase() {
+  const dbPath = path.join(app.getPath('userData'), 'oma-pos.db');
+  db = new Database(dbPath);
+  applySchemaTo(db);
   return db;
 }
 
@@ -610,4 +617,4 @@ function runMigrations(db) {
   `);
 }
 
-module.exports = { initDatabase, getDb };
+module.exports = { initDatabase, getDb, applySchemaTo };
