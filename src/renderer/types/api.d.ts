@@ -784,6 +784,9 @@ declare global {
         imprimirCorteZ:        (turnoId: number) => Promise<void>;
         imprimirEstadoCuenta:  (clienteId: number) => Promise<void>;
       };
+      db: {
+        integrityStatus: () => Promise<{ ok: false; detalles: string[] } | null>;
+      };
       log: {
         error: (message: string, detail?: string) => void;
       };

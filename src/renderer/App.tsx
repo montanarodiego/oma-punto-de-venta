@@ -1,3 +1,4 @@
+import { useState, useEffect } from 'react';
 import { HashRouter, Routes, Route, Navigate } from 'react-router-dom';
 import { AnimatePresence } from 'framer-motion';
 import { SessionProvider } from './context/SessionContext';
@@ -17,10 +18,44 @@ import Turno from './pages/Turno';
 import Configuracion from './pages/Configuracion';
 import Comprobante from './pages/Comprobante';
 
+function DbIntegrityWarning() {
+  const [detalles, setDetalles] = useState<string[] | null>(null);
+
+  useEffect(() => {
+    window.api.db.integrityStatus()
+      .then(w => { if (w) setDetalles(w.detalles); })
+      .catch(() => {});
+  }, []);
+
+  if (!detalles) return null;
+
+  return (
+    <div className="fixed top-0 left-0 right-0 z-[9999] flex items-start gap-3 bg-red-950/95 border-b border-red-600 px-4 py-3 backdrop-blur-sm">
+      <span className="text-red-400 text-lg mt-0.5 shrink-0">⚠</span>
+      <div className="flex-1 text-sm">
+        <p className="font-semibold text-red-100">Base de datos con problemas de integridad</p>
+        <p className="text-red-300 mt-0.5">
+          Cerrá la app, hacé un backup manual y ejecutá{' '}
+          <code className="bg-red-900 px-1 rounded text-red-200">npx electron src/main/scripts/recover-db.js</code>{' '}
+          antes de seguir operando.
+        </p>
+      </div>
+      <button
+        onClick={() => setDetalles(null)}
+        className="text-red-500 hover:text-red-200 text-lg leading-none shrink-0 mt-0.5"
+        aria-label="Cerrar aviso"
+      >
+        ✕
+      </button>
+    </div>
+  );
+}
+
 export default function App() {
   return (
     <SessionProvider>
       <ToastProvider>
+        <DbIntegrityWarning />
         <UpdaterModal />
         <HashRouter>
           <Routes>

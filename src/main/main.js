@@ -28,6 +28,14 @@ let forceClose        = false;
 let pendingUpdate     = null; // cached update info for late-loading renderers
 let isDownloading     = false;
 
+// DB integrity warning — set at startup if quick_check no devuelve 'ok'
+let dbIntegrityWarning = null;
+
+// Backup periódico
+const BACKUP_HORAS       = 4;   // backup por tiempo cada N horas
+const BACKUP_CADA_VENTAS = 20;  // backup por volumen cada N ventas
+let backupUltimoTxCount  = 0;
+
 // ── Menú (solo Ver / DevTools) ─────────────────────────────────
 function createMenu() {
   const template = [
@@ -282,13 +290,73 @@ autoUpdater.on('update-downloaded', (info) => {
   }
 });
 
+// ── Backup periódico ───────────────────────────────────────────
+function hacerBackupSilencioso(motivo) {
+  try {
+    hacerBackup();
+    backupUltimoTxCount = getDb()
+      .prepare("SELECT COUNT(*) AS c FROM transacciones WHERE estado = 'vigente'")
+      .get().c;
+    log.info(`[backup-auto] Realizado: ${motivo}`);
+  } catch (err) {
+    log.error(`[backup-auto] Falló (${motivo}):`, err.message);
+  }
+}
+
+function iniciarBackupPeriodico() {
+  // Por tiempo: cada BACKUP_HORAS horas sin importar la actividad
+  setInterval(
+    () => hacerBackupSilencioso(`periódico cada ${BACKUP_HORAS} h`),
+    BACKUP_HORAS * 60 * 60 * 1000
+  );
+
+  // Por volumen: revisar cada 5 min si hubo BACKUP_CADA_VENTAS ventas nuevas
+  setInterval(() => {
+    try {
+      const actual = getDb()
+        .prepare("SELECT COUNT(*) AS c FROM transacciones WHERE estado = 'vigente'")
+        .get().c;
+      if (actual - backupUltimoTxCount >= BACKUP_CADA_VENTAS) {
+        hacerBackupSilencioso(`${BACKUP_CADA_VENTAS} ventas nuevas`);
+      }
+    } catch { /* DB no disponible aún, siguiente ciclo */ }
+  }, 5 * 60 * 1000);
+}
+
 // ── Inicio ─────────────────────────────────────────────────────
 app.whenReady().then(async () => {
   initDatabase();
+
+  // ── PRAGMA quick_check al arrancar ────────────────────────────
+  // Solo detecta y avisa; NO repara automático. Si hay problemas,
+  // correr recover-db.js con la app cerrada.
+  try {
+    const rows  = getDb().pragma('quick_check');
+    const lines = rows.map(r => r.quick_check);
+    if (lines.length !== 1 || lines[0] !== 'ok') {
+      dbIntegrityWarning = { ok: false, detalles: lines };
+      log.error('[db] quick_check al arrancar encontró problemas:', lines.join(' | '));
+    } else {
+      log.info('[db] quick_check al arrancar: ok');
+    }
+  } catch (err) {
+    log.error('[db] quick_check falló:', err.message);
+  }
+
+  // Línea base para el backup por volumen de ventas
+  try {
+    backupUltimoTxCount = getDb()
+      .prepare("SELECT COUNT(*) AS c FROM transacciones WHERE estado = 'vigente'")
+      .get().c;
+  } catch { /* primer arranque sin datos */ }
+
+  iniciarBackupPeriodico();
+
   registerHandlers();
   registerAuthHandlers();
   ReportScheduler.iniciar();
 
+  ipcMain.handle('db:integrity-status', () => dbIntegrityWarning);
   ipcMain.handle('updater:get-pending', () => pendingUpdate || null);
 
   ipcMain.handle('updater:start-download', async () => {

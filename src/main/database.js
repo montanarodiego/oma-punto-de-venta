@@ -16,7 +16,10 @@ function getDb() {
  */
 function applySchemaTo(db) {
   db.pragma('journal_mode = WAL');
-  db.pragma('synchronous = NORMAL');
+  // FULL en vez de NORMAL: con WAL, FULL garantiza durabilidad ante corte de luz.
+  // NORMAL puede perder la última transacción si el SO cae antes del checkpoint.
+  // El costo (fsync extra por escritura) es aceptable en un POS de escritorio.
+  db.pragma('synchronous = FULL');
   db.pragma('foreign_keys = ON');
 
   // Schema base (fresh installs) — ya con las columnas nuevas

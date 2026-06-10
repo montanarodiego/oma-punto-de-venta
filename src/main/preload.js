@@ -222,6 +222,11 @@ contextBridge.exposeInMainWorld('api', {
     imprimirEstadoCuenta:  (clienteId)  => ipcRenderer.invoke('printer:imprimirEstadoCuenta', clienteId),
   },
 
+  // Integridad de la DB — resultado del quick_check al arrancar
+  db: {
+    integrityStatus: () => ipcRenderer.invoke('db:integrity-status'),
+  },
+
   // Log desde renderer → electron-log en el proceso principal
   log: {
     error: (message, detail) => ipcRenderer.send('log:error', message, detail),
