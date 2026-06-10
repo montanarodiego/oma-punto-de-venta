@@ -184,8 +184,10 @@ export default function Catalogo() {
       setTotal(res.total ?? 0);
       setDepartamentos(deps ?? []);
     } catch (err: any) {
-      setError(err.message ?? 'Error al cargar el catálogo.');
-    } finally { setLoading(false); }
+      setError(err.message ?? 'Error al cargar.');
+    } finally {
+      setLoading(false);
+    }
   }, []);
 
   // Carga inicial
@@ -419,24 +421,27 @@ export default function Catalogo() {
         </span>
       </div>
 
-      {/* Tabla virtualizada */}
-      {loading ? (
-        <div className="flex items-center justify-center h-32 text-text-subtle text-sm gap-2">
-          <svg className="animate-spin" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M12 2v4M12 18v4M4.93 4.93l2.83 2.83M16.24 16.24l2.83 2.83M2 12h4M18 12h4M4.93 19.07l2.83-2.83M16.24 7.76l2.83-2.83"/></svg>
-          Cargando catálogo…
-        </div>
-      ) : error ? (
-        <div className="flex flex-col items-center justify-center h-32 gap-3">
-          <p className="text-[13px] text-[#fca5a5]">{error}</p>
-          <Button size="sm" onClick={() => cargar(busqueda, filtroDep)}>Reintentar</Button>
-        </div>
-      ) : (
-        <VirtualTable
-          items={articulos}
-          estimateSize={40}
-          colSpan={10}
-          header={tableHeader}
-          emptyState={
+      {/* Tabla virtualizada — siempre montada para que el virtualizer mida el contenedor
+          antes de que lleguen los datos. Si se desmonta y remonta al cambiar loading,
+          @tanstack/react-virtual mide offsetHeight=0 durante la animación de Framer Motion
+          y nunca re-renderiza las filas. El estado loading/error va dentro de emptyState. */}
+      <VirtualTable
+        items={loading ? [] : articulos}
+        estimateSize={40}
+        colSpan={10}
+        header={tableHeader}
+        emptyState={
+          loading ? (
+            <div className="flex items-center justify-center h-32 text-text-subtle text-sm gap-2">
+              <svg className="animate-spin" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M12 2v4M12 18v4M4.93 4.93l2.83 2.83M16.24 16.24l2.83 2.83M2 12h4M18 12h4M4.93 19.07l2.83-2.83M16.24 7.76l2.83-2.83"/></svg>
+              Cargando catálogo…
+            </div>
+          ) : error ? (
+            <div className="flex flex-col items-center justify-center h-32 gap-3">
+              <p className="text-[13px] text-[#fca5a5]">{error}</p>
+              <Button size="sm" onClick={() => cargar(busqueda, filtroDep)}>Reintentar</Button>
+            </div>
+          ) : (
             <div className="text-center py-12 text-text-subtle text-[13px]">
               {hayFiltro ? (
                 <span>
@@ -445,23 +450,23 @@ export default function Catalogo() {
                 </span>
               ) : 'Sin artículos. Creá el primero con "+ Nuevo artículo".'}
             </div>
-          }
-          renderRow={(a, idx) => (
-            <ArticuloRow
-              key={a.id}
-              a={a}
-              idx={idx}
-              tableActiveIdx={tableActiveIdx}
-              depNombre={depMap.get(a.departamento_id ?? -1) ?? '—'}
-              esAdmin={esAdmin}
-              fmt={fmt}
-              onVerHistorial={onVerHistorial}
-              onEditar={onEditar}
-              onEliminar={onEliminar}
-            />
-          )}
-        />
-      )}
+          )
+        }
+        renderRow={(a, idx) => (
+          <ArticuloRow
+            key={a.id}
+            a={a}
+            idx={idx}
+            tableActiveIdx={tableActiveIdx}
+            depNombre={depMap.get(a.departamento_id ?? -1) ?? '—'}
+            esAdmin={esAdmin}
+            fmt={fmt}
+            onVerHistorial={onVerHistorial}
+            onEditar={onEditar}
+            onEliminar={onEliminar}
+          />
+        )}
+      />
 
       {/* ── Modal artículo ───────────────────────────────────────────────────── */}
       <Modal

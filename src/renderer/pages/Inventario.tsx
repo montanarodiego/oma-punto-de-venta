@@ -95,18 +95,18 @@ export default function Inventario() {
         ))}
       </div>
 
-      {loading ? (
-        <div className="flex-1 flex items-center justify-center text-text-subtle text-sm">Cargando…</div>
-      ) : (
-        <>
-          {tab === 'movimientos' && (
-            <VirtualTable
-              items={movimientos}
-              estimateSize={40}
-              colSpan={8}
-              header={<tr><th>Fecha</th><th>Artículo</th><th>Tipo</th><th className="text-right">Antes</th><th className="text-right">Cambio</th><th className="text-right">Después</th><th>Motivo</th><th>Usuario</th></tr>}
-              emptyState={<div className="text-center py-10 text-text-subtle text-[13px]">Sin movimientos.</div>}
-              renderRow={(m, i) => (
+      {tab === 'movimientos' && (
+        <VirtualTable
+          items={loading ? [] : movimientos}
+          estimateSize={40}
+          colSpan={8}
+          header={<tr><th>Fecha</th><th>Artículo</th><th>Tipo</th><th className="text-right">Antes</th><th className="text-right">Cambio</th><th className="text-right">Después</th><th>Motivo</th><th>Usuario</th></tr>}
+          emptyState={
+            loading
+              ? <div className="flex items-center justify-center h-32 text-text-subtle text-sm">Cargando…</div>
+              : <div className="text-center py-10 text-text-subtle text-[13px]">Sin movimientos.</div>
+          }
+          renderRow={(m, i) => (
                 <tr key={i}>
                   <td className="text-[12px] whitespace-nowrap">{fmtFecha(m.fecha)}</td>
                   <td className="text-[13px]">{m.articulo_nombre ?? m.articulo_id}</td>
@@ -120,7 +120,10 @@ export default function Inventario() {
               )}
             />
           )}
-          {tab === 'stock-bajo' && (
+      {tab === 'stock-bajo' && (
+        loading
+          ? <div className="flex-1 flex items-center justify-center text-text-subtle text-sm">Cargando…</div>
+          : (
             <div className="flex-1 overflow-y-auto">
               <table className="tbl">
                 <thead><tr><th>Artículo</th><th>Código</th><th className="text-right">Stock actual</th><th className="text-right">Stock mínimo</th></tr></thead>
@@ -138,8 +141,7 @@ export default function Inventario() {
                 </tbody>
               </table>
             </div>
-          )}
-        </>
+          )
       )}
 
       {/* Modal ajuste */}

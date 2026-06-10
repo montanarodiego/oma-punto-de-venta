@@ -130,23 +130,24 @@ export default function Proveedores() {
         </span>
       </div>
 
-      {loading ? (
-        <div className="flex-1 flex items-center justify-center text-text-subtle text-sm gap-2">
-          <svg className="animate-spin" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M12 2v4M12 18v4M4.93 4.93l2.83 2.83M16.24 16.24l2.83 2.83M2 12h4M18 12h4M4.93 19.07l2.83-2.83M16.24 7.76l2.83-2.83"/></svg>
-          Cargando…
-        </div>
-      ) : (
-        <VirtualTable
-          items={proveedores}
+      <VirtualTable
+          items={loading ? [] : proveedores}
           estimateSize={42}
           colSpan={6}
           header={tableHeader}
           emptyState={
-            <div className="text-center py-12 text-text-subtle text-[13px]">
-              {busqueda ? (
-                <span>Sin resultados. <button onClick={() => setBusqueda('')} className="text-accent hover:underline underline-offset-2">Limpiar</button></span>
-              ) : 'Sin proveedores. Creá el primero con "+ Nuevo proveedor".'}
-            </div>
+            loading ? (
+              <div className="flex items-center justify-center h-32 text-text-subtle text-sm gap-2">
+                <svg className="animate-spin" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M12 2v4M12 18v4M4.93 4.93l2.83 2.83M16.24 16.24l2.83 2.83M2 12h4M18 12h4M4.93 19.07l2.83-2.83M16.24 7.76l2.83-2.83"/></svg>
+                Cargando…
+              </div>
+            ) : (
+              <div className="text-center py-12 text-text-subtle text-[13px]">
+                {busqueda ? (
+                  <span>Sin resultados. <button onClick={() => setBusqueda('')} className="text-accent hover:underline underline-offset-2">Limpiar</button></span>
+                ) : 'Sin proveedores. Creá el primero con "+ Nuevo proveedor".'}
+              </div>
+            )
           }
           renderRow={(p, idx) => (
             <tr
@@ -172,7 +173,6 @@ export default function Proveedores() {
             </tr>
           )}
         />
-      )}
 
       <Modal
         open={modalOpen}
