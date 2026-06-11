@@ -385,7 +385,7 @@ function registerHandlers() {
   ipcMain.handle('movimientos:cancelar',      (_e, id, motivo)   => { onlyAdmin(); return MovimientosCaja.cancelar(id, motivo); });
 
   // ── Devoluciones ───────────────────────────────────────────
-  ipcMain.handle('devoluciones:cancelar',     (_e, data)      => Devoluciones.cancelarTransaccion(data));
+  ipcMain.handle('devoluciones:cancelar',     (_e, data)      => { onlyAdmin(); return Devoluciones.cancelarTransaccion(data); });
   ipcMain.handle('devoluciones:parcial',      (_e, data)      => Devoluciones.devolucionParcial(data));
   ipcMain.handle('devoluciones:getByTrans',   (_e, id)        => Devoluciones.getByTransaccion(id));
   ipcMain.handle('devoluciones:recientes',    (_e, limite)    => Devoluciones.getRecientes(limite));
@@ -393,8 +393,8 @@ function registerHandlers() {
   // ── Informes ───────────────────────────────────────────────
   ipcMain.handle('informes:ventasPorPeriodo',     (_e, d, h) => Informes.ventasPorPeriodo(d, h));
   ipcMain.handle('informes:articulosMasVendidos', (_e, d, h) => Informes.articulosMasVendidos(d, h));
-  ipcMain.handle('informes:utilidadBruta',        (_e, d, h) => Informes.utilidadBruta(d, h));
-  ipcMain.handle('informes:saldosClientes',       ()         => Informes.saldosClientes());
+  ipcMain.handle('informes:utilidadBruta',        (_e, d, h) => { onlyAdmin(); return Informes.utilidadBruta(d, h); });
+  ipcMain.handle('informes:saldosClientes',       ()         => { onlyAdmin(); return Informes.saldosClientes(); });
   ipcMain.handle('informes:ventasPorDia',         (_e, d, h) => Informes.ventasPorDia(d, h));
   ipcMain.handle('informes:ventasPorHora',        (_e, d)    => Informes.ventasPorHora(d));
   ipcMain.handle('informes:mejorDia',             (_e, d, h) => Informes.mejorDia(d, h));

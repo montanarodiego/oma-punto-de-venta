@@ -5,9 +5,25 @@ const fs       = require('fs');
 const crypto   = require('crypto');
 
 // ── Criptografía de credenciales ───────────────────────────────
-// Clave AES-256 derivada del negocioId (SHA-256, 32 bytes).
+// Salt por instalación: generado una vez en userData/oma-salt, persiste entre updates.
+// Sin el salt + negocioId, no se puede derivar la clave AES aunque se copie license.json.
+let _cachedSalt = null;
+function _getSalt() {
+  if (_cachedSalt) return _cachedSalt;
+  const saltPath = path.join(app.getPath('userData'), 'oma-salt');
+  try {
+    const data = fs.readFileSync(saltPath, 'utf8').trim();
+    if (data.length === 64) { _cachedSalt = data; return _cachedSalt; }
+  } catch {}
+  const salt = crypto.randomBytes(32).toString('hex');
+  fs.writeFileSync(saltPath, salt, 'utf8');
+  _cachedSalt = salt;
+  return _cachedSalt;
+}
+
+// Clave AES-256: SHA-256(negocioId + salt por instalación).
 function _clave(negocioId) {
-  return crypto.createHash('sha256').update(negocioId).digest();
+  return crypto.createHash('sha256').update(negocioId + _getSalt()).digest();
 }
 
 // ── Firma HMAC del token de licencia ───────────────────────────

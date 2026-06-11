@@ -1,6 +1,7 @@
 import { useState, useRef, useEffect } from 'react';
 import { AnimatePresence, motion } from 'framer-motion';
 import { useFocusTrap } from '../../hooks/useFocusTrap';
+import { useSession } from '../../context/SessionContext';
 import { fmt } from './types';
 
 interface ModalAnularProps {
@@ -11,9 +12,12 @@ interface ModalAnularProps {
 }
 
 export function ModalAnular({ open, onClose, turnoActivo, showToast }: ModalAnularProps) {
+  const { session } = useSession();
+  const esAdmin = session?.rol === 'admin';
+
   const [transList,  setTransList]  = useState<any[]>([]);
   const [selTrans,   setSelTrans]   = useState<any | null>(null);
-  const [tipo,       setTipo]       = useState<'total' | 'parcial'>('total');
+  const [tipo,       setTipo]       = useState<'total' | 'parcial'>('parcial');
   const [motivo,     setMotivo]     = useState('');
   const [itemQtys,   setItemQtys]   = useState<Record<number, number>>({});
   const [loading,    setLoading]    = useState(false);
@@ -28,7 +32,7 @@ export function ModalAnular({ open, onClose, turnoActivo, showToast }: ModalAnul
     setSelTrans(null);
     setMotivo('');
     setError('');
-    setTipo('total');
+    setTipo(esAdmin ? 'total' : 'parcial');
     setItemQtys({});
     setTransList([]);
     window.api.devoluciones.recientes(60)
@@ -44,7 +48,7 @@ export function ModalAnular({ open, onClose, turnoActivo, showToast }: ModalAnul
       const qtys: Record<number, number> = {};
       for (const item of t.detalle) qtys[item.id] = item.cantidad;
       setItemQtys(qtys);
-      setTipo('total');
+      setTipo(esAdmin ? 'total' : 'parcial');
       setError('');
     } catch {
       setError('Error al cargar el detalle de la transacción.');
@@ -167,7 +171,7 @@ export function ModalAnular({ open, onClose, turnoActivo, showToast }: ModalAnul
                     </div>
                     <div className="flex-1" />
                     <div className="flex gap-2">
-                      {(['total', 'parcial'] as const).map(t => (
+                      {(['total', 'parcial'] as const).filter(t => t !== 'total' || esAdmin).map(t => (
                         <button
                           key={t}
                           onClick={() => setTipo(t)}
