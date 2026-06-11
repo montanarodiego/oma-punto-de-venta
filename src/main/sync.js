@@ -10,6 +10,23 @@ function _clave(negocioId) {
   return crypto.createHash('sha256').update(negocioId).digest();
 }
 
+// ── Firma HMAC del token de licencia ───────────────────────────
+// Previene edición manual de license.json con Notepad.
+const _LIC_SECRET = 'oma-pos-lic-2026-v1';
+
+function _firmarToken(t) {
+  const msg = `${t.negocioId}:${t.activa ? '1' : '0'}:${t.vencimiento}`;
+  return crypto.createHmac('sha256', _LIC_SECRET + t.negocioId).update(msg).digest('hex');
+}
+
+function _tokenValido(t) {
+  if (!t?._sig) return false;
+  return crypto.timingSafeEqual(
+    Buffer.from(t._sig, 'hex'),
+    Buffer.from(_firmarToken(t), 'hex'),
+  );
+}
+
 // Retorna "iv:authTag:cifrado" en hex.
 function encriptar(texto, negocioId) {
   const iv     = crypto.randomBytes(16);
@@ -110,13 +127,15 @@ function tokenPath() {
 }
 
 function guardarTokenLocal(token) {
-  fs.writeFileSync(tokenPath(), JSON.stringify(token), 'utf8');
+  const signed = { ...token, _sig: _firmarToken(token) };
+  fs.writeFileSync(tokenPath(), JSON.stringify(signed), 'utf8');
 }
 
 function verificarTokenLocal() {
   try {
     const data = JSON.parse(fs.readFileSync(tokenPath(), 'utf8'));
     if (!data?.negocioId) return { activa: false };
+    if (!_tokenValido(data)) return { activa: false, razon: 'tampered' };
     if (data.vencimiento > Date.now()) return { activa: true, negocioId: data.negocioId };
     return { activa: false, vencido: true };
   } catch {
@@ -129,7 +148,8 @@ function verificarTokenLocal() {
 function leerTokenRaw() {
   try {
     const data = JSON.parse(fs.readFileSync(tokenPath(), 'utf8'));
-    return (data?.negocioId && data.vencimiento > Date.now()) ? data : null;
+    if (!data?.negocioId || !_tokenValido(data)) return null;
+    return data.vencimiento > Date.now() ? data : null;
   } catch {
     return null;
   }

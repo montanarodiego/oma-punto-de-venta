@@ -1,5 +1,5 @@
 require('dotenv').config();
-const { app, BrowserWindow, Menu, ipcMain, dialog, globalShortcut } = require('electron');
+const { app, BrowserWindow, Menu, ipcMain, dialog, globalShortcut, session } = require('electron');
 const { autoUpdater } = require('electron-updater');
 const path = require('path');
 const { initDatabase, getDb } = require('./database');
@@ -49,21 +49,20 @@ let backupUltimoTxCount  = 0;
 
 // ── Menú (solo Ver / DevTools) ─────────────────────────────────
 function createMenu() {
-  const template = [
-    {
-      label: 'Ver',
-      submenu: [
-        { role: 'reload',         label: 'Recargar' },
-        { role: 'toggleDevTools', label: 'DevTools' },
-        { type: 'separator' },
-        { role: 'resetZoom', label: 'Zoom normal' },
-        { role: 'zoomIn',    label: 'Acercar' },
-        { role: 'zoomOut',   label: 'Alejar' },
-      ],
-    },
+  const submenu = [
+    { role: 'reload', label: 'Recargar' },
   ];
+  if (!app.isPackaged) {
+    submenu.push({ role: 'toggleDevTools', label: 'DevTools' });
+  }
+  submenu.push(
+    { type: 'separator' },
+    { role: 'resetZoom', label: 'Zoom normal' },
+    { role: 'zoomIn',    label: 'Acercar' },
+    { role: 'zoomOut',   label: 'Alejar' },
+  );
 
-  Menu.setApplicationMenu(Menu.buildFromTemplate(template));
+  Menu.setApplicationMenu(Menu.buildFromTemplate([{ label: 'Ver', submenu }]));
 }
 
 const isDev = !app.isPackaged;
@@ -339,6 +338,27 @@ function iniciarBackupPeriodico() {
 
 // ── Inicio ─────────────────────────────────────────────────────
 app.whenReady().then(async () => {
+  // ── CSP — solo en producción, no rompe el HMR de Vite en dev ─────
+  if (app.isPackaged) {
+    session.defaultSession.webRequest.onHeadersReceived((details, callback) => {
+      callback({
+        responseHeaders: {
+          ...details.responseHeaders,
+          'Content-Security-Policy': [
+            "default-src 'self'; " +
+            "script-src 'self'; " +
+            "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; " +
+            "font-src 'self' https://fonts.gstatic.com; " +
+            "connect-src 'self' https://*.googleapis.com https://*.firebaseapp.com wss://*.firebaseio.com https://api.github.com; " +
+            "img-src 'self' data:; " +
+            "object-src 'none'; " +
+            "base-uri 'self'",
+          ],
+        },
+      });
+    });
+  }
+
   initDatabase();
 
   // ── PRAGMA quick_check al arrancar ────────────────────────────

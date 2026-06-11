@@ -263,8 +263,20 @@ async function exportarOrdenCSV(e, id) {
 function registerHandlers() {
   // ── Sesión (renderer sincroniza rol en cada carga de página) ──
   ipcMain.handle('auth:setSession', (_e, session) => {
-    currentUserRole = session?.rol ?? null;
-    currentUser = session ? { id: session.id, nombre: session.nombre } : null;
+    if (!session?.id) {
+      currentUserRole = null;
+      currentUser     = null;
+      return;
+    }
+    // Verificar rol contra la DB — no confiar en el valor enviado por el renderer
+    try {
+      const u = getDb().prepare('SELECT id, nombre, rol FROM usuarios WHERE id = ? AND activo = 1').get(session.id);
+      currentUserRole = u?.rol ?? null;
+      currentUser     = u ? { id: u.id, nombre: u.nombre } : null;
+    } catch {
+      currentUserRole = null;
+      currentUser     = null;
+    }
   });
 
   // ── Usuarios ───────────────────────────────────────────────
@@ -315,7 +327,7 @@ function registerHandlers() {
       return { ok: false, error: err.message };
     }
   });
-  ipcMain.handle('usuarios:listar',       ()              => Usuarios.listar());
+  ipcMain.handle('usuarios:listar',       ()              => { onlyAdmin(); return Usuarios.listar(); });
   ipcMain.handle('usuarios:crear', (_e, data) => {
     const sinUsuarios = getDb().prepare('SELECT COUNT(*) as n FROM usuarios WHERE activo = 1').get().n === 0;
     if (!sinUsuarios) onlyAdmin();
@@ -370,7 +382,7 @@ function registerHandlers() {
   // ── Movimientos de caja ────────────────────────────────────
   ipcMain.handle('movimientos:registrar',     (_e, data)         => MovimientosCaja.registrar(data));
   ipcMain.handle('movimientos:listarPorTurno',(_e, turnoId)      => MovimientosCaja.listarPorTurno(turnoId));
-  ipcMain.handle('movimientos:cancelar',      (_e, id, motivo)   => MovimientosCaja.cancelar(id, motivo));
+  ipcMain.handle('movimientos:cancelar',      (_e, id, motivo)   => { onlyAdmin(); return MovimientosCaja.cancelar(id, motivo); });
 
   // ── Devoluciones ───────────────────────────────────────────
   ipcMain.handle('devoluciones:cancelar',     (_e, data)      => Devoluciones.cancelarTransaccion(data));
@@ -538,7 +550,10 @@ function registerHandlers() {
     const rows = getDb().prepare('SELECT clave, valor FROM configuracion').all();
     return Object.fromEntries(rows.map(r => [r.clave, r.valor]));
   });
+  // Claves que cualquier usuario puede cambiar (preferencias de UI, no config de negocio)
+  const CONFIG_CAJERO = new Set(['tamano_hud', 'modo_negocio']);
   ipcMain.handle('config:set', (_e, clave, valor) => {
+    if (!CONFIG_CAJERO.has(clave)) onlyAdmin();
     getDb()
       .prepare('INSERT OR REPLACE INTO configuracion (clave, valor) VALUES (?, ?)')
       .run(clave, String(valor));

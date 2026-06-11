@@ -72,7 +72,9 @@
       "node_modules/**/*",
       "package.json"
     ],
-    "extraResources": [],
+    "extraResources": [
+      { "from": "oma-creds.json", "to": "oma-creds.json" }
+    ],
     "asar": true,
     "publish": {
       "provider": "github",

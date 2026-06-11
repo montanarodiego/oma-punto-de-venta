@@ -6,5 +6,6 @@ out/
 *.db-wal
 .env
 .env.local
-src/main/credentials.js
+oma-creds.json
+.oma-creds.json
 src/renderer/css/output.css
