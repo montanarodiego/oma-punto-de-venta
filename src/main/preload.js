@@ -227,6 +227,11 @@ contextBridge.exposeInMainWorld('api', {
     integrityStatus: () => ipcRenderer.invoke('db:integrity-status'),
   },
 
+  // Control de zoom nativo (setZoomFactor en el proceso main)
+  ui: {
+    setZoom: (factor) => ipcRenderer.invoke('ui:setZoom', factor),
+  },
+
   // Log desde renderer → electron-log en el proceso principal
   log: {
     error: (message, detail) => ipcRenderer.send('log:error', message, detail),

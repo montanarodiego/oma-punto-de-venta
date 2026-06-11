@@ -267,7 +267,7 @@ function ModalNuevoPedido({
       open={open}
       onClose={onClose}
       title={pedido ? `Editar pedido #${pedido.id}` : 'Nueva orden de compra'}
-      maxWidth="680px"
+      maxWidth="860px"
       footer={
         <>
           <Button variant="ghost" onClick={onClose}>Cancelar</Button>
@@ -312,19 +312,20 @@ function ModalNuevoPedido({
         </Field>
 
         {/* Buscador de artículos */}
-        <div>
-          <div className="text-[11px] font-semibold text-text-muted mb-2 uppercase tracking-wider">Artículos del pedido</div>
-          <div className="relative">
-            <Input
-              placeholder="Buscá artículo por nombre o código para agregar..."
-              value={artQ}
-              onChange={e => setArtQ(e.target.value)}
-            />
-            {(artRes.length > 0 || artLoading) && (
-              <div className="absolute z-50 left-0 right-0 top-full mt-1 bg-surface border border-border rounded-[var(--r-card)] shadow-[var(--shadow-lg)] overflow-hidden">
-                {artLoading
-                  ? <div className="px-4 py-3 text-[12px] text-text-subtle">Buscando...</div>
-                  : artRes.map(a => (
+        <div className="flex flex-col gap-2">
+          <div className="text-[11px] font-semibold text-text-muted uppercase tracking-wider">Artículos del pedido</div>
+          <Input
+            placeholder="Buscá por nombre o código para agregar..."
+            value={artQ}
+            onChange={e => setArtQ(e.target.value)}
+          />
+          {(artRes.length > 0 || artLoading) && (
+            <div className="bg-surface border border-border rounded-[var(--r-card)] overflow-hidden">
+              {artLoading ? (
+                <div className="px-4 py-3 text-[12px] text-text-subtle">Buscando...</div>
+              ) : (
+                <div className="max-h-[220px] overflow-y-auto">
+                  {artRes.map(a => (
                     <button
                       key={a.id}
                       type="button"
@@ -337,15 +338,15 @@ function ModalNuevoPedido({
                       </div>
                       <span className="text-[12px] text-text-muted font-mono">{fmt(a.costo_unitario)}</span>
                     </button>
-                  ))
-                }
-              </div>
-            )}
-          </div>
+                  ))}
+                </div>
+              )}
+            </div>
+          )}
           <button
             type="button"
             onClick={agregarLibre}
-            className="mt-1.5 text-[12px] text-accent hover:text-accent-hover font-medium"
+            className="text-[12px] text-accent hover:text-accent-hover font-medium self-start"
           >
             + Ítem con descripción libre
           </button>

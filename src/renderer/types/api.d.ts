@@ -787,6 +787,9 @@ declare global {
       db: {
         integrityStatus: () => Promise<{ ok: false; detalles: string[] } | null>;
       };
+      ui: {
+        setZoom: (factor: number) => Promise<void>;
+      };
       log: {
         error: (message: string, detail?: string) => void;
       };

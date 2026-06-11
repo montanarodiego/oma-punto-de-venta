@@ -161,12 +161,12 @@ export default function Configuracion() {
     showToast('Modo actualizado: ' + (WIZARD_MODOS.find(m => m.id === id)?.nombre ?? id), 'ok');
   }
 
+  const HUD_FACTORES: Record<string, number> = { compacto: 1.0, normal: 1.4, grande: 1.85, gigante: 2.4 };
+
   async function cambiarHud(id: string) {
     setHud(id);
     await window.api.config.set('tamano_hud', id);
-    document.documentElement.classList.remove('hud-compacto','hud-normal','hud-grande','hud-gigante');
-    document.documentElement.classList.add('hud-' + id);
-    localStorage.setItem('oma_hud', id);
+    await window.api.ui.setZoom(HUD_FACTORES[id] ?? 1.0);
     showToast('Tamaño actualizado.', 'ok');
   }
 

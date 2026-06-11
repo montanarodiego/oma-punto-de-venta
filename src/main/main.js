@@ -18,6 +18,17 @@ const {
 } = require('./sync');
 const Turnos = require('./models/turnos');
 
+const HUD_ZOOM_FACTORS = { compacto: 1.0, normal: 1.4, grande: 1.85, gigante: 2.4 };
+
+function getHudZoomFactor() {
+  try {
+    const row = getDb().prepare("SELECT valor FROM configuracion WHERE clave = 'tamano_hud'").get();
+    return HUD_ZOOM_FACTORS[row?.valor] ?? 1.0;
+  } catch {
+    return 1.0;
+  }
+}
+
 let mainWindow        = null;
 let loginWindow       = null;
 let negocioIdActivo   = null;
@@ -74,6 +85,9 @@ function createWindow() {
     },
     title: 'Oma — Punto de Venta',
   });
+
+  // Aplicar zoom nativo antes de cargar la página — evita flash de tamaño
+  mainWindow.webContents.setZoomFactor(getHudZoomFactor());
 
   mainWindow.once('ready-to-show', function () {
     mainWindow.maximize();
@@ -358,6 +372,13 @@ app.whenReady().then(async () => {
 
   ipcMain.handle('db:integrity-status', () => dbIntegrityWarning);
   ipcMain.handle('updater:get-pending', () => pendingUpdate || null);
+
+  ipcMain.handle('ui:setZoom', (_e, factor) => {
+    const f = Number(factor);
+    if (mainWindow && !mainWindow.isDestroyed() && f > 0) {
+      mainWindow.webContents.setZoomFactor(f);
+    }
+  });
 
   ipcMain.handle('updater:start-download', async () => {
     if (!app.isPackaged) {
