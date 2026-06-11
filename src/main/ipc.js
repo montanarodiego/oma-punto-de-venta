@@ -266,16 +266,18 @@ function registerHandlers() {
     if (!session?.id) {
       currentUserRole = null;
       currentUser     = null;
-      return;
+      return { valid: false };
     }
     // Verificar rol contra la DB — no confiar en el valor enviado por el renderer
     try {
       const u = getDb().prepare('SELECT id, nombre, rol FROM usuarios WHERE id = ? AND activo = 1').get(session.id);
       currentUserRole = u?.rol ?? null;
       currentUser     = u ? { id: u.id, nombre: u.nombre } : null;
+      return { valid: !!u };
     } catch {
       currentUserRole = null;
       currentUser     = null;
+      return { valid: false };
     }
   });
 

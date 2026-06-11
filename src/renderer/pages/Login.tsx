@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from 'react';
-import { Navigate, useNavigate } from 'react-router-dom';
+import { Navigate, useNavigate, useLocation } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useSession } from '../context/SessionContext';
 
@@ -8,10 +8,11 @@ type View = 'local' | 'firebase' | 'reset-email' | 'reset-code' | 'reset-pass';
 export default function Login() {
   const { session, setSession } = useSession();
   const navigate = useNavigate();
+  const location = useLocation();
   const [view, setView] = useState<View>('local');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
-  const [success, setSuccess] = useState('');
+  const [success, setSuccess] = useState((location.state as any)?.mensaje ?? '');
 
   // local login fields
   const [usuario, setUsuario] = useState('');

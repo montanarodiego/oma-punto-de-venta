@@ -758,7 +758,7 @@ declare global {
       };
       auth: {
         login:            (email: string, password: string) => Promise<{ ok: boolean; error?: string }>;
-        setSession:       (session: Session) => Promise<void>;
+        setSession:       (session: Session | null) => Promise<{ valid: boolean }>;
         solicitarReset:   (email: string) => Promise<{ ok: boolean; error?: string }>;
         verificarCodigo:  (email: string, codigo: string) => Promise<{ ok: boolean; error?: string }>;
         resetearPassword: (email: string, codigo: string, password: string) => Promise<{ ok: boolean; error?: string }>;
