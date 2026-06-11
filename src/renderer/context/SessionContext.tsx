@@ -1,4 +1,4 @@
-import { createContext, useContext, useEffect, useState } from 'react';
+import { createContext, useContext, useState } from 'react';
 import type { Session } from '../types/api';
 
 interface SessionCtx {
@@ -32,13 +32,6 @@ export function SessionProvider({ children }: { children: React.ReactNode }) {
   };
 
   const logout = () => setSession(null);
-
-  useEffect(() => {
-    if (session) {
-      window.SESSION = session;
-      window.api.auth.setSession(session);
-    }
-  }, [session]);
 
   return (
     <SessionContext.Provider value={{ session, setSession, logout }}>

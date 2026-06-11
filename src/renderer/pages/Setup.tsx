@@ -1,10 +1,8 @@
-import { useState, useEffect } from 'react';
-import { Navigate, useNavigate } from 'react-router-dom';
+import { useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 
 export default function Setup() {
   const navigate = useNavigate();
-  const [checking, setChecking] = useState(true);
-  const [blocked,  setBlocked]  = useState(false);
 
   const [nombre,   setNombre]   = useState('');
   const [usuario,  setUsuario]  = useState('');
@@ -12,15 +10,6 @@ export default function Setup() {
   const [confirm,  setConfirm]  = useState('');
   const [error,    setError]    = useState('');
   const [loading,  setLoading]  = useState(false);
-
-  useEffect(() => {
-    window.api.usuarios.hayUsuarios()
-      .then(hay => { setBlocked(hay); setChecking(false); })
-      .catch(() => setChecking(false));
-  }, []);
-
-  if (checking) return null;
-  if (blocked)  return <Navigate to="/login" replace />;
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();

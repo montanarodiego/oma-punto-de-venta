@@ -61,16 +61,20 @@ function AppRoutes() {
       try {
         const hay = await window.api.usuarios.hayUsuarios();
         if (!hay) {
+          logout();
           navigate('/setup', { replace: true });
-          setChecking(false);
           return;
         }
         if (session) {
           const result = await window.api.auth.setSession(session);
           if (!result?.valid) logout();
         }
-      } catch { /* DB no lista aún — continuar con flujo normal */ }
-      setChecking(false);
+      } catch {
+        logout();
+        navigate('/login', { replace: true });
+      } finally {
+        setChecking(false);
+      }
     })();
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
