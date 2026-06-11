@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { HashRouter, Routes, Route, Navigate, useNavigate } from 'react-router-dom';
+import { HashRouter, Routes, Route, Navigate } from 'react-router-dom';
 import { SessionProvider, useSession } from './context/SessionContext';
 import { ToastProvider } from './context/ToastContext';
 import { AppShell } from './components/layout/AppShell';
@@ -53,32 +53,28 @@ function DbIntegrityWarning() {
 
 function AppRoutes() {
   const { session, logout } = useSession();
-  const navigate = useNavigate();
   const [checking, setChecking] = useState(true);
+  const [sinUsuarios, setSinUsuarios] = useState(false);
 
   useEffect(() => {
-    (async () => {
-      try {
-        const hay = await window.api.usuarios.hayUsuarios();
+    window.api.usuarios.hayUsuarios()
+      .then(async (hay) => {
         if (!hay) {
           logout();
-          navigate('/setup', { replace: true });
+          setSinUsuarios(true);
           return;
         }
         if (session) {
           const result = await window.api.auth.setSession(session);
           if (!result?.valid) logout();
         }
-      } catch {
-        logout();
-        navigate('/login', { replace: true });
-      } finally {
-        setChecking(false);
-      }
-    })();
+      })
+      .catch(() => logout())
+      .finally(() => setChecking(false));
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
   if (checking) return null;
+  if (sinUsuarios) return <Navigate to="/setup" replace />;
 
   return (
     <Routes>
