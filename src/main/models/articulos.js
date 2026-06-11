@@ -139,8 +139,18 @@ function update(id, data, usuario = null) {
   const antes = db.prepare('SELECT precio_unitario, costo_unitario, precio_mayoreo FROM articulos WHERE id = ?').get(id);
 
   const set = campos.map(k => `${k} = @${k}`).join(', ');
-  db.prepare(`UPDATE articulos SET ${set}, sync_status = 'pending', updated_at = datetime('now') WHERE id = @id`)
-    .run({ ...data, id });
+  const stmt = db.prepare(`UPDATE articulos SET ${set}, sync_status = 'pending', updated_at = datetime('now') WHERE id = @id`);
+  try {
+    stmt.run({ ...data, id });
+  } catch (err) {
+    // Si el trigger FTS falla por corrupción, reconstruir y reintentar
+    if (/corrupt|fts/i.test(err.message)) {
+      try { db.exec(`INSERT INTO articulos_fts(articulos_fts) VALUES('rebuild')`); } catch {}
+      stmt.run({ ...data, id });
+    } else {
+      throw err;
+    }
+  }
 
   if (antes) {
     const stmtHist = db.prepare(`
