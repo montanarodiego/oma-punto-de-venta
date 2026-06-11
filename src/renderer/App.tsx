@@ -54,7 +54,7 @@ function DbIntegrityWarning() {
 function AppRoutes() {
   const { session, logout } = useSession();
   const navigate = useNavigate();
-  const [ready, setReady] = useState(false);
+  const [checking, setChecking] = useState(true);
 
   useEffect(() => {
     (async () => {
@@ -62,7 +62,7 @@ function AppRoutes() {
         const hay = await window.api.usuarios.hayUsuarios();
         if (!hay) {
           navigate('/setup', { replace: true });
-          setReady(true);
+          setChecking(false);
           return;
         }
         if (session) {
@@ -70,11 +70,11 @@ function AppRoutes() {
           if (!result?.valid) logout();
         }
       } catch { /* DB no lista aún — continuar con flujo normal */ }
-      setReady(true);
+      setChecking(false);
     })();
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
-  if (!ready) return null;
+  if (checking) return null;
 
   return (
     <Routes>
