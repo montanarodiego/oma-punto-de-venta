@@ -104,7 +104,18 @@
       "Bash(python *)",
       "Bash(dir *)",
       "Skill(run)",
-      "Bash(npx electron *)"
+      "Bash(npx electron *)",
+      "PowerShell(\\(Get-Content \"C:\\\\Users\\\\diego\\\\Desktop\\\\oma-punto-de-venta\\\\src\\\\renderer\\\\pages\\\\Caja.tsx\"\\).Count)",
+      "PowerShell($dbPath = \"$env:APPDATA\\\\oma-punto-de-venta\\\\oma-pos.db\"; if \\(Test-Path $dbPath\\) { Write-Output \"DB existe: $dbPath\"; $size = \\(Get-Item $dbPath\\).Length; Write-Output \"Tamaño: $size bytes\" } else { Write-Output \"DB NO encontrada en $dbPath\" })",
+      "Bash(Get-ChildItem -Path \"C:\\\\Users\\\\diego\\\\Desktop\\\\oma-punto-de-venta\" -Recurse -Filter \"main.js\")",
+      "Bash(Select-Object -First 5)",
+      "Bash(Get-ChildItem -Path \"C:\\\\Users\\\\diego\\\\Desktop\\\\oma-punto-de-venta\" -Recurse -Filter \"index.html\")",
+      "Bash(Get-ChildItem -Path \"C:\\\\Users\\\\diego\\\\Desktop\\\\oma-punto-de-venta\" -Recurse -Filter \".env*\")",
+      "PowerShell(Get-ChildItem -Path \"C:\\\\Users\\\\diego\\\\Desktop\\\\oma-punto-de-venta\" -Recurse | Where-Object { $_.Name -match \"\\(main\\\\.js|index\\\\.html|firebase\\\\.js|auth\\\\.js|sync\\\\.js|ipc\\\\.js|usuarios\\\\.js|articulos\\\\.js|clientes\\\\.js|transacciones\\\\.js|turnos\\\\.js|\\\\.env\\)\" } | Select-Object -First 20 FullName)",
+      "PowerShell(ls -Recurse -Path \"C:\\\\Users\\\\diego\\\\Desktop\\\\oma-punto-de-venta\\\\src\" | Where-Object { $_.Name -match \"\\\\.\\(js|html\\)$\" } | Select-Object -ExpandProperty FullName)",
+      "Bash(findstr /R /S \"prepare.*+.*\\\\|prepare.*\\\\`.*\\\\${\" src\\\\main\\\\models\\\\*.js)",
+      "Bash(Select-String -Pattern \"SETUP CHECK|error|Error\")",
+      "Bash(python3 *)"
     ]
   }
 }

@@ -12,23 +12,13 @@ const SessionContext = createContext<SessionCtx>({
 });
 
 export function SessionProvider({ children }: { children: React.ReactNode }) {
-  const [session, setSessionState] = useState<Session | null>(() => {
-    try {
-      const raw = localStorage.getItem('oma_session');
-      return raw ? JSON.parse(raw) : null;
-    } catch { return null; }
-  });
+  // Sesión solo en memoria — no persiste al cerrar la app (requerimiento explícito).
+  const [session, setSessionState] = useState<Session | null>(null);
 
   const setSession = (s: Session | null) => {
     setSessionState(s);
-    if (s) {
-      localStorage.setItem('oma_session', JSON.stringify(s));
-      window.SESSION = s;
-      window.api.auth.setSession(s);
-    } else {
-      localStorage.removeItem('oma_session');
-      window.SESSION = undefined;
-    }
+    // Sincroniza el rol al proceso main para que onlyAdmin() funcione.
+    window.api.auth.setSession(s);
   };
 
   const logout = () => setSession(null);

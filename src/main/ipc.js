@@ -316,7 +316,9 @@ function registerHandlers() {
 
   ipcMain.handle('usuarios:hayUsuarios', () => {
     const n = getDb().prepare('SELECT COUNT(*) as n FROM usuarios WHERE activo = 1').get().n;
-    return n > 0;
+    const result = n > 0;
+    console.log('[SETUP CHECK] usuarios:hayUsuarios — count:', n, '→ returning:', result);
+    return result;
   });
 
   ipcMain.handle('usuarios:login', (_e, usuario, password) => {

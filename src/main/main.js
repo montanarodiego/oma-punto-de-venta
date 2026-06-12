@@ -6,17 +6,45 @@ const { initDatabase, getDb } = require('./database');
 const { registerHandlers }    = require('./ipc');
 const { hacerBackup }         = require('./backup');
 const ReportScheduler         = require('./report-scheduler');
-const { auth, firestore }     = require('./firebase');
-const { loginConEmail, reautenticarDesdeToken } = require('./auth');
-const {
-  encriptar,
-  syncPendientes,
-  verificarLicencia,
-  guardarTokenLocal,
-  verificarTokenLocal,
-  leerTokenRaw,
-} = require('./sync');
 const Turnos = require('./models/turnos');
+
+// Firebase — tolerante a fallos: si falta config o hay error de red, la app
+// arranca igual en modo offline. Login local y SQLite no dependen de Firebase.
+let auth = null, firestore = null;
+let loginConEmail = async () => { throw new Error('Firebase no disponible'); };
+let reautenticarDesdeToken = async () => {};
+let encriptar = (v) => v;
+let syncPendientes = async () => ({});
+let verificarLicencia = async () => ({ activa: true });
+let guardarTokenLocal = () => {};
+let leerTokenRaw = () => null;
+
+try {
+  const fb = require('./firebase');
+  auth      = fb.auth;
+  firestore = fb.firestore;
+} catch (err) {
+  require('electron-log').warn('[firebase] init falló — modo offline:', err.message);
+}
+
+try {
+  const authMod = require('./auth');
+  loginConEmail          = authMod.loginConEmail;
+  reautenticarDesdeToken = authMod.reautenticarDesdeToken;
+} catch (err) {
+  require('electron-log').warn('[auth] módulo no disponible:', err.message);
+}
+
+try {
+  const syncMod = require('./sync');
+  encriptar          = syncMod.encriptar;
+  syncPendientes     = syncMod.syncPendientes;
+  verificarLicencia  = syncMod.verificarLicencia;
+  guardarTokenLocal  = syncMod.guardarTokenLocal;
+  leerTokenRaw       = syncMod.leerTokenRaw;
+} catch (err) {
+  require('electron-log').warn('[sync] módulo no disponible:', err.message);
+}
 
 const HUD_ZOOM_FACTORS = { compacto: 1.0, normal: 1.4, grande: 1.85, gigante: 2.4 };
 
@@ -461,6 +489,7 @@ app.whenReady().then(async () => {
     negocioIdActivo = tokenRaw.negocioId;
     iniciarSyncInterval();
     (async () => {
+      if (!auth) return; // Firebase no disponible — modo offline
       await reautenticarDesdeToken(auth, tokenRaw);
       if (!auth.currentUser) return; // sin internet: aceptar token local, sync cuando vuelva
 

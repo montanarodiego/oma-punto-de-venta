@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { PRIMER_USUARIO_EVENT } from '../App';
 
 export default function Setup() {
   const navigate = useNavigate();
@@ -21,6 +22,8 @@ export default function Setup() {
       await window.api.usuarios.crear({
         nombre: nombre.trim(), usuario: usuario.trim(), password, rol: 'admin',
       });
+      // Notifica a App que hay usuarios ahora — AppRoutes remonta con status 'ready'.
+      window.dispatchEvent(new Event(PRIMER_USUARIO_EVENT));
       navigate('/login', { state: { mensaje: 'Administrador creado. Ingresá con tus credenciales.' } });
     } catch (err: any) {
       setError(err.message ?? 'Error al crear el administrador.');
