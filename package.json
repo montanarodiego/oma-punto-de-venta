@@ -1,6 +1,6 @@
 {
   "name": "oma-punto-de-venta",
-  "version": "2.0.0",
+  "version": "2.0.1",
   "description": "Sistema POS híbrido offline/online para Oma",
   "author": "OmaTech",
   "main": "src/main/main.js",
