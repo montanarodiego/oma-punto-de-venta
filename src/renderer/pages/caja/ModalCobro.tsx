@@ -164,7 +164,7 @@ export const ModalCobro = forwardRef<ModalCobroHandle, ModalCobroProps>(function
               {/* Total */}
               <div className="text-center py-2">
                 <div className="text-[11px] font-semibold uppercase tracking-widest text-text-muted mb-1">Total a pagar</div>
-                <div className="text-[46px] font-black font-mono leading-none text-text">{fmt(totales.total)}</div>
+                <div className="text-[48px] font-black font-mono leading-none text-text tabular-nums">{fmt(totales.total)}</div>
               </div>
 
               {/* Formas de pago */}
@@ -172,23 +172,30 @@ export const ModalCobro = forwardRef<ModalCobroHandle, ModalCobroProps>(function
                 <div className="text-[11px] font-semibold text-text-muted mb-2">Forma de pago</div>
                 <div className="grid grid-cols-3 gap-2">
                   {[
-                    { id: 'efectivo',         label: 'Efectivo',      fkey: '1' },
-                    { id: 'tarjeta_debito',   label: 'Débito',        fkey: '2' },
-                    { id: 'tarjeta_credito',  label: 'Crédito',       fkey: '3' },
-                    { id: 'transferencia',    label: 'Transferencia', fkey: '4' },
-                    { id: 'cuenta_corriente', label: 'Cta. Cte.',     fkey: '5' },
-                    { id: 'mixto',            label: 'Mixto',         fkey: '6' },
+                    { id: 'efectivo',         label: 'Efectivo',      fkey: '1',
+                      icon: <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"><rect x="2" y="6" width="20" height="12" rx="2"/><circle cx="12" cy="12" r="3"/><path d="M6 12h.01M18 12h.01"/></svg> },
+                    { id: 'tarjeta_debito',   label: 'Débito',        fkey: '2',
+                      icon: <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"><rect x="1" y="4" width="22" height="16" rx="2"/><line x1="1" y1="10" x2="23" y2="10"/></svg> },
+                    { id: 'tarjeta_credito',  label: 'Crédito',       fkey: '3',
+                      icon: <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"><rect x="1" y="4" width="22" height="16" rx="2"/><line x1="1" y1="10" x2="23" y2="10"/><path d="M5 15h2M9 15h4"/></svg> },
+                    { id: 'transferencia',    label: 'Transferencia', fkey: '4',
+                      icon: <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"><polyline points="17 1 21 5 17 9"/><path d="M3 11V9a4 4 0 0 1 4-4h14"/><polyline points="7 23 3 19 7 15"/><path d="M21 13v2a4 4 0 0 1-4 4H3"/></svg> },
+                    { id: 'cuenta_corriente', label: 'Cta. Cte.',     fkey: '5',
+                      icon: <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg> },
+                    { id: 'mixto',            label: 'Mixto',         fkey: '6',
+                      icon: <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"><line x1="8" y1="6" x2="21" y2="6"/><line x1="8" y1="12" x2="21" y2="12"/><line x1="8" y1="18" x2="21" y2="18"/><line x1="3" y1="6" x2="3.01" y2="6"/><line x1="3" y1="12" x2="3.01" y2="12"/><line x1="3" y1="18" x2="3.01" y2="18"/></svg> },
                   ].map(fp => (
                     <button
                       key={fp.id}
                       onClick={() => setFormaPago(fp.id)}
                       className={`relative flex flex-col items-center justify-center gap-1.5 py-3 px-2 rounded-[var(--r)] border-2 text-[12px] font-semibold transition-all ${
                         formaPago === fp.id
-                          ? 'bg-[rgba(79,142,245,.12)] border-accent text-text shadow-[0_0_0_3px_rgba(79,142,245,.15)]'
+                          ? 'bg-[rgba(79,142,245,.12)] border-accent text-accent shadow-[0_0_0_3px_rgba(79,142,245,.15)]'
                           : 'bg-surface-2 border-border text-text-muted hover:bg-surface-3'
                       }`}
                     >
-                      <span className="absolute top-1 right-1.5 text-[9px] font-bold opacity-50">{fp.fkey}</span>
+                      <span className="absolute top-1 right-1.5 text-[9px] font-bold opacity-40">{fp.fkey}</span>
+                      {fp.icon}
                       {fp.label}
                     </button>
                   ))}
@@ -210,16 +217,16 @@ export const ModalCobro = forwardRef<ModalCobroHandle, ModalCobroProps>(function
                     </div>
                     <div className="flex flex-col items-center justify-center border border-border rounded-[var(--r)] gap-1 bg-bg min-h-[72px]">
                       {!hayMonto && (
-                        <><div className="text-[10px] font-semibold text-text-subtle uppercase">Vuelto</div><div className="text-[26px] font-black font-mono text-text-subtle">—</div></>
+                        <><div className="text-[10px] font-semibold text-text-subtle uppercase">Vuelto</div><div className="text-[32px] font-black font-mono text-text-subtle">—</div></>
                       )}
                       {hayMonto && diferencia > 0 && (
-                        <><div className="text-[10px] font-semibold uppercase text-success">Vuelto</div><div className="text-[26px] font-black font-mono text-success">{fmt(vuelto)}</div></>
+                        <><div className="text-[10px] font-semibold uppercase text-success">Vuelto</div><div className="text-[32px] font-black font-mono text-success">{fmt(vuelto)}</div></>
                       )}
                       {hayMonto && diferencia === 0 && (
-                        <><div className="text-[10px] font-semibold uppercase text-success">Exacto</div><div className="text-[26px] font-black font-mono text-success">✓</div></>
+                        <><div className="text-[10px] font-semibold uppercase text-success">Exacto</div><div className="text-[32px] font-black font-mono text-success">✓</div></>
                       )}
                       {hayMonto && diferencia < 0 && (
-                        <><div className="text-[10px] font-semibold uppercase text-danger">Faltan</div><div className="text-[26px] font-black font-mono text-danger">{fmt(Math.abs(diferencia))}</div></>
+                        <><div className="text-[10px] font-semibold uppercase text-danger">Faltan</div><div className="text-[32px] font-black font-mono text-danger">{fmt(Math.abs(diferencia))}</div></>
                       )}
                     </div>
                   </div>
