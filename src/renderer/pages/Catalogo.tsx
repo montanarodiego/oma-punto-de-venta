@@ -82,25 +82,29 @@ const ArticuloRow = React.memo(function ArticuloRow({
       data-tbl-sel={tableActiveIdx === idx ? 'true' : undefined}
       className={`group ${tableActiveIdx === idx ? 'bg-[rgba(79,142,245,.08)]' : ''}`}
     >
-      <td className="font-mono text-[12px] text-text-muted">{a.codigo}</td>
+      <td className="font-mono text-[12px] text-text-muted tabular-nums">{a.codigo}</td>
       <td>
         <div className="flex items-center gap-2">
           <span className="font-medium text-[13px]">{a.nombre}</span>
           {!!a.es_kit && <Badge variant="purple">KIT</Badge>}
-          {!!a.usa_inventario && a.stock_actual <= a.stock_minimo && a.stock_minimo > 0 && <Badge variant="red">Stock bajo</Badge>}
+          {!!a.usa_inventario && a.stock_actual <= 0 && <Badge variant="red">SIN STOCK</Badge>}
+          {!!a.usa_inventario && a.stock_actual > 0 && a.stock_actual <= a.stock_minimo && a.stock_minimo > 0 && <Badge variant="yellow">Stock bajo</Badge>}
         </div>
       </td>
       <td className="text-[12px] text-text-muted">{depNombre}</td>
-      <td className="text-right font-mono text-[13px]">{fmt(a.costo_unitario)}</td>
-      <td className="text-right font-mono text-[13px] font-medium">{fmt(a.precio_unitario)}</td>
-      <td className="text-right font-mono text-[13px] text-text-muted">{a.precio_mayoreo > 0 ? fmt(a.precio_mayoreo) : '—'}</td>
-      <td className={`text-right font-mono text-[13px] ${a.usa_inventario && a.stock_actual <= 0 ? 'text-danger' : ''}`}>
+      <td className="text-right font-mono text-[13px] tabular-nums">{fmt(a.costo_unitario)}</td>
+      <td className="text-right font-mono text-[13px] font-semibold tabular-nums">{fmt(a.precio_unitario)}</td>
+      <td className="text-right font-mono text-[13px] text-text-muted tabular-nums">{a.precio_mayoreo > 0 ? fmt(a.precio_mayoreo) : '—'}</td>
+      <td className={`text-right font-mono text-[13px] font-semibold tabular-nums ${
+        a.usa_inventario && a.stock_actual <= 0 ? 'text-[#f87171]' :
+        a.usa_inventario && a.stock_actual <= a.stock_minimo && a.stock_minimo > 0 ? 'text-[#fbbf24]' : ''
+      }`}>
         {a.usa_inventario ? a.stock_actual : '—'}
       </td>
-      <td className="text-right text-[12px] text-text-muted">{a.usa_inventario ? a.stock_minimo : '—'}</td>
+      <td className="text-right text-[12px] text-text-muted tabular-nums">{a.usa_inventario ? a.stock_minimo : '—'}</td>
       <td className="text-right text-[12px] text-text-muted">{a.tasa_iva}%</td>
       <td>
-        <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+        <div className="flex items-center gap-1 opacity-30 group-hover:opacity-100 transition-opacity">
           <button onClick={() => onVerHistorial(a)} title="Historial de precios" className="p-1 text-text-subtle hover:text-accent rounded">
             <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><polyline points="23 6 13.5 15.5 8.5 10.5 1 18"/></svg>
           </button>
