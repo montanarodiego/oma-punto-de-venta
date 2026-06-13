@@ -36,6 +36,7 @@ export default function Configuracion() {
   const [msgTicket, setMsgTicket] = useState('');
   const [mostrarIva, setMostrarIva] = useState(true);
   const [saving, setSaving]     = useState(false);
+  const [saved,  setSaved]      = useState(false);
 
   // Modo
   const [modo, setModo]         = useState('');
@@ -157,6 +158,8 @@ export default function Configuracion() {
     try {
       const vals: Record<string,string> = { nombre_negocio: nombre.trim(), direccion: dir.trim(), telefono: tel.trim(), cuit: cuit.trim(), tasa_iva: String(tasa), impuesto_porcentaje: String(tasa), moneda: moneda.trim() || '$', mostrar_iva_desglosado: mostrarIva ? '1' : '0', mensaje_ticket: msgTicket.trim() };
       for (const [k,v] of Object.entries(vals)) await window.api.config.set(k, v);
+      setSaved(true);
+      setTimeout(() => setSaved(false), 2500);
       showToast('Configuración guardada.', 'ok');
     } catch (err: any) { showToast('Error: ' + err.message, 'error'); }
     finally { setSaving(false); }
@@ -313,8 +316,13 @@ export default function Configuracion() {
 
               {/* Guardar */}
               <div className="flex items-center gap-4 pt-1 border-t border-border">
-                <Button type="submit" variant="primary" loading={saving} style={{ minWidth: 150 }}>
-                  Guardar datos
+                <Button
+                  type="submit"
+                  variant={saved ? 'success' : 'primary'}
+                  loading={saving}
+                  style={{ minWidth: 150, transition: 'all 300ms ease' }}
+                >
+                  {saved ? '✓ Guardado' : 'Guardar datos'}
                 </Button>
               </div>
             </CardBody>
