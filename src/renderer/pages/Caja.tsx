@@ -249,11 +249,6 @@ export default function Caja() {
     if (search.length >= 1) {
       sugTimer.current = setTimeout(async () => {
         const res = await window.api.articulos.search(search);
-        // Código exacto sin prefijo de cantidad → agregar directo sin dropdown
-        if (!hasQty && res.length === 1 && res[0].codigo.toLowerCase() === search.toLowerCase()) {
-          await seleccionarSug(res[0]);
-          return;
-        }
         setSugs(res.slice(0, 8));
         setSugIdx(-1);
       }, 200);
