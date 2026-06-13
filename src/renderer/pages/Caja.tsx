@@ -63,6 +63,7 @@ export default function Caja() {
   const [notasOpen, setNotasOpen] = useState(false);
   const [showPropina, setShowPropina] = useState(false);
   const [ultimaTransId, setUltimaTransId] = useState<number|null>(null);
+  const [alertaEfectivo, setAlertaEfectivo] = useState(false);
 
   // Modals
   const [libreOpen, setLibreOpen] = useState(false);
@@ -203,6 +204,20 @@ export default function Caja() {
   function aplicarModo(modo: string) {
     setShowPropina(modo === 'restaurante');
     setMostrarPrecioConIva(modo === 'mayorista');
+  }
+
+  // ── Control límite de efectivo ─────────────────────────────────
+  async function verificarLimiteEfectivo() {
+    if (!turnoActivo) return;
+    try {
+      const [limite, resumen] = await Promise.all([
+        window.api.config.get('limite_efectivo_caja'),
+        window.api.turnos.calcularResumen(turnoActivo.id),
+      ]);
+      const lim = parseFloat(limite ?? '0');
+      if (lim <= 0) { setAlertaEfectivo(false); return; }
+      setAlertaEfectivo((resumen.efectivo_esperado ?? 0) > lim);
+    } catch {}
   }
 
   // ── Seleccionar sugerencia del dropdown ────────────────────────
@@ -412,6 +427,14 @@ export default function Caja() {
         )}
       </div>
 
+      {/* ── Alerta límite de efectivo ── */}
+      {alertaEfectivo && (
+        <div className="flex items-center gap-2 px-4 py-2 bg-[rgba(234,179,8,.12)] border-b border-[rgba(234,179,8,.3)] text-[#fbbf24] text-[12px] font-semibold flex-shrink-0">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" className="flex-shrink-0"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>
+          El efectivo en caja supera el límite configurado. Realizá un retiro desde "Entrada-Salida".
+        </div>
+      )}
+
       {/* ── Código bar ── */}
       <div
         ref={codigoBarRef}
@@ -524,7 +547,7 @@ export default function Caja() {
         limpiarTicket={limpiarTicket}
         showToast={showToast}
         navigate={navigate}
-        onVentaRegistrada={setUltimaTransId}
+        onVentaRegistrada={(id) => { setUltimaTransId(id); verificarLimiteEfectivo(); }}
       />
 
       {/* ── Modales pequeños ── */}
@@ -551,7 +574,7 @@ export default function Caja() {
       />
 
       {/* ── Modal Movimiento de caja ── */}
-      {movOpen && <ModalMovimiento turnoActivo={turnoActivo} onClose={() => setMovOpen(false)} onDone={() => { setMovOpen(false); showToast('Movimiento registrado.', 'ok'); }} />}
+      {movOpen && <ModalMovimiento turnoActivo={turnoActivo} onClose={() => setMovOpen(false)} onDone={() => { setMovOpen(false); showToast('Movimiento registrado.', 'ok'); verificarLimiteEfectivo(); }} />}
 
       <ModalRenombrar
         open={renombrarOpen} onClose={() => setRenombrarOpen(false)}

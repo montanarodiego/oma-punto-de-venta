@@ -71,6 +71,10 @@ export default function Configuracion() {
   const [impresoraActual, setImpresoraActual] = useState('');
   const [imprRes, setImprRes]         = useState('');
 
+  // Límite de efectivo
+  const [limiteEfectivo, setLimiteEfectivo] = useState('0');
+  const [emailCortes, setEmailCortes]       = useState('');
+
   // Usuarios
   const [usuarios, setUsuarios]       = useState<Usuario[]>([]);
   const [usuarioModal, setUsuarioModal] = useState(false);
@@ -103,6 +107,8 @@ export default function Configuracion() {
     setModo(modoVal ?? '');
     setTasaDefault(tasaDef ?? '21');
     setHud(hudVal ?? 'normal');
+    setLimiteEfectivo(cfg.limite_efectivo_caja ?? '0');
+    setEmailCortes(cfg.email_cortes ?? '');
 
     cargarBackups();
     cargarImpresoras();
@@ -346,6 +352,34 @@ export default function Configuracion() {
                   <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><polyline points="1 4 1 10 7 10"/><path d="M3.51 15a9 9 0 1 0 .49-3"/></svg>
                   Cambiar modo
                 </Button>
+              </CardBody>
+            </Card>
+
+            {/* Control de efectivo en caja */}
+            <Card>
+              <CardHeader>Control de efectivo en caja</CardHeader>
+              <CardBody className="flex flex-col gap-4">
+                <Field label="Límite de efectivo en cajón" hint="Monto máximo permitido antes de avisar para hacer un retiro. 0 = sin límite.">
+                  <div className="relative">
+                    <span className="absolute left-3 top-1/2 -translate-y-1/2 text-text-muted text-[13px]">$</span>
+                    <Input
+                      type="number" min="0" step="0.01"
+                      value={limiteEfectivo}
+                      onChange={e => setLimiteEfectivo(e.target.value)}
+                      onBlur={() => window.api.config.set('limite_efectivo_caja', limiteEfectivo)}
+                      className="pl-6"
+                    />
+                  </div>
+                </Field>
+                <Field label="Email para recibir cortes de turno" hint="El resumen del turno se envía automáticamente al cerrar. Vacío = deshabilitado.">
+                  <Input
+                    type="email"
+                    value={emailCortes}
+                    onChange={e => setEmailCortes(e.target.value)}
+                    onBlur={() => window.api.config.set('email_cortes', emailCortes)}
+                    placeholder="admin@comercio.com"
+                  />
+                </Field>
               </CardBody>
             </Card>
 
