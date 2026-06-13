@@ -268,6 +268,11 @@ contextBridge.exposeInMainWorld('api', {
     ipcRenderer.on('abrir-cobro', handler);
     return () => ipcRenderer.removeListener('abrir-cobro', handler);
   },
+  onAbrirVerificador: (cb) => {
+    const handler = () => cb();
+    ipcRenderer.on('abrir-verificador', handler);
+    return () => ipcRenderer.removeListener('abrir-verificador', handler);
+  },
 
   // Auto-updater
   startDownload:    () => ipcRenderer.invoke('updater:start-download'),

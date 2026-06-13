@@ -590,7 +590,6 @@ app.whenReady().then(async () => {
     F6: 'pedidos.html',
     F7: 'informes.html',
     F8: 'turno.html',
-    F9: 'configuracion.html',
   };
   Object.entries(F_MODULOS).forEach(([key, file]) => {
     globalShortcut.register(key, () => {
@@ -598,6 +597,12 @@ app.whenReady().then(async () => {
         mainWindow.webContents.send('navegar-global', file);
       }
     });
+  });
+  // F9: verificador de precios (overlay global, sin navegación)
+  globalShortcut.register('F9', () => {
+    if (mainWindow && !mainWindow.isDestroyed() && mainWindow.isFocused()) {
+      mainWindow.webContents.send('abrir-verificador');
+    }
   });
 
   // F12: abrir modal de cobro siempre, aunque haya un input con foco

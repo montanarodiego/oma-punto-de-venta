@@ -801,6 +801,7 @@ declare global {
       onCobrarConTicket:  (cb: () => void) => () => void;
       onCobrarSinTicket:  (cb: () => void) => () => void;
       onAbrirCobro:       (cb: () => void) => () => void;
+      onAbrirVerificador: (cb: () => void) => () => void;
       startDownload:    () => Promise<void>;
       installUpdate:    () => Promise<void>;
       getPendingUpdate: () => Promise<{ version: string; releaseNotes: string | null } | null>;

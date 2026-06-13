@@ -4,16 +4,24 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { Sidebar } from './Sidebar';
 import { useSession } from '../../context/SessionContext';
 import { ModalApertura, ModalCierre } from '../TurnoModales';
+import { VerificadorPrecios } from '../VerificadorPrecios';
 import type { Turno } from '../../types/api';
 
 export function AppShell() {
   const { session, logout } = useSession();
   const location = useLocation();
 
-  const [ready, setReady]               = useState(false);
-  const [showApertura, setShowApertura] = useState(false);
-  const [showCierre, setShowCierre]     = useState(false);
-  const [turnoActivo, setTurnoActivo]   = useState<Turno | null>(null);
+  const [ready, setReady]                   = useState(false);
+  const [showApertura, setShowApertura]     = useState(false);
+  const [showCierre, setShowCierre]         = useState(false);
+  const [turnoActivo, setTurnoActivo]       = useState<Turno | null>(null);
+  const [verificadorOpen, setVerificadorOpen] = useState(false);
+
+  useEffect(() => {
+    if (!window.api?.onAbrirVerificador) return;
+    const unsub = window.api.onAbrirVerificador(() => setVerificadorOpen(v => !v));
+    return unsub;
+  }, []);
 
   // Verificar turno al iniciar sesión. session?.usuario como dep garantiza
   // que se re-ejecute si cambia el usuario pero no en cada re-render.
@@ -71,6 +79,11 @@ export function AppShell() {
         turno={turnoActivo}
         onCerrado={() => { setShowCierre(false); logout(); }}
         onVolver={() => setShowCierre(false)}
+      />
+
+      <VerificadorPrecios
+        open={verificadorOpen}
+        onClose={() => setVerificadorOpen(false)}
       />
     </div>
   );

@@ -106,6 +106,16 @@ export default function Caja() {
     return () => document.removeEventListener('mousedown', handleOutside);
   }, [sugs.length]);
 
+  // ── Verificador de precios: agregar artículo desde el overlay ──
+  useEffect(() => {
+    function handler(e: Event) {
+      const art = (e as CustomEvent<Articulo>).detail;
+      if (art) agregarArticulo(art);
+    }
+    window.addEventListener('verificador:agregar', handler);
+    return () => window.removeEventListener('verificador:agregar', handler);
+  }, [agregarArticulo]);
+
   // ── Init ────────────────────────────────────────────────────────
   useEffect(() => {
     async function init() {
