@@ -99,11 +99,32 @@ function cancelarTransaccion({ transaccionId, turnoId, motivo }) {
   return op();
 }
 
-function devolucionParcial({ transaccionId, turnoId, motivo, items }) {
+function devolucionParcial({ transaccionId, turnoId, motivo, items: rawItems }) {
   const db    = getDb();
   const trans = db.prepare('SELECT * FROM transacciones WHERE id = ?').get(transaccionId);
   if (!trans) throw new Error('Transacción no encontrada');
   if (trans.estado === 'cancelada') throw new Error('Esta transacción ya fue cancelada');
+
+  // Calcular cantidades ya devueltas por ítem (defense-in-depth: el UI también lo filtra)
+  const yaDevueltos = db.prepare(`
+    SELECT dd.detalle_id, SUM(dd.cantidad) AS total
+    FROM devoluciones_detalle dd
+    JOIN devoluciones d ON d.id = dd.devolucion_id
+    WHERE d.transaccion_id = ?
+    GROUP BY dd.detalle_id
+  `).all(transaccionId);
+  const devMap = Object.fromEntries(yaDevueltos.map(r => [r.detalle_id, r.total]));
+
+  const items = rawItems.map(i => ({
+    ...i,
+    cantidad: i.detalle_id != null
+      ? Math.max(0, i.cantidad - (devMap[i.detalle_id] ?? 0))
+      : i.cantidad,
+  })).filter(i => i.cantidad > 0);
+
+  if (items.length === 0) {
+    throw new Error('Todos los ítems de esta transacción ya fueron devueltos.');
+  }
 
   const montoDevuelto = items.reduce((s, i) => s + i.precio_unitario * i.cantidad, 0);
 

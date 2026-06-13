@@ -20,6 +20,7 @@ export function ModalAnular({ open, onClose, turnoActivo, showToast }: ModalAnul
   const [tipo,       setTipo]       = useState<'total' | 'parcial'>('parcial');
   const [motivo,     setMotivo]     = useState('');
   const [itemQtys,   setItemQtys]   = useState<Record<number, number>>({});
+  const [maxQtys,    setMaxQtys]    = useState<Record<number, number>>({});
   const [loading,    setLoading]    = useState(false);
   const [error,      setError]      = useState('');
 
@@ -34,6 +35,7 @@ export function ModalAnular({ open, onClose, turnoActivo, showToast }: ModalAnul
     setError('');
     setTipo(esAdmin ? 'total' : 'parcial');
     setItemQtys({});
+    setMaxQtys({});
     setTransList([]);
     window.api.devoluciones.recientes(60)
       .then((lista: any[]) => setTransList(lista.filter((t: any) => t.estado !== 'cancelada')))
@@ -45,9 +47,24 @@ export function ModalAnular({ open, onClose, turnoActivo, showToast }: ModalAnul
       const t = await window.api.transacciones.getById(transId);
       if (!t) { setError('Transacción no encontrada.'); return; }
       setSelTrans(t);
+
       const qtys: Record<number, number> = {};
       for (const item of t.detalle) qtys[item.id] = item.cantidad;
+
+      // Si ya tuvo devoluciones parciales, descontar lo ya devuelto
+      if (t.estado === 'devolucion_parcial') {
+        const dvs = await window.api.devoluciones.getByTrans(t.id);
+        for (const dv of dvs) {
+          for (const det of dv.detalle) {
+            if (det.detalle_id != null && qtys[det.detalle_id] != null) {
+              qtys[det.detalle_id] = Math.max(0, qtys[det.detalle_id] - det.cantidad);
+            }
+          }
+        }
+      }
+
       setItemQtys(qtys);
+      setMaxQtys({ ...qtys });
       setTipo(esAdmin ? 'total' : 'parcial');
       setError('');
     } catch {
@@ -202,25 +219,31 @@ export function ModalAnular({ open, onClose, turnoActivo, showToast }: ModalAnul
                       </thead>
                       <tbody>
                         {selTrans.detalle.map((item: any) => {
-                          const devQty = itemQtys[item.id] ?? 0;
+                          const maxDisp = maxQtys[item.id] ?? item.cantidad;
+                          const devQty  = itemQtys[item.id] ?? 0;
+                          const yaTotal = maxDisp === 0;
                           const importe = tipo === 'parcial'
                             ? item.precio_al_momento * devQty
                             : item.importe_total;
                           return (
-                            <tr key={item.id} className="border-b border-border-sub hover:bg-surface-2 transition-colors">
+                            <tr key={item.id} className={`border-b border-border-sub transition-colors ${yaTotal ? 'opacity-50' : 'hover:bg-surface-2'}`}>
                               <td className="px-4 py-2.5 text-text font-medium">{item.nombre}</td>
                               <td className="px-4 py-2.5 text-right font-mono text-text-muted">{fmt(item.precio_al_momento)}</td>
                               <td className="px-4 py-2.5 text-right">
                                 {tipo === 'parcial' ? (
-                                  <input
-                                    type="number" min="0" max={item.cantidad} step="any"
-                                    value={devQty}
-                                    onChange={e => {
-                                      const v = Math.min(item.cantidad, Math.max(0, parseFloat(e.target.value) || 0));
-                                      setItemQtys(q => ({ ...q, [item.id]: v }));
-                                    }}
-                                    className="inp w-20 text-right py-0.5 px-2 text-[12px] font-mono"
-                                  />
+                                  yaTotal ? (
+                                    <span className="text-[10px] font-bold px-1.5 py-0.5 rounded bg-[rgba(34,197,94,.12)] text-[#4ade80]">Ya devuelto</span>
+                                  ) : (
+                                    <input
+                                      type="number" min="0" max={maxDisp} step="any"
+                                      value={devQty}
+                                      onChange={e => {
+                                        const v = Math.min(maxDisp, Math.max(0, parseFloat(e.target.value) || 0));
+                                        setItemQtys(q => ({ ...q, [item.id]: v }));
+                                      }}
+                                      className="inp w-20 text-right py-0.5 px-2 text-[12px] font-mono"
+                                    />
+                                  )
                                 ) : (
                                   <span className="font-mono">{item.cantidad}</span>
                                 )}
