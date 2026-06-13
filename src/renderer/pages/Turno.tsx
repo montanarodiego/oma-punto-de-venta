@@ -145,7 +145,12 @@ export default function TurnoPage() {
           {turno && (
             <motion.div initial={{opacity:0,y:8}} animate={{opacity:1,y:0}}>
             <Card>
-              <CardHeader actions={<span className="text-[11px] font-semibold px-2.5 py-0.5 rounded-full bg-[rgba(34,197,94,.15)] text-[#4ade80]">ABIERTO</span>}>Turno en curso</CardHeader>
+              <CardHeader actions={
+                <span className="text-[11px] font-semibold px-2.5 py-1 rounded-full bg-[rgba(34,197,94,.15)] text-[#4ade80] flex items-center gap-1.5">
+                  <span className="w-1.5 h-1.5 rounded-full bg-[#4ade80] animate-pulse flex-shrink-0" />
+                  ABIERTO
+                </span>
+              }>Turno en curso</CardHeader>
               <CardBody className="flex flex-col gap-5">
                 {/* Info apertura */}
                 <div className="grid grid-cols-3 gap-4">
@@ -191,7 +196,7 @@ export default function TurnoPage() {
                     )}
                     <div className="flex justify-between items-baseline text-[16px] font-bold pt-2 border-t border-border">
                       <span>Efectivo esperado en caja</span>
-                      <span className="font-mono text-[22px] font-black text-accent">{fmt(resumen.efectivo_esperado)}</span>
+                      <span className="font-mono text-[32px] font-black text-accent tabular-nums">{fmt(resumen.efectivo_esperado)}</span>
                     </div>
                   </div>
                 )}
@@ -214,7 +219,9 @@ export default function TurnoPage() {
                       </Field>
                       <div className="flex flex-col justify-end">
                         <div className="text-[11px] font-semibold text-text-subtle uppercase tracking-wider mb-1">Diferencia</div>
-                        <div className={`text-[24px] font-black font-mono tabular-nums ${diferencia === null ? 'text-text-subtle' : diferencia >= 0 ? 'text-[#4ade80]' : 'text-[#f87171]'}`}>
+                        <div className={`text-[24px] font-black font-mono tabular-nums flex items-center gap-1.5 ${diferencia === null ? 'text-text-subtle' : diferencia >= 0 ? 'text-[#4ade80]' : 'text-[#f87171]'}`}>
+                          {diferencia !== null && diferencia >= 0 && <span className="text-[16px] leading-none">✓</span>}
+                          {diferencia !== null && diferencia < 0  && <span className="text-[16px] leading-none">⚠</span>}
                           {diferencia === null ? '—' : (diferencia >= 0 ? '+' : '') + fmt(diferencia)}
                         </div>
                       </div>
