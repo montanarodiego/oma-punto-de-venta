@@ -4,7 +4,7 @@ const path           = require('path');
 const fs             = require('fs');
 const os             = require('os');
 const { version }    = require('../../package.json');
-const { enviarReporte, enviarCodigoReset } = require('./mailer');
+const { enviarReporte, enviarCodigoReset, enviarCorte } = require('./mailer');
 const PasswordReset  = require('./models/password-reset');
 const Usuarios       = require('./models/usuarios');
 const Articulos      = require('./models/articulos');
@@ -451,7 +451,28 @@ function registerHandlers() {
   ipcMain.handle('turnos:obtenerActivo',    ()                           => Turnos.obtenerActivo());
   ipcMain.handle('turnos:abrir',            (_e, efectivoInicial)        => Turnos.abrir(efectivoInicial));
   ipcMain.handle('turnos:calcularResumen',  (_e, id)                     => Turnos.calcularResumen(id));
-  ipcMain.handle('turnos:cerrar',           (_e, id, efectivoReal, notas) => Turnos.cerrar(id, efectivoReal, notas));
+  ipcMain.handle('turnos:cerrar', async (_e, id, efectivoReal, notas) => {
+    const result  = Turnos.cerrar(id, efectivoReal, notas);
+    // Enviar resumen por email en background — no bloquea el cierre
+    (async () => {
+      try {
+        const { getDb } = require('./database');
+        const db   = getDb();
+        const cfg  = db.prepare("SELECT clave, valor FROM configuracion WHERE clave IN ('email_cortes','nombre_negocio')").all();
+        const cfgMap = Object.fromEntries(cfg.map(r => [r.clave, r.valor]));
+        const emailDest = cfgMap.email_cortes;
+        if (!emailDest) return;
+        const resumen = Turnos.calcularResumen(id);
+        await enviarCorte({
+          emailDestino:  emailDest,
+          resumen,
+          negocioNombre: cfgMap.nombre_negocio ?? 'OmaTech POS',
+          operadorNombre: result?.operador_nombre ?? '',
+        });
+      } catch (err) { log.warn('[mailer] Error enviando corte:', err.message); }
+    })();
+    return result;
+  });
   ipcMain.handle('turnos:historial',        (_e, limite)                 => Turnos.historial(limite));
   ipcMain.handle('turnos:detalle',          (_e, id)                     => Turnos.detalle(id));
 

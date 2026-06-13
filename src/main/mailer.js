@@ -59,4 +59,53 @@ async function enviarCodigoReset({ email, nombre, codigo }) {
   });
 }
 
-module.exports = { enviarReporte, enviarCodigoReset };
+async function enviarCorte({ emailDestino, resumen, negocioNombre, operadorNombre }) {
+  const fmt = (n) => `$${(n ?? 0).toLocaleString('es-AR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+  const fechaCierre = resumen.fecha_cierre
+    ? new Date(resumen.fecha_cierre).toLocaleString('es-AR', { hour12: false, timeZone: 'America/Argentina/Buenos_Aires' })
+    : new Date().toLocaleString('es-AR', { hour12: false, timeZone: 'America/Argentina/Buenos_Aires' });
+  const dif = (resumen.efectivo_real ?? 0) - (resumen.efectivo_esperado ?? 0);
+  const difColor = dif >= 0 ? '#16a34a' : '#dc2626';
+  const difLabel = dif >= 0 ? `Sobrante: ${fmt(dif)}` : `Faltante: ${fmt(Math.abs(dif))}`;
+
+  await transporter.sendMail({
+    from:    `${negocioNombre || 'OmaTech POS'} <oma.technologies.venta@gmail.com>`,
+    to:      emailDestino,
+    subject: `Cierre de turno — ${negocioNombre || 'OmaTech POS'} — ${fechaCierre}`,
+    html: `
+      <div style="font-family:sans-serif;max-width:520px;margin:0 auto;background:#f8fafc;border-radius:12px;padding:28px;">
+        <div style="font-size:18px;font-weight:800;color:#1e3a8a;margin-bottom:4px;">${negocioNombre || 'OmaTech POS'}</div>
+        <div style="font-size:13px;color:#6b7280;margin-bottom:20px;">Resumen de cierre de turno</div>
+
+        <table style="width:100%;border-collapse:collapse;font-size:14px;">
+          <tr><td style="padding:7px 0;color:#6b7280;width:50%;">Operador:</td><td style="padding:7px 0;font-weight:600;">${operadorNombre || '—'}</td></tr>
+          <tr><td style="padding:7px 0;color:#6b7280;">Fecha y hora:</td><td style="padding:7px 0;font-weight:600;">${fechaCierre}</td></tr>
+        </table>
+
+        <hr style="border:none;border-top:1px solid #e5e7eb;margin:16px 0;">
+
+        <table style="width:100%;border-collapse:collapse;font-size:14px;">
+          <tr><td style="padding:7px 0;color:#6b7280;">Total de ventas:</td><td style="padding:7px 0;font-weight:700;text-align:right;">${fmt(resumen.total_ventas)}</td></tr>
+          <tr><td style="padding:7px 0;color:#6b7280;">Efectivo:</td><td style="padding:7px 0;text-align:right;">${fmt(resumen.ventas_efectivo)}</td></tr>
+          <tr><td style="padding:7px 0;color:#6b7280;">Débito:</td><td style="padding:7px 0;text-align:right;">${fmt(resumen.ventas_debito)}</td></tr>
+          <tr><td style="padding:7px 0;color:#6b7280;">Crédito:</td><td style="padding:7px 0;text-align:right;">${fmt(resumen.ventas_credito)}</td></tr>
+          <tr><td style="padding:7px 0;color:#6b7280;">Transferencia:</td><td style="padding:7px 0;text-align:right;">${fmt(resumen.ventas_transferencia)}</td></tr>
+          <tr><td style="padding:7px 0;color:#6b7280;">Cta. Corriente:</td><td style="padding:7px 0;text-align:right;">${fmt(resumen.ventas_cuenta_corriente)}</td></tr>
+        </table>
+
+        <hr style="border:none;border-top:1px solid #e5e7eb;margin:16px 0;">
+
+        <table style="width:100%;border-collapse:collapse;font-size:14px;">
+          <tr><td style="padding:7px 0;color:#6b7280;">Efectivo inicial:</td><td style="padding:7px 0;text-align:right;">${fmt(resumen.efectivo_inicial)}</td></tr>
+          <tr><td style="padding:7px 0;color:#6b7280;">Efectivo esperado:</td><td style="padding:7px 0;text-align:right;">${fmt(resumen.efectivo_esperado)}</td></tr>
+          <tr><td style="padding:7px 0;color:#6b7280;">Efectivo real:</td><td style="padding:7px 0;text-align:right;">${fmt(resumen.efectivo_real)}</td></tr>
+          <tr><td style="padding:7px 0;font-weight:700;color:${difColor};">${difLabel}</td><td></td></tr>
+        </table>
+
+        <div style="margin-top:20px;font-size:11px;color:#9ca3af;text-align:center;">OmaTech POS — generado automáticamente al cerrar turno</div>
+      </div>
+    `,
+  });
+}
+
+module.exports = { enviarReporte, enviarCodigoReset, enviarCorte };
