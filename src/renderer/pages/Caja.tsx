@@ -84,6 +84,10 @@ export default function Caja() {
   const sugTimer    = useRef<NodeJS.Timeout | null>(null);
   const codigoBarRef = useRef<HTMLDivElement>(null);
 
+  // ── Cantidad directa con asterisco (ej: "3*coca") ──────────────
+  const parsedQtyRef = useRef(1);
+  const [parsedQtyDisplay, setParsedQtyDisplay] = useState(1);
+
   const codigoIsEmptyRef = useRef(true);
   const cobrarRef      = useRef<(conTicket: boolean) => void>(() => {});
   const cobroModalRef  = useRef<ModalCobroHandle>(null);
@@ -193,11 +197,14 @@ export default function Caja() {
 
   // ── Seleccionar sugerencia del dropdown ────────────────────────
   async function seleccionarSug(art: Articulo) {
+    const qty = parsedQtyRef.current;
+    parsedQtyRef.current = 1;
+    setParsedQtyDisplay(1);
     setSugs([]);
     setSugIdx(-1);
     if (sugTimer.current) clearTimeout(sugTimer.current);
     codigoRef.current?.clear();
-    await agregarArticulo(art);
+    await agregarArticulo(art, qty);
     codigoRef.current?.animOk();
   }
 
@@ -205,11 +212,20 @@ export default function Caja() {
   function handleCodigoChange(v: string) {
     codigoIsEmptyRef.current = v === '';
     if (sugTimer.current) clearTimeout(sugTimer.current);
-    if (v.trim().length >= 1) {
+
+    // Parse asterisco: "3*coca" → qty=3, search="coca"
+    const starIdx = v.indexOf('*');
+    const hasQty  = starIdx > 0;
+    const search  = hasQty ? v.slice(starIdx + 1).trim() : v.trim();
+    const qty     = hasQty ? (parseFloat(v.slice(0, starIdx)) || 1) : 1;
+    parsedQtyRef.current = qty;
+    setParsedQtyDisplay(qty);
+
+    if (search.length >= 1) {
       sugTimer.current = setTimeout(async () => {
-        const res = await window.api.articulos.search(v.trim());
-        // 1 resultado con código exacto → agregar directo sin dropdown
-        if (res.length === 1 && res[0].codigo.toLowerCase() === v.trim().toLowerCase()) {
+        const res = await window.api.articulos.search(search);
+        // Código exacto sin prefijo de cantidad → agregar directo sin dropdown
+        if (!hasQty && res.length === 1 && res[0].codigo.toLowerCase() === search.toLowerCase()) {
           await seleccionarSug(res[0]);
           return;
         }
@@ -250,17 +266,37 @@ export default function Caja() {
 
   const procesarCodigoFn = useCallback(async (codigo: string) => {
     if (!codigo.trim()) return;
-    // Limpiar dropdown si el Enter lo bypaseó
     setSugs([]);
     setSugIdx(-1);
     if (sugTimer.current) clearTimeout(sugTimer.current);
-    const art = await window.api.articulos.getByCodigo(codigo.trim());
+
+    // Parse asterisco: "3*7501055341344" o "3*coca"
+    let cantidad = 1;
+    let busqueda = codigo.trim();
+    const starIdx = busqueda.indexOf('*');
+    if (starIdx > 0) {
+      const cand = parseFloat(busqueda.slice(0, starIdx));
+      if (!isNaN(cand) && cand > 0) {
+        cantidad = cand;
+        busqueda = busqueda.slice(starIdx + 1).trim();
+      }
+    }
+    parsedQtyRef.current = 1;
+    setParsedQtyDisplay(1);
+
+    const art = await window.api.articulos.getByCodigo(busqueda);
     if (art) {
-      await agregarArticulo(art);
+      await agregarArticulo(art, cantidad);
       codigoRef.current?.animOk();
     } else {
-      codigoRef.current?.animError();
-      showToast('Código no encontrado: ' + codigo, 'error');
+      const res = await window.api.articulos.search(busqueda);
+      if (res.length >= 1) {
+        await agregarArticulo(res[0], cantidad);
+        codigoRef.current?.animOk();
+      } else {
+        codigoRef.current?.animError();
+        showToast('Código no encontrado: ' + busqueda, 'error');
+      }
     }
   }, [showToast]); // agregarArticulo y sugTimer usan refs internamente
 
@@ -371,7 +407,12 @@ export default function Caja() {
         ref={codigoBarRef}
         className="relative flex items-center gap-3 px-3 py-2.5 bg-surface border-b border-border flex-shrink-0"
       >
-        <label className="text-[12px] font-bold text-text-muted whitespace-nowrap uppercase tracking-wider">Código:</label>
+        <label className="text-[12px] font-bold text-text-muted whitespace-nowrap uppercase tracking-wider flex items-center gap-1.5">
+          Código:
+          {parsedQtyDisplay > 1 && (
+            <span className="text-accent font-black text-[13px]">×{parsedQtyDisplay}</span>
+          )}
+        </label>
         <CodigoInput
           ref={codigoRef}
           onSubmit={procesarCodigoFn}
