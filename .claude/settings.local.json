@@ -115,7 +115,17 @@
       "PowerShell(ls -Recurse -Path \"C:\\\\Users\\\\diego\\\\Desktop\\\\oma-punto-de-venta\\\\src\" | Where-Object { $_.Name -match \"\\\\.\\(js|html\\)$\" } | Select-Object -ExpandProperty FullName)",
       "Bash(findstr /R /S \"prepare.*+.*\\\\|prepare.*\\\\`.*\\\\${\" src\\\\main\\\\models\\\\*.js)",
       "Bash(Select-String -Pattern \"SETUP CHECK|error|Error\")",
-      "Bash(python3 *)"
+      "Bash(python3 *)",
+      "Bash(git tag *)",
+      "Bash(Get-ChildItem -Path \"C:\\\\Users\\\\diego\\\\Desktop\\\\oma-punto-de-venta\" -Recurse -Name)",
+      "Bash(Select-Object -First 50)",
+      "Bash(taskkill /F /IM electron.exe)",
+      "Bash(taskkill /F /IM \"Oma Punto de Venta.exe\")",
+      "Bash(exit 0)",
+      "Bash(npx firebase *)",
+      "Bash(findstr /I \"error\\\\|auth\\\\|token\\\\|401\\\\|403\")",
+      "Bash(head -60 src/main/models/pedidos-compra.js)",
+      "Bash(head -60 src/main/models/pedidos.js)"
     ]
   }
 }
