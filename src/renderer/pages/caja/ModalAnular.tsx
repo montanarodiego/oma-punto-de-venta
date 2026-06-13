@@ -265,7 +265,7 @@ export function ModalAnular({ open, onClose, turnoActivo, showToast }: ModalAnul
                     <div className="flex gap-2 justify-end">
                       <button className="btn btn-ghost" onClick={onClose}>Cancelar</button>
                       <button
-                        disabled={loading}
+                        disabled={loading || (tipo === 'parcial' && selTrans?.detalle.every((i: any) => (itemQtys[i.id] ?? 0) <= 0))}
                         onClick={confirmar}
                         className={`btn font-bold ${tipo === 'total' ? 'btn-danger' : 'btn-primary'}`}
                       >
