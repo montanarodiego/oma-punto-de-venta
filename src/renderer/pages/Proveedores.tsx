@@ -4,12 +4,7 @@ import { useToast } from '../context/ToastContext';
 import { Button, Field, Input, Modal, VirtualTable } from '../components/ui';
 import { ImportModal } from '../components/ImportModal';
 import type { ImportConfig } from '../components/ImportModal';
-import type { Proveedor } from '../types/api';
-
-interface ArticuloStockBajo {
-  id: number; codigo: string; nombre: string; proveedor: string | null;
-  stock_actual: number; stock_minimo: number; costo_unitario: number; unidad_medida: string | null;
-}
+import type { Proveedor, ArticuloStockBajo } from '../types/api';
 
 export default function Proveedores() {
   const { showToast } = useToast();
@@ -37,7 +32,7 @@ export default function Proveedores() {
   const cargarStockBajo = useCallback(async () => {
     setLoadingSB(true);
     try {
-      const data = (await window.api.proveedores.articulosConStockBajo()) as unknown as ArticuloStockBajo[];
+      const data = await window.api.proveedores.articulosConStockBajo();
       setStockBajo(data);
       const sel: Record<number, boolean> = {};
       const cant: Record<number, number> = {};

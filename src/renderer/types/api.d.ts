@@ -64,6 +64,17 @@ export interface Articulo {
   departamento_color?: string | null;
 }
 
+export interface ArticuloStockBajo {
+  id: number;
+  codigo: string;
+  nombre: string;
+  proveedor: string | null;
+  stock_actual: number;
+  stock_minimo: number;
+  costo_unitario: number;
+  unidad_medida: string | null;
+}
+
 export interface Cliente {
   id: number;
   nombre: string;
@@ -695,7 +706,7 @@ declare global {
         create:                (data: Partial<Proveedor>) => Promise<Proveedor>;
         update:                (id: number, data: Partial<Proveedor>) => Promise<void>;
         delete:                (id: number) => Promise<void>;
-        articulosConStockBajo: () => Promise<Articulo[]>;
+        articulosConStockBajo: () => Promise<ArticuloStockBajo[]>;
       };
       pedidos: {
         getAll:         () => Promise<PedidoCompra[]>;
@@ -736,7 +747,7 @@ declare global {
         detalle:         (id: number) => Promise<TurnoDetalle | null>;
       };
       backup: {
-        hacerAhora:         () => Promise<{ ok: boolean; error?: string }>;
+        hacerAhora:         () => Promise<{ ok: boolean; ruta?: string; error?: string }>;
         listar:             () => Promise<BackupInfo[]>;
         getRuta:            () => Promise<string>;
         abrirCarpeta:       () => Promise<void>;
