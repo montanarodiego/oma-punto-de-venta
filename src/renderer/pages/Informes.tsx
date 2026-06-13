@@ -31,6 +31,7 @@ export default function Informes() {
 
   const deptoChartRef = useRef<HTMLCanvasElement>(null);
   const mesChartRef   = useRef<HTMLCanvasElement>(null);
+  const diaChartRef   = useRef<HTMLCanvasElement>(null);
   const [utilSort, setUtilSort] = useState<UtilSortKey>('utilidad_total');
   const [utilDir,  setUtilDir]  = useState<'asc' | 'desc'>('desc');
 
@@ -85,6 +86,50 @@ export default function Informes() {
     setMejor(mej); setVentasDeptos(deptos ?? []); setVentasMes(meses ?? []);
     setLoading(false);
   }
+
+  useEffect(() => {
+    if (!diaChartRef.current || !ventasPorDia.length) return;
+    const labels = ventasPorDia.map(d =>
+      new Date(d.fecha + 'T00:00:00').toLocaleDateString('es-AR', { weekday: 'short', day: '2-digit', month: '2-digit' })
+    );
+    const chart = new Chart(diaChartRef.current, {
+      type: 'bar',
+      data: {
+        labels,
+        datasets: [
+          {
+            label: 'Ventas',
+            data: ventasPorDia.map(d => d.monto_total),
+            backgroundColor: 'rgba(79,142,245,0.65)',
+            borderColor: '#4f8ef5',
+            borderWidth: 1,
+            borderRadius: 4,
+          },
+          {
+            label: 'Ganancia',
+            data: ventasPorDia.map(d => d.ganancia),
+            backgroundColor: 'rgba(45,218,110,0.5)',
+            borderColor: '#2dda6e',
+            borderWidth: 1,
+            borderRadius: 4,
+          },
+        ],
+      },
+      options: {
+        responsive: true,
+        maintainAspectRatio: false,
+        plugins: {
+          legend: { labels: { color: '#8fa3bd', boxWidth: 12, padding: 16 } },
+          tooltip: { callbacks: { label: ctx => ` ${ctx.dataset.label}: ${fmt(ctx.parsed.y ?? 0)}` } },
+        },
+        scales: {
+          x: { ticks: { color: '#8fa3bd', maxRotation: 45 }, grid: { color: '#1c2a3f' } },
+          y: { ticks: { color: '#8fa3bd', callback: v => fmt(Number(v)) }, grid: { color: '#1c2a3f' } },
+        },
+      },
+    });
+    return () => chart.destroy();
+  }, [ventasPorDia]);
 
   useEffect(() => {
     if (!deptoChartRef.current || !ventasDeptos.length) return;
@@ -195,20 +240,20 @@ export default function Informes() {
 
           {/* KPIs */}
           <div className="grid grid-cols-5 gap-4">
-            {[
-              { label:'Ventas totales',      value:fmt(resumen?.total_ventas??0),        color:'text-text' },
-              { label:'Cantidad de ventas',  value:String(resumen?.cantidad_ventas??0),  color:'text-text' },
-              { label:'Ticket promedio',     value:fmt(resumen?.ticket_promedio??0),     color:'text-accent' },
-              { label:'Utilidad bruta',      value:fmt(utilidad?.utilidad_bruta??0),    color:((utilidad?.utilidad_bruta??0)>=0)?'text-[#4ade80]':'text-danger' },
-            ].map(k => (
-              <Card key={k.label}>
+            {([
+              { label:'Ventas totales',     value:fmt(resumen?.total_ventas??0),       color:'text-text',      accent:'[border-left-color:#4f8ef5]' },
+              { label:'Cantidad de ventas', value:String(resumen?.cantidad_ventas??0), color:'text-text',      accent:'[border-left-color:#a78bfa]' },
+              { label:'Ticket promedio',    value:fmt(resumen?.ticket_promedio??0),    color:'text-accent',    accent:'[border-left-color:#38bdf8]' },
+              { label:'Utilidad bruta',     value:fmt(utilidad?.utilidad_bruta??0),   color:((utilidad?.utilidad_bruta??0)>=0)?'text-[#4ade80]':'text-danger', accent:(utilidad?.utilidad_bruta??0)>=0?'[border-left-color:#2dda6e]':'[border-left-color:#ef4444]' },
+            ] as const).map(k => (
+              <Card key={k.label} className={`border-l-[3px] ${k.accent}`}>
                 <CardBody>
                   <div className="text-[11px] font-bold text-text-subtle uppercase tracking-widest mb-2">{k.label}</div>
                   <div className={`text-[28px] font-black font-mono tabular-nums leading-none ${k.color}`}>{k.value}</div>
                 </CardBody>
               </Card>
             ))}
-            <Card>
+            <Card className="border-l-[3px] [border-left-color:#f59e0b]">
               <CardBody>
                 <div className="text-[11px] font-bold text-text-subtle uppercase tracking-widest mb-2">Mejor día</div>
                 {mejor ? (
@@ -251,21 +296,19 @@ export default function Informes() {
 
             <Card>
               <CardHeader>Ventas por día</CardHeader>
-              <CardBody className="p-0">
-                <table className="tbl">
-                  <thead><tr><th>Fecha</th><th className="text-right">Ventas</th><th className="text-right">Monto</th><th className="text-right">Ganancia</th></tr></thead>
-                  <tbody>
-                    {ventasPorDia.length === 0 ? <tr><td colSpan={4} className="text-center py-6 text-text-subtle text-[13px]">Sin datos.</td></tr> :
-                    ventasPorDia.map((d,i) => (
-                      <tr key={i}>
-                        <td className="text-[12px]">{new Date(d.fecha+'T00:00:00').toLocaleDateString('es-AR',{weekday:'short',day:'2-digit',month:'2-digit'})}</td>
-                        <td className="text-right font-mono text-[13px]">{d.cantidad}</td>
-                        <td className="text-right font-mono text-[13px] font-semibold">{fmt(d.monto_total)}</td>
-                        <td className="text-right font-mono text-[13px] text-[#4ade80]">{fmt(d.ganancia)}</td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
+              <CardBody>
+                {ventasPorDia.length === 0 ? (
+                  <div className="flex flex-col items-center justify-center h-[200px] gap-2 text-text-subtle">
+                    <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1" strokeLinecap="round" strokeLinejoin="round" className="opacity-20">
+                      <line x1="18" y1="20" x2="18" y2="10"/><line x1="12" y1="20" x2="12" y2="4"/><line x1="6" y1="20" x2="6" y2="14"/>
+                    </svg>
+                    <span className="text-[13px]">Sin datos para el período</span>
+                  </div>
+                ) : (
+                  <div style={{ position: 'relative', height: 220 }}>
+                    <canvas ref={diaChartRef} />
+                  </div>
+                )}
               </CardBody>
             </Card>
           </div>
@@ -277,17 +320,24 @@ export default function Informes() {
               <CardBody>
                 <div className="grid grid-cols-5 gap-4">
                   {[
-                    { label:'Efectivo', value:resumen.ventas_efectivo??0 },
-                    { label:'Débito', value:resumen.ventas_debito??0 },
-                    { label:'Crédito', value:resumen.ventas_credito??0 },
-                    { label:'Transferencia', value:resumen.ventas_transferencia??0 },
-                    { label:'Cta. Cte.', value:resumen.ventas_cuenta_corriente??0 },
-                  ].map(f => (
-                    <div key={f.label} className="text-center p-4 bg-surface-2 rounded-[var(--r-in)]">
-                      <div className="text-[11px] font-bold text-text-subtle uppercase tracking-wider mb-2">{f.label}</div>
-                      <div className="text-[20px] font-black font-mono tabular-nums">{fmt(f.value)}</div>
-                    </div>
-                  ))}
+                    { label:'Efectivo',       value:resumen.ventas_efectivo??0,          color:'#4f8ef5' },
+                    { label:'Débito',         value:resumen.ventas_debito??0,            color:'#a78bfa' },
+                    { label:'Crédito',        value:resumen.ventas_credito??0,           color:'#38bdf8' },
+                    { label:'Transferencia',  value:resumen.ventas_transferencia??0,     color:'#2dda6e' },
+                    { label:'Cta. Cte.',      value:resumen.ventas_cuenta_corriente??0,  color:'#f59e0b' },
+                  ].map(f => {
+                    const pct = resumen.total_ventas > 0 ? (f.value / resumen.total_ventas * 100) : 0;
+                    return (
+                      <div key={f.label} className="p-4 bg-surface-2 rounded-[var(--r-in)] border border-border">
+                        <div className="text-[11px] font-bold text-text-subtle uppercase tracking-wider mb-1">{f.label}</div>
+                        <div className="text-[18px] font-black font-mono tabular-nums text-text">{fmt(f.value)}</div>
+                        <div className="mt-2 h-1 rounded-full bg-surface-3 overflow-hidden">
+                          <div className="h-full rounded-full" style={{ width: `${Math.min(100, pct)}%`, background: f.color }} />
+                        </div>
+                        <div className="text-[11px] font-semibold mt-1" style={{ color: f.color }}>{pct.toFixed(1)}%</div>
+                      </div>
+                    );
+                  })}
                 </div>
               </CardBody>
             </Card>
