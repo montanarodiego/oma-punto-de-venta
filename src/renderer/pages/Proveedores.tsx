@@ -2,6 +2,8 @@ import { useState, useEffect, useRef, useCallback } from 'react';
 import { useTableKeyboard } from '../hooks/useTableKeyboard';
 import { useToast } from '../context/ToastContext';
 import { Button, Field, Input, Modal, VirtualTable } from '../components/ui';
+import { ImportModal } from '../components/ImportModal';
+import type { ImportConfig } from '../components/ImportModal';
 import type { Proveedor } from '../types/api';
 
 export default function Proveedores() {
@@ -16,6 +18,7 @@ export default function Proveedores() {
   const [saving,      setSaving]      = useState(false);
   const [error,       setError]       = useState('');
   const [form, setForm] = useState({ nombre: '', telefono: '', email: '', direccion: '', notas: '' });
+  const [importOpen, setImportOpen] = useState(false);
 
   const searchTimer = useRef<NodeJS.Timeout | null>(null);
 
@@ -101,7 +104,10 @@ export default function Proveedores() {
     <div className="page-content">
       <div className="page-header flex items-center justify-between">
         <h1 className="page-title">Proveedores</h1>
-        <Button variant="primary" size="sm" onClick={abrirNuevo}>+ Nuevo proveedor</Button>
+        <div className="flex items-center gap-2">
+          <Button variant="ghost" size="sm" onClick={() => setImportOpen(true)}>↑ Importar</Button>
+          <Button variant="primary" size="sm" onClick={abrirNuevo}>+ Nuevo proveedor</Button>
+        </div>
       </div>
 
       <div className="flex gap-3 px-6 py-3 border-b border-border flex-shrink-0">
@@ -196,6 +202,49 @@ export default function Proveedores() {
           {error && <div className="px-3 py-2 bg-[rgba(239,68,68,.1)] border border-[rgba(239,68,68,.25)] text-[#fca5a5] text-[12px] rounded-[var(--r-in)]">{error}</div>}
         </form>
       </Modal>
+
+      <ImportModal
+        open={importOpen}
+        onClose={() => setImportOpen(false)}
+        onDone={() => cargar(busqueda)}
+        config={proveedoresImportConfig}
+      />
     </div>
   );
 }
+
+// ── Config de importación de proveedores ──────────────────────────────────────
+
+const proveedoresImportConfig: ImportConfig = {
+  entityName:      'proveedores',
+  templateHeaders: ['nombre', 'telefono', 'email', 'direccion', 'notas'],
+  requiredFields:  ['nombre'],
+  templateExample: ['Distribuidora SA', '3511234567', 'contacto@dist.com', 'Calle Falsa 123', ''],
+  templateFilename: 'plantilla_proveedores.xlsx',
+  previewColumns: [
+    { key: 'nombre',    label: 'Nombre'    },
+    { key: 'telefono',  label: 'Teléfono'  },
+    { key: 'email',     label: 'Email'     },
+    { key: 'direccion', label: 'Dirección' },
+  ],
+  validateRow(raw) {
+    const errors: string[] = [];
+    if (!raw.nombre?.trim()) errors.push('nombre es obligatorio');
+    if (errors.length > 0) return { data: null, errors };
+
+    return {
+      data: {
+        nombre:    raw.nombre.trim(),
+        telefono:  raw.telefono?.trim()  ?? '',
+        email:     raw.email?.trim()     ?? '',
+        direccion: raw.direccion?.trim() ?? '',
+        notas:     raw.notas?.trim()     ?? '',
+      },
+      errors: [],
+    };
+  },
+  async importRow(data) {
+    await window.api.proveedores.create(data as Partial<Proveedor>);
+    return 'created';
+  },
+};

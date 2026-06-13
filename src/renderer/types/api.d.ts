@@ -754,7 +754,7 @@ declare global {
       sync: {
         manual:            () => Promise<{ ok: boolean; sincronizados?: number; fallidos?: number; error?: string }>;
         contarPendientes:  () => Promise<number>;
-        detallePendientes: () => Promise<{ articulos: number; clientes: number; transacciones: number }>;
+        detallePendientes: () => Promise<{ articulos: number; clientes: number; transacciones: number; proveedores: number }>;
       };
       auth: {
         login:            (email: string, password: string) => Promise<{ ok: boolean; error?: string }>;
@@ -762,6 +762,7 @@ declare global {
         solicitarReset:   (email: string) => Promise<{ ok: boolean; error?: string }>;
         verificarCodigo:  (email: string, codigo: string) => Promise<{ ok: boolean; error?: string }>;
         resetearPassword: (email: string, codigo: string, password: string) => Promise<{ ok: boolean; error?: string }>;
+        estadoSync:       () => Promise<{ activa: boolean; firebaseConectado: boolean; ultimaSync: number | null }>;
       };
       inventario: {
         ajustar:           (data: AjusteInventarioData) => Promise<AjusteResult>;

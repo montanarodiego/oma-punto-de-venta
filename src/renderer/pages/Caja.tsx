@@ -3,7 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { useToast } from '../context/ToastContext';
 import { useCarritoKeyboard } from '../hooks/useCarritoKeyboard';
 import type { Articulo } from '../types/api';
-import { mkItem, WIZARD_MODOS } from './caja/types';
+import { mkItem, WIZARD_MODOS, fmt } from './caja/types';
 import type { Totales } from './caja/calculosFiscales';
 import { useCarrito } from './caja/useCarrito';
 import { TicketTabs } from './caja/TicketTabs';
@@ -78,11 +78,29 @@ export default function Caja() {
   const [renombrarOpen, setRenombrarOpen] = useState(false);
   const [renombrarVal, setRenombrarVal] = useState('');
 
+  // ── Dropdown de sugerencias ────────────────────────────────────
+  const [sugs, setSugs]     = useState<Articulo[]>([]);
+  const [sugIdx, setSugIdx] = useState(-1);
+  const sugTimer    = useRef<NodeJS.Timeout | null>(null);
+  const codigoBarRef = useRef<HTMLDivElement>(null);
+
   const codigoIsEmptyRef = useRef(true);
   const cobrarRef      = useRef<(conTicket: boolean) => void>(() => {});
   const cobroModalRef  = useRef<ModalCobroHandle>(null);
   const hotkeyRef      = useRef<(e: KeyboardEvent) => void>(() => {});
 
+  // Cerrar dropdown al hacer click fuera de la barra de código
+  useEffect(() => {
+    if (sugs.length === 0) return;
+    function handleOutside(e: MouseEvent) {
+      if (codigoBarRef.current && !codigoBarRef.current.contains(e.target as Node)) {
+        setSugs([]);
+        setSugIdx(-1);
+      }
+    }
+    document.addEventListener('mousedown', handleOutside);
+    return () => document.removeEventListener('mousedown', handleOutside);
+  }, [sugs.length]);
 
   // ── Init ────────────────────────────────────────────────────────
   useEffect(() => {
@@ -105,8 +123,6 @@ export default function Caja() {
     }
     init();
 
-    // IPC: cobrar con ticket / sin ticket / abrir cobro
-    // cobrarRef.current se mantiene actualizado en cada render, evitando stale closure.
     const u1 = window.api.onCobrarConTicket(() => cobrarRef.current(true));
     const u2 = window.api.onCobrarSinTicket(() => cobrarRef.current(false));
     const u3 = window.api.onAbrirCobro(() => setCobroOpen(true));
@@ -122,14 +138,10 @@ export default function Caja() {
     el?.scrollIntoView({ block: 'nearest' });
   }, [ticket.itemSelIdx, activeIdx]);
 
-  // noModal: true cuando ningún modal/overlay está abierto — usado en hotkeyRef y useCarritoKeyboard
   const noModal = !buscadorOpen && !cobroOpen && !libreOpen && !descItemOpen && !movOpen && !anularOpen && !renombrarOpen && !wizardOpen && !qtyEditorOpen;
   const noModalRef = useRef(noModal);
   noModalRef.current = noModal;
 
-  // Hotkeys globales — ref actualizado en cada render para evitar stale closure.
-  // El listener se registra una sola vez (deps: []) eliminando el gap remove/add en cada scan.
-  // Las teclas de carrito (↑↓ +−*) se manejan en useCarritoKeyboard (capture phase).
   hotkeyRef.current = (e: KeyboardEvent) => {
     const tag = (document.activeElement as HTMLElement)?.tagName.toLowerCase();
     const isInput = tag === 'input' || tag === 'textarea' || tag === 'select';
@@ -138,7 +150,6 @@ export default function Caja() {
     if (e.key === 'F11') { e.preventDefault(); setMayoreoMode(m => !m); return; }
     if (e.key === 'F12') { e.preventDefault(); setCobroOpen(true); window.api.setModalCobro(true); return; }
     if (e.key === 'Insert') { e.preventDefault(); setLibreOpen(true); return; }
-    // Delete: elimina ítem seleccionado si el campo de código está vacío (o sin foco)
     if (e.key === 'Delete' && (!isInput || (noModal && ticket.itemSelIdx !== null && codigoIsEmptyRef.current))) {
       e.preventDefault(); borrarItemSel(); return;
     }
@@ -153,7 +164,8 @@ export default function Caja() {
     return () => document.removeEventListener('keydown', handler, true);
   }, []);
 
-  // Teclas de carrito en capture phase
+  // useCarritoKeyboard ignora ↑↓ cuando el foco está en un <input>, así que no
+  // interfiere con la navegación del dropdown mientras el campo de código tiene foco.
   useCarritoKeyboard({
     enabled:  noModal,
     hasItems: ticket.carrito.length > 0,
@@ -179,9 +191,69 @@ export default function Caja() {
     setMostrarPrecioConIva(modo === 'mayorista');
   }
 
+  // ── Seleccionar sugerencia del dropdown ────────────────────────
+  async function seleccionarSug(art: Articulo) {
+    setSugs([]);
+    setSugIdx(-1);
+    if (sugTimer.current) clearTimeout(sugTimer.current);
+    codigoRef.current?.clear();
+    await agregarArticulo(art);
+    codigoRef.current?.animOk();
+  }
+
   // ── Código input ───────────────────────────────────────────────
+  function handleCodigoChange(v: string) {
+    codigoIsEmptyRef.current = v === '';
+    if (sugTimer.current) clearTimeout(sugTimer.current);
+    if (v.trim().length >= 1) {
+      sugTimer.current = setTimeout(async () => {
+        const res = await window.api.articulos.search(v.trim());
+        // 1 resultado con código exacto → agregar directo sin dropdown
+        if (res.length === 1 && res[0].codigo.toLowerCase() === v.trim().toLowerCase()) {
+          await seleccionarSug(res[0]);
+          return;
+        }
+        setSugs(res.slice(0, 8));
+        setSugIdx(-1);
+      }, 200);
+    } else {
+      setSugs([]);
+      setSugIdx(-1);
+    }
+  }
+
+  function handleCodigoKeyDown(e: React.KeyboardEvent<HTMLInputElement>): boolean {
+    if (sugs.length === 0) return false;
+    if (e.key === 'ArrowDown') {
+      e.preventDefault();
+      setSugIdx(i => Math.min(i + 1, sugs.length - 1));
+      return true;
+    }
+    if (e.key === 'ArrowUp') {
+      e.preventDefault();
+      setSugIdx(i => Math.max(i - 1, -1));
+      return true;
+    }
+    if (e.key === 'Enter' && sugIdx >= 0) {
+      e.preventDefault();
+      const art = sugs[sugIdx];
+      if (art) seleccionarSug(art);
+      return true;
+    }
+    if (e.key === 'Escape') {
+      setSugs([]);
+      setSugIdx(-1);
+      return true;
+    }
+    return false;
+  }
+
   const procesarCodigoFn = useCallback(async (codigo: string) => {
     if (!codigo.trim()) return;
+    // Limpiar dropdown si el Enter lo bypaseó
+    setSugs([]);
+    setSugIdx(-1);
+    if (sugTimer.current) clearTimeout(sugTimer.current);
     const art = await window.api.articulos.getByCodigo(codigo.trim());
     if (art) {
       await agregarArticulo(art);
@@ -190,7 +262,7 @@ export default function Caja() {
       codigoRef.current?.animError();
       showToast('Código no encontrado: ' + codigo, 'error');
     }
-  }, [showToast]); // agregarArticulo uses activeIdxRef internally
+  }, [showToast]); // agregarArticulo y sugTimer usan refs internamente
 
   function abrirBuscador() { setBuscadorOpen(true); }
 
@@ -205,7 +277,6 @@ export default function Caja() {
     setLibreOpen(false); setLibreDesc(''); setLibrePrecio(''); setLibreCant('1');
   }
 
-  // Mantiene cobrarRef actualizado — delega al handle del modal para que los IPC listeners funcionen.
   cobrarRef.current = (conTicket) => cobroModalRef.current?.cobrar(conTicket);
 
   // ── Wizard ──────────────────────────────────────────────────────
@@ -296,12 +367,16 @@ export default function Caja() {
       </div>
 
       {/* ── Código bar ── */}
-      <div className="flex items-center gap-3 px-3 py-2.5 bg-surface border-b border-border flex-shrink-0">
+      <div
+        ref={codigoBarRef}
+        className="relative flex items-center gap-3 px-3 py-2.5 bg-surface border-b border-border flex-shrink-0"
+      >
         <label className="text-[12px] font-bold text-text-muted whitespace-nowrap uppercase tracking-wider">Código:</label>
         <CodigoInput
           ref={codigoRef}
           onSubmit={procesarCodigoFn}
-          onValueChange={(v) => { codigoIsEmptyRef.current = v === ''; }}
+          onValueChange={handleCodigoChange}
+          onKeyDownInterceptor={handleCodigoKeyDown}
         />
         {descInlineOpen && (
           <div className="flex items-center gap-2 flex-shrink-0 bg-[rgba(234,179,8,.07)] border border-[rgba(234,179,8,.2)] rounded-[var(--r-in)] px-3 py-1.5">
@@ -310,6 +385,27 @@ export default function Caja() {
             <input type="number" min="0" step="0.01" value={descVal} onChange={e => setDescVal(e.target.value)} className="inp w-20 py-1 px-2 text-[12px]" placeholder="0" />
             <button className="btn btn-primary btn-sm text-[11px]" onClick={aplicarDescGlobal}>Aplicar</button>
             <button className="btn btn-ghost btn-sm text-[11px]" onClick={() => { setDescInlineOpen(false); updateTicket(activeIdx, { descGlobalTipo: 'ninguno', descGlobalValor: 0 }); setDescVal(''); }}>✕</button>
+          </div>
+        )}
+
+        {/* ── Dropdown sugerencias ── */}
+        {sugs.length > 0 && (
+          <div className="absolute top-full left-0 right-0 z-[500] bg-surface border-x border-b border-border shadow-[var(--shadow-lg)] overflow-hidden rounded-b-[var(--r-card)]">
+            {sugs.map((art, i) => (
+              <div
+                key={art.id}
+                onMouseDown={() => seleccionarSug(art)}
+                className={`flex items-center gap-3 px-4 py-2.5 cursor-pointer border-b border-border-sub last:border-b-0 transition-colors ${i === sugIdx ? 'bg-[rgba(79,142,245,.12)]' : 'hover:bg-surface-2'}`}
+              >
+                <span className="font-mono text-[11px] text-text-muted w-[80px] flex-shrink-0 truncate">{art.codigo}</span>
+                <span className="flex-1 text-[13px] font-medium text-text truncate min-w-0">{art.nombre}</span>
+                <span className="font-mono text-[15px] font-bold text-text tabular-nums flex-shrink-0">{fmt(art.precio_unitario)}</span>
+                {art.stock_actual <= 0
+                  ? <span className="text-[10px] font-bold bg-red-500/10 text-red-400 border border-red-500/20 px-1.5 py-0.5 rounded-sm flex-shrink-0">SIN STOCK</span>
+                  : <span className="text-[11px] text-text-muted flex-shrink-0">Stk: {art.stock_actual}</span>
+                }
+              </div>
+            ))}
           </div>
         )}
       </div>
@@ -433,4 +529,3 @@ export default function Caja() {
     </div>
   );
 }
-

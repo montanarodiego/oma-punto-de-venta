@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useSession } from '../../context/SessionContext';
@@ -17,17 +17,36 @@ const TABS = [
   { route: '/configuracion', label: 'Configuración', key: 'F9', icon: <svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg> },
 ];
 
-export function Sidebar() {
+export function Sidebar({ onLogout }: { onLogout: () => void }) {
   const navigate = useNavigate();
   const location = useLocation();
-  const { session, logout } = useSession();
-  const { showToast } = useToast();
-  const [syncBadge, setSyncBadge]   = useState(0);
-  const [syncDetalle, setSyncDetalle] = useState<{ articulos: number; clientes: number; transacciones: number } | null>(null);
-  const [syncTooltip, setSyncTooltip] = useState(false);
+  const { session } = useSession();
+  const [syncBadge, setSyncBadge]     = useState(0);
+  const [syncDetalle, setSyncDetalle] = useState<{ articulos: number; clientes: number; transacciones: number; proveedores: number } | null>(null);
+  const [syncPopover, setSyncPopover] = useState(false);
+  const [syncing, setSyncing]         = useState(false);
+  const [isOnline, setIsOnline]       = useState(navigator.onLine);
   const [reporteOpen, setReporteOpen] = useState(false);
+  const popoverRef = useRef<HTMLDivElement>(null);
 
   useNavigateGlobal();
+
+  useEffect(() => {
+    const goOnline  = () => setIsOnline(true);
+    const goOffline = () => setIsOnline(false);
+    window.addEventListener('online',  goOnline);
+    window.addEventListener('offline', goOffline);
+    return () => { window.removeEventListener('online', goOnline); window.removeEventListener('offline', goOffline); };
+  }, []);
+
+  useEffect(() => {
+    if (!syncPopover) return;
+    function handleClickOutside(e: MouseEvent) {
+      if (popoverRef.current && !popoverRef.current.contains(e.target as Node)) setSyncPopover(false);
+    }
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, [syncPopover]);
 
   useEffect(() => {
     async function poll() {
@@ -45,16 +64,20 @@ export function Sidebar() {
     return () => clearInterval(iv);
   }, []);
 
-  async function handleLogout() {
-    const turno = await window.api.turnos.getActivo();
-    if (turno) {
-      showToast('Cerrá el turno antes de salir.', 'error');
-      navigate('/turno');
-      return;
-    }
-    logout();
-    navigate('/login');
+  async function handleSincronizar() {
+    setSyncing(true);
+    try {
+      await window.api.sync.manual();
+      const [total, detalle] = await Promise.all([
+        window.api.sync.contarPendientes(),
+        window.api.sync.detallePendientes(),
+      ]);
+      setSyncBadge(total);
+      setSyncDetalle(detalle);
+    } catch {} finally { setSyncing(false); }
   }
+
+  const badgeColor = syncBadge > 50 ? 'text-red-400' : 'text-yellow-400';
 
   const avatar = session?.nombre?.[0]?.toUpperCase() ?? '?';
   const rolLabel = session?.rol === 'admin' ? 'Administrador' : 'Cajero';
@@ -70,33 +93,43 @@ export function Sidebar() {
         <div className="min-w-0">
           <div className="text-[13px] font-bold text-text leading-tight">OmaTech POS</div>
           {syncBadge > 0 && (
-            <div
-              className="relative inline-block"
-              onMouseEnter={() => setSyncTooltip(true)}
-              onMouseLeave={() => setSyncTooltip(false)}
-            >
-              <div className="text-[10px] text-yellow-400 font-semibold cursor-default select-none">
+            <div ref={popoverRef} className="relative inline-block">
+              <button
+                onClick={() => setSyncPopover(o => !o)}
+                className={`text-[10px] ${badgeColor} font-semibold cursor-pointer select-none hover:opacity-75 transition-opacity`}
+              >
                 ⟳ {syncBadge} pendiente{syncBadge !== 1 ? 's' : ''}
-              </div>
-              {syncTooltip && syncDetalle && (
-                <div className="absolute left-0 top-full mt-1 z-[200] bg-[#1e293b] border border-[#334155] rounded-[6px] shadow-lg p-2.5 text-[11px] whitespace-nowrap leading-5">
-                  {syncDetalle.articulos > 0 && (
-                    <div className="text-text-muted">
-                      <span className="text-text font-semibold">{syncDetalle.articulos}</span> artículo{syncDetalle.articulos !== 1 ? 's' : ''}
-                    </div>
-                  )}
-                  {syncDetalle.clientes > 0 && (
-                    <div className="text-text-muted">
-                      <span className="text-text font-semibold">{syncDetalle.clientes}</span> cliente{syncDetalle.clientes !== 1 ? 's' : ''}
-                    </div>
-                  )}
-                  {syncDetalle.transacciones > 0 && (
-                    <div className="text-text-muted">
-                      <span className="text-text font-semibold">{syncDetalle.transacciones}</span> transacción{syncDetalle.transacciones !== 1 ? 'es' : ''}
-                    </div>
-                  )}
-                  <div className="mt-1.5 pt-1.5 border-t border-[#334155] text-text-subtle text-[10px]">
-                    sin sincronizar con la nube
+              </button>
+              {syncPopover && syncDetalle && (
+                <div className="absolute left-0 top-full mt-1 z-[200] bg-[#1e293b] border border-[#334155] rounded-[6px] shadow-lg p-2.5 text-[11px] whitespace-nowrap leading-[1.7]">
+                  {([
+                    { count: syncDetalle.articulos,     label: 'artículo',    plural: 'artículos',    route: '/catalogo' },
+                    { count: syncDetalle.clientes,      label: 'cliente',     plural: 'clientes',     route: '/clientes' },
+                    { count: syncDetalle.transacciones, label: 'transacción', plural: 'transacciones', route: '/informes' },
+                    { count: syncDetalle.proveedores,   label: 'proveedor',   plural: 'proveedores',  route: '/proveedores' },
+                  ] as const).filter(r => r.count > 0).map(r => (
+                    <button
+                      key={r.route}
+                      onClick={() => { navigate(r.route); setSyncPopover(false); }}
+                      className="flex w-full items-center gap-1.5 text-left hover:text-accent transition-colors"
+                    >
+                      <span className="text-text font-semibold">{r.count}</span>
+                      <span className="text-text-muted">{r.count !== 1 ? r.plural : r.label}</span>
+                      <span className="text-text-subtle ml-auto pl-3">→</span>
+                    </button>
+                  ))}
+                  <div className="mt-2 pt-1.5 border-t border-[#334155]">
+                    {isOnline ? (
+                      <button
+                        onClick={handleSincronizar}
+                        disabled={syncing}
+                        className="w-full text-left text-[10px] font-semibold text-accent hover:opacity-75 disabled:opacity-40 transition-opacity"
+                      >
+                        {syncing ? 'Sincronizando…' : '↑ Sincronizar ahora'}
+                      </button>
+                    ) : (
+                      <span className="text-[10px] text-red-400 font-semibold">Sin conexión</span>
+                    )}
                   </div>
                 </div>
               )}
@@ -149,7 +182,7 @@ export function Sidebar() {
             Reportar
           </button>
           <button
-            onClick={handleLogout}
+            onClick={onLogout}
             className="flex-1 flex items-center justify-center gap-1.5 px-2 py-1.5 rounded-[var(--r-in)] text-[11px] font-medium text-text-subtle border border-border bg-transparent hover:bg-surface-2 hover:text-text-muted transition-all duration-[130ms]"
           >
             <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">

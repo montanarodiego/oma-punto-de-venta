@@ -147,11 +147,11 @@ export default function Login() {
               <form onSubmit={handleLocalLogin} className="flex flex-col gap-4">
                 <div className="field">
                   <label className="field-label">Usuario</label>
-                  <input ref={inputRef} className="inp" value={usuario} onChange={e => setUsuario(e.target.value)} placeholder="admin" autoComplete="username" required />
+                  <input ref={inputRef} className="inp" name="oma-usuario" value={usuario} onChange={e => setUsuario(e.target.value)} placeholder="admin" autoComplete="off" required />
                 </div>
                 <div className="field">
                   <label className="field-label">Contraseña</label>
-                  <input className="inp" type="password" value={password} onChange={e => setPassword(e.target.value)} placeholder="••••••••" autoComplete="current-password" required />
+                  <input className="inp" name="oma-password" type="password" value={password} onChange={e => setPassword(e.target.value)} placeholder="••••••••" autoComplete="new-password" required />
                 </div>
                 <button type="submit" disabled={loading} className="btn btn-primary w-full py-2.5 text-sm font-semibold mt-1">
                   {loading ? 'Iniciando…' : 'Ingresar'}
@@ -176,7 +176,7 @@ export default function Login() {
                 </div>
                 <div className="field">
                   <label className="field-label">Contraseña</label>
-                  <input className="inp" type="password" value={fbPass} onChange={e => setFbPass(e.target.value)} placeholder="••••••••" required />
+                  <input className="inp" name="oma-fb-password" type="password" value={fbPass} onChange={e => setFbPass(e.target.value)} placeholder="••••••••" autoComplete="new-password" required />
                 </div>
                 <button type="submit" disabled={loading} className="btn btn-primary w-full py-2.5 text-sm font-semibold mt-1">
                   {loading ? 'Verificando licencia…' : 'Ingresar con licencia'}

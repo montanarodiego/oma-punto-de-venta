@@ -66,6 +66,7 @@ let modalCobroAbierto = false;
 let forceClose        = false;
 let pendingUpdate     = null; // cached update info for late-loading renderers
 let isDownloading     = false;
+let ultimaSync        = null; // timestamp ms de la última sync exitosa
 
 // DB integrity warning — set at startup if quick_check no devuelve 'ok'
 let dbIntegrityWarning = null;
@@ -189,11 +190,14 @@ function iniciarSyncInterval() {
   syncInterval = setInterval(async () => {
     if (!negocioIdActivo) return;
     try {
-      await syncPendientes(getDb(), firestore, negocioIdActivo, auth);
+      const res = await syncPendientes(getDb(), firestore, negocioIdActivo, auth);
+      if (!res.error) ultimaSync = Date.now();
 
       const lic = await verificarLicencia(firestore, negocioIdActivo);
       if (lic.activa) {
+        const prevToken = leerTokenRaw() ?? {};
         guardarTokenLocal({
+          ...prevToken,
           negocioId:   negocioIdActivo,
           activa:      true,
           vencimiento: lic.vencimiento instanceof Date
@@ -223,6 +227,7 @@ function registerAuthHandlers() {
     if (!negocioIdActivo) return { ok: false, error: 'Sin sesión activa.' };
     try {
       const resultado = await syncPendientes(getDb(), firestore, negocioIdActivo, auth);
+      if (!resultado.error) ultimaSync = Date.now();
       return { ok: true, ...resultado };
     } catch (err) {
       return { ok: false, error: err.message };
@@ -278,6 +283,12 @@ function registerAuthHandlers() {
       return { ok: false, error: msg };
     }
   });
+
+  ipcMain.handle('auth:estadoSync', () => ({
+    activa:            negocioIdActivo !== null,
+    firebaseConectado: !!(auth?.currentUser),
+    ultimaSync,
+  }));
 }
 
 // ── Auto-updater ───────────────────────────────────────────────
@@ -482,23 +493,28 @@ app.whenReady().then(async () => {
     }
   });
 
-  // Startup offline-first: si hay token local válido, cablear negocioIdActivo
-  // y reautenticar en background antes de que la ventana haga su primera sync.
+  // Startup offline-first: cablear negocioIdActivo y re-auth Firebase en background.
+  // Credenciales de sync vienen de oma-creds.json; el negocioId del cliente viene de
+  // license.json (tokenRaw) o de oma-creds.negocio_id en la primera instalación.
+  const creds    = require('./credentials');
   const tokenRaw = leerTokenRaw();
+
   if (tokenRaw) {
     negocioIdActivo = tokenRaw.negocioId;
     iniciarSyncInterval();
     (async () => {
-      if (!auth) return; // Firebase no disponible — modo offline
-      await reautenticarDesdeToken(auth, tokenRaw);
-      if (!auth.currentUser) return; // sin internet: aceptar token local, sync cuando vuelva
+      if (!auth) return;
+      if (creds.firebase_email && creds.firebase_password) {
+        try { await loginConEmail(auth, creds.firebase_email, creds.firebase_password); }
+        catch { /* sin internet — sync cuando vuelva */ }
+      } else {
+        await reautenticarDesdeToken(auth, tokenRaw);
+      }
+      if (!auth.currentUser) return;
 
-      // Sync inmediata al arrancar con conexión (no esperar 30 min del timer)
       syncPendientes(getDb(), firestore, negocioIdActivo, auth).catch(() => {});
 
       const lic = await verificarLicencia(firestore, negocioIdActivo);
-      // Solo cerrar si el admin suspendió la licencia explícitamente.
-      // razon 'error' o 'no_existe' = problema transitorio o de datos → no bloquear.
       if (lic.razon === 'inactiva') {
         BrowserWindow.getAllWindows().forEach(w => w.close());
         dialog.showErrorBox('Licencia suspendida', 'Tu licencia fue suspendida. Contactate con OmaTech.');
@@ -514,6 +530,33 @@ app.whenReady().then(async () => {
             : Date.now() + 30 * 24 * 60 * 60 * 1000,
           timestamp:   Date.now(),
         });
+      }
+    })();
+  } else if (creds.firebase_email && creds.firebase_password && creds.negocio_id) {
+    // Primera instalación: sin license.json pero con credenciales embebidas en oma-creds.json.
+    // negocio_id es el uid del cliente en Firestore, independiente de la cuenta de sync.
+    (async () => {
+      if (!auth || !firestore) return;
+      try {
+        await loginConEmail(auth, creds.firebase_email, creds.firebase_password);
+        const negocioId = creds.negocio_id;
+        const lic = await verificarLicencia(firestore, negocioId);
+        if (lic.activa) {
+          guardarTokenLocal({
+            negocioId,
+            activa:      true,
+            vencimiento: lic.vencimiento instanceof Date
+              ? lic.vencimiento.getTime()
+              : Date.now() + 30 * 24 * 60 * 60 * 1000,
+            timestamp:   Date.now(),
+          });
+          negocioIdActivo = negocioId;
+          iniciarSyncInterval();
+        } else {
+          require('electron-log').warn('[auth] licencia no activa para negocio_id de oma-creds:', lic.razon);
+        }
+      } catch (e) {
+        require('electron-log').warn('[auth] primera auth desde oma-creds falló:', e.message);
       }
     })();
   }

@@ -50,8 +50,10 @@ export default function Configuracion() {
   const [backupRes, setBackupRes] = useState('');
 
   // Sync
-  const [syncRes, setSyncRes]   = useState('');
-  const [syncing, setSyncing]   = useState(false);
+  const [syncRes, setSyncRes]             = useState('');
+  const [syncing, setSyncing]             = useState(false);
+  const [syncActiva, setSyncActiva]       = useState<boolean | null>(null);
+  const [ultimaSync, setUltimaSync]       = useState<number | null>(null);
 
   // Reporte email
   const [repActivo, setRepActivo]     = useState(false);
@@ -81,7 +83,7 @@ export default function Configuracion() {
   const [uError, setUError]           = useState('');
   const [uSaving, setUSaving]         = useState(false);
 
-  useEffect(() => { cargarTodo(); }, [esAdmin]);
+  useEffect(() => { cargarTodo(); cargarEstadoSync(); }, [esAdmin]);
 
   async function cargarTodo() {
     const [cfg, modoVal, tasaDef, hudVal] = await Promise.all([
@@ -168,6 +170,12 @@ export default function Configuracion() {
     await window.api.config.set('tamano_hud', id);
     await window.api.ui.setZoom(HUD_FACTORES[id] ?? 1.0);
     showToast('Tamaño actualizado.', 'ok');
+  }
+
+  async function cargarEstadoSync() {
+    const estado = await window.api.auth.estadoSync();
+    setSyncActiva(estado.activa && estado.firebaseConectado);
+    setUltimaSync(estado.ultimaSync);
   }
 
   async function syncAhora() {
@@ -407,8 +415,30 @@ export default function Configuracion() {
               <CardHeader>Sincronización con la nube</CardHeader>
               <CardBody className="flex flex-col gap-4">
                 <p className="text-[13px] text-text-muted">Sincroniza ventas, productos y clientes pendientes con Firebase. La app funciona sin internet; sincroniza cuando hay conexión.</p>
+
+                {/* Estado de sesión Firebase */}
+                {/* Estado de conexión */}
+                <div className="flex items-center gap-2">
+                  {syncActiva === null ? (
+                    <span className="inline-block w-2 h-2 rounded-full bg-text-subtle animate-pulse" />
+                  ) : (
+                    <span className={`inline-block w-2 h-2 rounded-full ${syncActiva ? 'bg-success' : 'bg-danger'}`} />
+                  )}
+                  <span className="text-[13px] text-text-muted">
+                    {syncActiva === null ? 'Verificando…' : syncActiva ? 'Conectado a la nube' : 'Sin conexión con la nube'}
+                  </span>
+                </div>
+
+                {/* Última sincronización */}
+                {ultimaSync && (
+                  <p className="text-[12px] text-text-subtle">
+                    Última sync: {new Date(ultimaSync).toLocaleString('es-AR', { dateStyle: 'short', timeStyle: 'short' })}
+                  </p>
+                )}
+
+                {/* Botón sincronizar */}
                 <div className="flex items-center gap-3">
-                  <Button variant="primary" loading={syncing} onClick={syncAhora}>
+                  <Button variant="primary" loading={syncing} onClick={syncAhora} disabled={syncing}>
                     <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><polyline points="1 4 1 10 7 10"/><polyline points="23 20 23 14 17 14"/><path d="M20.49 9A9 9 0 0 0 5.64 5.64L1 10m22 4l-4.64 4.36A9 9 0 0 1 3.51 15"/></svg>
                     Sincronizar ahora
                   </Button>

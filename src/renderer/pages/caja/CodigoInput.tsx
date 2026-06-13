@@ -10,7 +10,8 @@ export interface CodigoInputHandle {
 export const CodigoInput = forwardRef<CodigoInputHandle, {
   onSubmit: (codigo: string) => void;
   onValueChange?: (val: string) => void;
-}>(function CodigoInput({ onSubmit, onValueChange }, ref) {
+  onKeyDownInterceptor?: (e: React.KeyboardEvent<HTMLInputElement>) => boolean;
+}>(function CodigoInput({ onSubmit, onValueChange, onKeyDownInterceptor }, ref) {
   const [val, setVal]   = useState('');
   const [anim, setAnim] = useState('');
   const inputRef        = useRef<HTMLInputElement>(null);
@@ -18,7 +19,9 @@ export const CodigoInput = forwardRef<CodigoInputHandle, {
   const scannerCharCnt  = useRef(0);
   const timer           = useRef<NodeJS.Timeout | null>(null);
   const onSubmitRef     = useRef(onSubmit);
+  const interceptorRef  = useRef(onKeyDownInterceptor);
   onSubmitRef.current   = onSubmit;
+  interceptorRef.current = onKeyDownInterceptor;
 
   useImperativeHandle(ref, () => ({
     focus:     () => setTimeout(() => inputRef.current?.focus(), 50),
@@ -35,6 +38,7 @@ export const CodigoInput = forwardRef<CodigoInputHandle, {
   }
 
   function handleKeyDown(e: React.KeyboardEvent<HTMLInputElement>) {
+    if (interceptorRef.current?.(e)) return;
     if (e.key === 'Enter') { submit(val); return; }
     const now = Date.now();
     const delta = now - scannerLastMs.current;

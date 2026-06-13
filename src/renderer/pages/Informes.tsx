@@ -155,7 +155,7 @@ export default function Informes() {
         plugins: {
           legend: { labels: { color: '#8fa3bd', boxWidth: 12, padding: 16 } },
           tooltip: {
-            callbacks: { label: ctx => ` ${ctx.dataset.label}: ${fmt(ctx.parsed.y)}` },
+            callbacks: { label: ctx => ` ${ctx.dataset.label}: ${fmt(ctx.parsed.y ?? 0)}` },
           },
         },
         scales: {

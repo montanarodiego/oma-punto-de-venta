@@ -13,7 +13,7 @@ function cargar() {
   for (const p of candidatos) {
     try {
       const raw = JSON.parse(fs.readFileSync(p, 'utf8'));
-      if (raw.GMAIL_USER && raw.GMAIL_APP_PASSWORD) return raw;
+      if (raw && typeof raw === 'object') return raw;
     } catch {}
   }
 
@@ -21,6 +21,8 @@ function cargar() {
   return {
     GMAIL_USER:         process.env.GMAIL_USER         || '',
     GMAIL_APP_PASSWORD: process.env.GMAIL_APP_PASSWORD || '',
+    firebase_email:     process.env.FIREBASE_EMAIL     || '',
+    firebase_password:  process.env.FIREBASE_PASSWORD  || '',
   };
 }
 

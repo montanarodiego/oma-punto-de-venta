@@ -3,13 +3,15 @@ import type { Articulo } from '../../types/api';
 import { type CartItem, type Ticket, type PromoItem, UNIDADES_CONTINUAS, MAX_TICKETS, mkItem, aplicarPromoAItem } from './types';
 import { calcularTotales, type Totales } from './calculosFiscales';
 
+type ToastType = 'ok' | 'error' | 'warning';
+
 interface UseCarritoOptions {
   modoNegocio: string;
   tasaIva: number;
   mostrarIva: boolean;
   mayoreoMode: boolean;
   propina: string;
-  showToast: (msg: string, type?: string) => void;
+  showToast: (msg: string, type?: ToastType) => void;
   focusCodigo:  () => void;
   clearCodigo:  () => void;
 }
@@ -172,7 +174,10 @@ export function useCarrito({
       const isConti = UNIDADES_CONTINUAS.has(item.unidadMedida ?? '');
       const step = isConti ? 0.1 : 1;
       const minQty = isConti ? 0.001 : 1;
-      if (item.cantidad <= minQty) return prev;
+      if (item.cantidad <= minQty) {
+        const newCarrito = t.carrito.filter((_, i) => i !== idx);
+        return prev.map((tk, i) => i === ai ? { ...tk, carrito: newCarrito, itemSelIdx: null } : tk);
+      }
       const c = [...t.carrito];
       c[idx] = aplicarPromoAItem({ ...item, cantidad: item.cantidad - step });
       return prev.map((tk, i) => i === ai ? { ...tk, carrito: c } : tk);

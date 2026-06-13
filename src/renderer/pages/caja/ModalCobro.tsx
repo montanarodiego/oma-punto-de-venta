@@ -20,7 +20,7 @@ interface ModalCobroProps {
   propina: string;
   canCobrar: boolean;
   limpiarTicket: (idx: number) => void;
-  showToast: (msg: string, type?: string) => void;
+  showToast: (msg: string, type?: 'ok' | 'error' | 'warning') => void;
   navigate: (path: string) => void;
   onVentaRegistrada: (transId: number) => void;
 }

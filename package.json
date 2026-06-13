@@ -1,6 +1,6 @@
 {
   "name": "oma-punto-de-venta",
-  "version": "2.0.1",
+  "version": "2.1.0",
   "description": "Sistema POS híbrido offline/online para Oma",
   "author": "OmaTech",
   "main": "src/main/main.js",
@@ -29,7 +29,8 @@
     "nodemailer": "^8.0.8",
     "react": "^19.2.7",
     "react-dom": "^19.2.7",
-    "react-router-dom": "^7.16.0"
+    "react-router-dom": "^7.16.0",
+    "xlsx": "^0.18.5"
   },
   "devDependencies": {
     "@electron/rebuild": "^4.0.4",
@@ -73,7 +74,10 @@
       "package.json"
     ],
     "extraResources": [
-      { "from": "oma-creds.json", "to": "oma-creds.json" }
+      {
+        "from": "oma-creds.json",
+        "to": "oma-creds.json"
+      }
     ],
     "asar": true,
     "publish": {

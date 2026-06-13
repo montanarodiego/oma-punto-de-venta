@@ -4,6 +4,8 @@ import { AnimatePresence, motion } from 'framer-motion';
 import { useToast } from '../context/ToastContext';
 import { useSession } from '../context/SessionContext';
 import { Button, Field, Input, Select, Modal, Badge, VirtualTable } from '../components/ui';
+import { ImportModal } from '../components/ImportModal';
+import type { ImportConfig } from '../components/ImportModal';
 import type { Articulo, Departamento } from '../types/api';
 
 function handleNumericKeyDown(e: React.KeyboardEvent<HTMLInputElement>) {
@@ -163,6 +165,9 @@ export default function Catalogo() {
   const [promoPrecio, setPromoPrecio] = useState('');
   const [promoNombre, setPromoNombre] = useState('');
   const [promoSaving, setPromoSaving] = useState(false);
+
+  // ── Import modal ──────────────────────────────────────────────────────────
+  const [importOpen, setImportOpen] = useState(false);
 
   // ── Otros modals ───────────────────────────────────────────────────────────
   const [histOpen,   setHistOpen]   = useState(false);
@@ -386,6 +391,7 @@ export default function Catalogo() {
         <h1 className="page-title">Catálogo</h1>
         <div className="flex items-center gap-2">
           {esAdmin && <Button variant="ghost" size="sm" onClick={() => setDepOpen(true)}>Departamentos</Button>}
+          {esAdmin && <Button variant="ghost" size="sm" onClick={() => setImportOpen(true)}>↑ Importar</Button>}
           {esAdmin && <Button variant="primary" size="sm" onClick={abrirNuevo}>+ Nuevo artículo</Button>}
         </div>
       </div>
@@ -785,8 +791,74 @@ export default function Catalogo() {
       {depOpen && (
         <DepartamentosModal departamentos={departamentos} onClose={() => { setDepOpen(false); cargar(busqueda, filtroDep); }}/>
       )}
+
+      {/* Modal importación */}
+      <ImportModal
+        open={importOpen}
+        onClose={() => setImportOpen(false)}
+        onDone={() => cargar(busqueda, filtroDep)}
+        config={catalogoImportConfig(departamentos)}
+      />
     </div>
   );
+}
+
+// ── Config de importación de artículos ───────────────────────────────────────
+
+function catalogoImportConfig(departamentos: Departamento[]): ImportConfig {
+  return {
+    entityName:      'artículos',
+    templateHeaders:  ['codigo', 'nombre', 'descripcion', 'costo_unitario', 'precio_unitario', 'stock_actual', 'stock_minimo', 'proveedor', 'departamento'],
+    requiredFields:   ['nombre', 'precio_unitario'],
+    templateExample: ['ART001', 'Producto ejemplo', 'Descripción opcional', 50, 100, 10, 2, 'Proveedor SA', 'General'],
+    templateFilename: 'plantilla_articulos.xlsx',
+    previewColumns: [
+      { key: 'codigo',          label: 'Código'   },
+      { key: 'nombre',          label: 'Nombre'   },
+      { key: 'precio_unitario', label: 'Precio'   },
+      { key: 'stock_actual',    label: 'Stock'    },
+      { key: 'departamento',    label: 'Depto.'   },
+    ],
+    validateRow(raw) {
+      const errors: string[] = [];
+      if (!raw.nombre?.trim()) errors.push('nombre es obligatorio');
+      const precio = parseFloat((raw.precio_unitario ?? '').replace(',', '.'));
+      if (!raw.precio_unitario?.trim())      errors.push('precio_unitario es obligatorio');
+      else if (isNaN(precio) || precio < 0)  errors.push('precio_unitario debe ser un número positivo');
+      if (errors.length > 0) return { data: null, errors };
+
+      const depNombre = (raw.departamento ?? '').trim().toLowerCase();
+      const dep       = depNombre ? departamentos.find(d => d.nombre.toLowerCase() === depNombre) : undefined;
+
+      return {
+        data: {
+          codigo:          raw.codigo?.trim()   || undefined,
+          nombre:          raw.nombre.trim(),
+          descripcion:     raw.descripcion?.trim() ?? '',
+          costo_unitario:  parseFloat((raw.costo_unitario ?? '').replace(',', '.'))  || 0,
+          precio_unitario: precio,
+          precio_mayoreo:  parseFloat((raw.precio_mayoreo ?? '').replace(',', '.'))  || 0,
+          stock_actual:    parseFloat((raw.stock_actual ?? '').replace(',', '.'))    || 0,
+          stock_minimo:    parseFloat((raw.stock_minimo ?? '').replace(',', '.'))    || 0,
+          proveedor:       raw.proveedor?.trim() ?? '',
+          departamento_id: dep?.id ?? null,
+        },
+        errors: [],
+      };
+    },
+    async importRow(data) {
+      const d = data as Record<string, unknown>;
+      if (d.codigo) {
+        const existing = await window.api.articulos.getByCodigo(d.codigo as string);
+        if (existing) {
+          await window.api.articulos.update(existing.id, d);
+          return 'updated';
+        }
+      }
+      await window.api.articulos.create(d);
+      return 'created';
+    },
+  };
 }
 
 // ── DepartamentosModal ────────────────────────────────────────────────────────

@@ -8,7 +8,7 @@ interface ModalAnularProps {
   open: boolean;
   onClose: () => void;
   turnoActivo: any;
-  showToast: (msg: string, type?: string) => void;
+  showToast: (msg: string, type?: 'ok' | 'error' | 'warning') => void;
 }
 
 export function ModalAnular({ open, onClose, turnoActivo, showToast }: ModalAnularProps) {

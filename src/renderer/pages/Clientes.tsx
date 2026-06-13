@@ -2,6 +2,8 @@ import { useState, useEffect, useRef, useCallback } from 'react';
 import { useTableKeyboard } from '../hooks/useTableKeyboard';
 import { useToast } from '../context/ToastContext';
 import { Button, Field, Input, Modal, VirtualTable } from '../components/ui';
+import { ImportModal } from '../components/ImportModal';
+import type { ImportConfig } from '../components/ImportModal';
 import type { Cliente } from '../types/api';
 
 function fmt(n: number) {
@@ -38,6 +40,9 @@ export default function Clientes() {
   const [saving,    setSaving]    = useState(false);
   const [error,     setError]     = useState('');
   const [form, setForm] = useState({ nombre: '', telefono: '', direccion: '', limite_credito: 0 });
+
+  // Import modal
+  const [importOpen, setImportOpen] = useState(false);
 
   // Modal pago
   const [pagoOpen,  setPagoOpen]  = useState(false);
@@ -163,7 +168,10 @@ export default function Clientes() {
     <div className="page-content">
       <div className="page-header flex items-center justify-between">
         <h1 className="page-title">Clientes</h1>
-        <Button variant="primary" size="sm" onClick={abrirNuevo}>+ Nuevo cliente</Button>
+        <div className="flex items-center gap-2">
+          <Button variant="ghost" size="sm" onClick={() => setImportOpen(true)}>↑ Importar</Button>
+          <Button variant="primary" size="sm" onClick={abrirNuevo}>+ Nuevo cliente</Button>
+        </div>
       </div>
 
       <div className="flex gap-3 px-6 py-3 border-b border-border flex-shrink-0">
@@ -355,6 +363,52 @@ export default function Clientes() {
           </Field>
         </form>
       </Modal>
+
+      <ImportModal
+        open={importOpen}
+        onClose={() => setImportOpen(false)}
+        onDone={() => cargar(busqueda)}
+        config={clientesImportConfig}
+      />
     </div>
   );
 }
+
+// ── Config de importación de clientes ─────────────────────────────────────────
+
+const clientesImportConfig: ImportConfig = {
+  entityName:      'clientes',
+  templateHeaders: ['nombre', 'telefono', 'direccion', 'limite_credito'],
+  requiredFields:  ['nombre'],
+  templateExample: ['Juan Pérez', '3512345678', 'Av. Siempre Viva 742', 5000],
+  templateFilename: 'plantilla_clientes.xlsx',
+  previewColumns: [
+    { key: 'nombre',         label: 'Nombre'   },
+    { key: 'telefono',       label: 'Teléfono' },
+    { key: 'direccion',      label: 'Dirección' },
+    { key: 'limite_credito', label: 'Límite'   },
+  ],
+  validateRow(raw) {
+    const errors: string[] = [];
+    if (!raw.nombre?.trim()) errors.push('nombre es obligatorio');
+    if (errors.length > 0) return { data: null, errors };
+
+    return {
+      data: {
+        nombre:         raw.nombre.trim(),
+        telefono:       raw.telefono?.trim()  ?? '',
+        direccion:      raw.direccion?.trim() ?? '',
+        limite_credito: parseFloat((raw.limite_credito ?? '').replace(',', '.')) || 0,
+      },
+      errors: [],
+    };
+  },
+  async importRow(data) {
+    const d = data as Record<string, unknown>;
+    const existing = await window.api.clientes.search(d.nombre as string);
+    const exact    = existing.find(c => c.nombre.toLowerCase() === (d.nombre as string).toLowerCase());
+    if (exact) return 'skipped';
+    await window.api.clientes.create(d);
+    return 'created';
+  },
+};

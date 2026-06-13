@@ -191,6 +191,7 @@ contextBridge.exposeInMainWorld('api', {
     solicitarReset:   (email)                    => ipcRenderer.invoke('auth:solicitarReset', email),
     verificarCodigo:  (email, codigo)            => ipcRenderer.invoke('auth:verificarCodigo', email, codigo),
     resetearPassword: (email, codigo, password)  => ipcRenderer.invoke('auth:resetearPassword', email, codigo, password),
+    estadoSync:       ()                         => ipcRenderer.invoke('auth:estadoSync'),
   },
 
   // Inventario

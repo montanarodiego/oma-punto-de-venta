@@ -2,65 +2,55 @@ rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
 
+    // ── CUENTA DE SYNC (proceso main del POS) ────────────────────────────
+    // sync@omatech.com — uid fijo del proceso interno de sincronización.
+    // Tiene acceso de lectura/escritura a todos los negocios para poder
+    // verificar licencias y subir pendientes sin conocer el uid del cliente.
+    function esCuentaSync() {
+      return request.auth != null
+          && request.auth.uid == 'v0M2YY3XEhTkqKNrvZuFjuppQOe2';
+    }
+
     // ── DENEGACIÓN POR DEFECTO ────────────────────────────────────────────
-    // Cualquier path no cubierto explícitamente por las reglas de abajo
-    // queda bloqueado. En Firestore el acceso está denegado por defecto si
-    // ninguna regla lo permite, pero este bloque lo deja explícito.
     match /{document=**} {
       allow read, write: if false;
     }
 
     // ── DOCUMENTO RAÍZ DEL NEGOCIO ────────────────────────────────────────
-    // negocios/{negocioId}
+    // negocios/{negocioId}  →  { licencia: { activa, vencimiento } }
     //
-    // Contiene el campo "licencia" (activa, vencimiento) que solo puede
-    // escribirse desde Firebase Admin SDK o la Firebase Console — nunca
-    // desde la app del cliente.
-    //
-    // La app solo NECESITA leer este documento para verificar la licencia.
-    // No escribe en él en ningún flujo (sync.js solo escribe en subcolecciones).
-    // Denegar write aquí anula la Vulnerabilidad A del diagnóstico de seguridad.
+    // El campo "licencia" solo puede escribirse desde Firebase Admin SDK o
+    // la Firebase Console — nunca desde la app del cliente.
     match /negocios/{negocioId} {
-      // Solo el usuario dueño puede leer su propio documento.
       allow get: if request.auth != null
-                 && request.auth.uid == negocioId;
+                 && (request.auth.uid == negocioId || esCuentaSync());
 
-      // Ningún cliente puede escribir el documento raíz.
-      // El campo "licencia" queda protegido: solo Admin SDK puede modificarlo.
+      // Ningún cliente ni la cuenta sync puede escribir el documento raíz.
       allow write: if false;
     }
 
     // ── SUBCOLECCIÓN: ARTÍCULOS ───────────────────────────────────────────
-    // negocios/{negocioId}/articulos/{docId}
-    //
-    // sync.js sube artículos con sync_status='pending' usando setDoc + merge.
-    // El dueño puede leer y escribir (crear o actualizar) sus propios artículos.
-    // delete está denegado: el POS no borra datos de Firestore, solo marca
-    // estados en SQLite local.
     match /negocios/{negocioId}/articulos/{docId} {
       allow read, create, update: if request.auth != null
-                                  && request.auth.uid == negocioId;
+                                  && (request.auth.uid == negocioId || esCuentaSync());
     }
 
     // ── SUBCOLECCIÓN: CLIENTES ────────────────────────────────────────────
-    // negocios/{negocioId}/clientes/{docId}
-    //
-    // Mismas reglas que artículos. Datos de clientes son sensibles
-    // (saldo, teléfono, dirección) — aislados por uid.
     match /negocios/{negocioId}/clientes/{docId} {
       allow read, create, update: if request.auth != null
-                                  && request.auth.uid == negocioId;
+                                  && (request.auth.uid == negocioId || esCuentaSync());
     }
 
     // ── SUBCOLECCIÓN: TRANSACCIONES ───────────────────────────────────────
-    // negocios/{negocioId}/transacciones/{docId}
-    //
-    // Historial de ventas. Solo lectura y escritura del dueño.
-    // delete denegado: las cancelaciones se registran cambiando el campo
-    // "estado" en SQLite, no borrando registros de Firestore.
     match /negocios/{negocioId}/transacciones/{docId} {
       allow read, create, update: if request.auth != null
-                                  && request.auth.uid == negocioId;
+                                  && (request.auth.uid == negocioId || esCuentaSync());
+    }
+
+    // ── SUBCOLECCIÓN: PROVEEDORES ─────────────────────────────────────────
+    match /negocios/{negocioId}/proveedores/{docId} {
+      allow read, create, update: if request.auth != null
+                                  && (request.auth.uid == negocioId || esCuentaSync());
     }
 
   }

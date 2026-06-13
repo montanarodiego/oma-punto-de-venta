@@ -512,7 +512,7 @@ function registerHandlers() {
   ipcMain.handle('sync:contarPendientes', () => {
     const db = getDb();
     let total = 0;
-    for (const tabla of ['articulos', 'clientes', 'transacciones']) {
+    for (const tabla of ['articulos', 'clientes', 'transacciones', 'proveedores']) {
       const row = db
         .prepare(`SELECT COUNT(*) as count FROM ${tabla} WHERE sync_status = 'pending'`)
         .get();
@@ -524,7 +524,7 @@ function registerHandlers() {
   ipcMain.handle('sync:detallePendientes', () => {
     const db = getDb();
     const result = {};
-    for (const tabla of ['articulos', 'clientes', 'transacciones']) {
+    for (const tabla of ['articulos', 'clientes', 'transacciones', 'proveedores']) {
       result[tabla] = db
         .prepare(`SELECT COUNT(*) as count FROM ${tabla} WHERE sync_status = 'pending'`)
         .get().count;
