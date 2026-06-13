@@ -46,10 +46,13 @@ export const ModalCobro = forwardRef<ModalCobroHandle, ModalCobroProps>(function
 
   useFocusTrap(modalRef, open, onClose);
 
-  const vuelto = useMemo(
-    () => formaPago === 'efectivo' ? Math.max(0, (parseFloat(monto) || 0) - totales.total) : 0,
+  const hayMonto   = monto !== '' && monto !== '0';
+  const diferencia = useMemo(
+    () => formaPago === 'efectivo' ? (parseFloat(monto) || 0) - totales.total : 0,
     [formaPago, monto, totales.total],
   );
+  const vuelto = Math.max(0, diferencia);
+  const efectivoInsuficiente = formaPago === 'efectivo' && hayMonto && diferencia < 0;
   const mixtoMonto2 = useMemo(
     () => formaPago === 'mixto' ? Math.max(0, totales.total - (parseFloat(mixtoMonto1) || 0)) : 0,
     [formaPago, totales.total, mixtoMonto1],
@@ -205,9 +208,19 @@ export const ModalCobro = forwardRef<ModalCobroHandle, ModalCobroProps>(function
                         autoFocus placeholder="0,00"
                       />
                     </div>
-                    <div className="flex flex-col items-center justify-center border border-border rounded-[var(--r)] gap-1 bg-bg">
-                      <div className="text-[10px] font-semibold text-text-subtle uppercase">Vuelto</div>
-                      <div className={`text-[26px] font-black font-mono ${vuelto > 0 ? 'text-success' : 'text-text-subtle'}`}>{vuelto > 0 ? fmt(vuelto) : '—'}</div>
+                    <div className="flex flex-col items-center justify-center border border-border rounded-[var(--r)] gap-1 bg-bg min-h-[72px]">
+                      {!hayMonto && (
+                        <><div className="text-[10px] font-semibold text-text-subtle uppercase">Vuelto</div><div className="text-[26px] font-black font-mono text-text-subtle">—</div></>
+                      )}
+                      {hayMonto && diferencia > 0 && (
+                        <><div className="text-[10px] font-semibold uppercase text-success">Vuelto</div><div className="text-[26px] font-black font-mono text-success">{fmt(vuelto)}</div></>
+                      )}
+                      {hayMonto && diferencia === 0 && (
+                        <><div className="text-[10px] font-semibold uppercase text-success">Exacto</div><div className="text-[26px] font-black font-mono text-success">✓</div></>
+                      )}
+                      {hayMonto && diferencia < 0 && (
+                        <><div className="text-[10px] font-semibold uppercase text-danger">Faltan</div><div className="text-[26px] font-black font-mono text-danger">{fmt(Math.abs(diferencia))}</div></>
+                      )}
                     </div>
                   </div>
                   {/* Numpad */}
@@ -307,7 +320,7 @@ export const ModalCobro = forwardRef<ModalCobroHandle, ModalCobroProps>(function
             {/* Columna derecha: botones */}
             <div className="flex flex-col w-40 min-w-[140px] flex-shrink-0">
               <button
-                disabled={cobrandoOp || !canCobrar}
+                disabled={cobrandoOp || !canCobrar || efectivoInsuficiente}
                 onClick={() => cobrar(true)}
                 className="flex-1 flex flex-col items-center justify-center gap-2 border-b border-[rgba(255,255,255,.07)] bg-success hover:bg-success-hover disabled:opacity-45 text-white transition-colors"
               >
@@ -316,7 +329,7 @@ export const ModalCobro = forwardRef<ModalCobroHandle, ModalCobroProps>(function
                 <div className="text-[11px] font-bold px-2 py-0.5 rounded bg-white/20">F1</div>
               </button>
               <button
-                disabled={cobrandoOp || !canCobrar}
+                disabled={cobrandoOp || !canCobrar || efectivoInsuficiente}
                 onClick={() => cobrar(false)}
                 className="flex-1 flex flex-col items-center justify-center gap-2 border-b border-[rgba(255,255,255,.07)] bg-surface-2 hover:bg-surface-3 disabled:opacity-45 text-text transition-colors"
               >
