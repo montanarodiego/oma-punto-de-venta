@@ -17,12 +17,19 @@ export function CarritoLista({
 }: CarritoListaProps) {
   if (carrito.length === 0) {
     return (
-      <div className="flex flex-col items-center justify-center h-full gap-3 text-text-subtle">
-        <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1" strokeLinecap="round" strokeLinejoin="round" className="opacity-20">
+      <div className="flex flex-col items-center justify-center h-full gap-3 select-none">
+        <svg width="56" height="56" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="0.8" strokeLinecap="round" strokeLinejoin="round" className="text-text-subtle opacity-15">
           <circle cx="9" cy="21" r="1"/><circle cx="20" cy="21" r="1"/>
           <path d="M1 1h4l2.68 13.39a2 2 0 0 0 2 1.61h9.72a2 2 0 0 0 2-1.61L23 6H6"/>
         </svg>
-        <span className="text-[13px]">El carrito está vacío</span>
+        <div className="flex flex-col items-center gap-1">
+          <span className="text-[14px] font-semibold text-text-muted">Carrito vacío</span>
+          <span className="text-[12px] text-text-subtle">Escaneá o buscá un artículo para comenzar</span>
+        </div>
+        <div className="flex items-center gap-2 mt-1 px-3 py-1.5 rounded-[var(--r-in)] bg-surface-2 border border-border">
+          <kbd className="text-[10px] font-bold text-accent bg-[rgba(79,142,245,.1)] px-1.5 py-0.5 rounded">3*código</kbd>
+          <span className="text-[11px] text-text-subtle">agrega 3 unidades directamente</span>
+        </div>
       </div>
     );
   }
@@ -79,7 +86,7 @@ const CartRow = React.memo(function CartRow({
     <tr
       data-cart-sel={selected ? 'true' : undefined}
       onClick={() => onToggleSelect(idx)}
-      className={`cursor-pointer transition-colors ${selected ? 'bg-[rgba(79,142,245,.12)] [box-shadow:inset_3px_0_0_var(--accent)]' : ''}`}
+      className={`cursor-pointer transition-colors ${selected ? 'bg-[rgba(79,142,245,.12)] [box-shadow:inset_3px_0_0_var(--accent)]' : idx % 2 === 1 ? 'bg-[rgba(255,255,255,.018)]' : ''}`}
     >
       <td className="font-mono text-[12px] text-text-muted">{item.codigo}</td>
       <td>
@@ -95,20 +102,28 @@ const CartRow = React.memo(function CartRow({
       <td className="text-right">
         <div className="flex items-center justify-end">
           <div className="flex items-center border border-border rounded-[var(--r-in)] overflow-hidden">
-            <button className="px-2.5 py-1 text-text-muted hover:bg-surface-2 text-[15px] font-bold" onClick={e => { e.stopPropagation(); onDecrement(idx); }}>−</button>
+            <button className="w-8 h-8 flex items-center justify-center text-text-muted hover:bg-surface-2 text-[16px] font-bold flex-shrink-0" onClick={e => { e.stopPropagation(); onDecrement(idx); }}>−</button>
             <input
               type="number" step="any" min="0.001"
               value={item.cantidad}
               onChange={e => { onQtyChange(idx, parseFloat(e.target.value) || 1); }}
               onClick={e => e.stopPropagation()}
-              className="w-14 text-center bg-transparent border-none outline-none text-[14px] font-semibold py-1"
+              className="w-14 text-center bg-transparent border-none outline-none text-[14px] font-semibold py-1.5"
             />
-            <button className="px-2.5 py-1 text-text-muted hover:bg-surface-2 text-[15px] font-bold" onClick={e => { e.stopPropagation(); onIncrement(idx); }}>+</button>
+            <button className="w-8 h-8 flex items-center justify-center text-text-muted hover:bg-surface-2 text-[16px] font-bold flex-shrink-0" onClick={e => { e.stopPropagation(); onIncrement(idx); }}>+</button>
           </div>
         </div>
       </td>
       <td className="text-right font-mono text-[16px] font-bold text-text tabular-nums">{fmt(importe)}</td>
-      <td className="text-right text-[12px] text-text-subtle">{item.usaInventario && item.stockActual !== undefined ? item.stockActual : '—'}</td>
+      <td className="text-right">
+        {item.usaInventario && item.stockActual !== undefined ? (
+          <span className={`text-[11px] font-bold tabular-nums ${
+            item.stockActual <= 0 ? 'text-[#f87171]' :
+            item.stockActual < 10 ? 'text-[#fbbf24]' :
+            'text-text-subtle'
+          }`}>{item.stockActual}</span>
+        ) : <span className="text-text-subtle text-[12px]">—</span>}
+      </td>
       <td>
         <button
           onClick={e => { e.stopPropagation(); onDescuento(idx); }}
