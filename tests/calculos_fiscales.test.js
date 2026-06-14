@@ -6,40 +6,67 @@
  * Cubre cada modo fiscal: monotributista, restaurante, responsable_inscripto,
  * mayorista, farmacia, personalizado — y casos de borde: descuentos por ítem,
  * descuento global %, descuento global $, propina, carrito vacío.
+ *
+ * Desde C-3 el cálculo se hace en CENTAVOS ENTEROS (src/renderer/pages/caja/money.ts)
+ * para eliminar errores de punto flotante. Los casos "PRECISIÓN" al final fallaban
+ * con la implementación vieja basada en floats.
  */
 
 const assert = require('assert');
 
-// ── Réplica exacta de la lógica de calculosFiscales.ts ──────────────────────
+// ── Réplica de money.ts ─────────────────────────────────────────────────────
+function aCentavos(pesos) {
+  if (!Number.isFinite(pesos)) return 0;
+  return Math.round((pesos + Number.EPSILON) * 100);
+}
+function aPesos(centavos) { return centavos / 100; }
+
+// ── Réplica exacta de la lógica de calculosFiscales.ts (centavos) ───────────
 
 const MODOS_IVA_DESGLOSADO = new Set(['responsable_inscripto', 'mayorista', 'farmacia']);
 
 function calcularTotales(carrito, descGlobalTipo, descGlobalValor, propina, modoNegocio, mostrarIva, tasaIva) {
-  let sub = 0;
+  let subCent = 0;
   for (const item of carrito) {
-    const base = item.precio * item.cantidad;
-    sub += item.descPct > 0 ? base * (1 - item.descPct / 100) : base;
+    const baseCent = aCentavos(item.precio * item.cantidad);
+    const lineCent = item.descPct > 0
+      ? baseCent - Math.round(baseCent * item.descPct / 100)
+      : baseCent;
+    subCent += lineCent;
   }
 
-  let desc = 0;
-  if (descGlobalTipo === 'pct') desc = sub * descGlobalValor / 100;
-  else if (descGlobalTipo === 'monto') desc = Math.min(descGlobalValor, sub);
-  const subtotalConDesc = sub - desc;
+  let descCent = 0;
+  if (descGlobalTipo === 'pct') descCent = Math.round(subCent * descGlobalValor / 100);
+  else if (descGlobalTipo === 'monto') descCent = Math.min(aCentavos(descGlobalValor), subCent);
+  const subtotalConDescCent = subCent - descCent;
 
-  let iva = 0;
+  let ivaCent = 0;
   if (mostrarIva && MODOS_IVA_DESGLOSADO.has(modoNegocio)) {
     for (const item of carrito) {
       const tasa = item.tasaIva ?? tasaIva;
-      const base = item.precio * item.cantidad;
-      const baseDesc = item.descPct > 0 ? base * (1 - item.descPct / 100) : base;
-      iva += baseDesc * tasa / 100;
+      const baseCent = aCentavos(item.precio * item.cantidad);
+      const baseDescCent = item.descPct > 0
+        ? baseCent - Math.round(baseCent * item.descPct / 100)
+        : baseCent;
+      ivaCent += Math.round(baseDescCent * tasa / 100);
     }
-    if (desc > 0 && sub > 0) iva *= (1 - desc / sub);
+    if (descCent > 0 && subCent > 0) {
+      ivaCent = Math.round(ivaCent * subtotalConDescCent / subCent);
+    }
   }
 
-  const propAmt = typeof propina === 'string' ? parseFloat(propina) || 0 : (propina || 0);
-  const total = subtotalConDesc + iva + propAmt;
-  return { sub, desc, subtotalConDesc, iva, total: Math.max(0, total), propAmt };
+  const propRaw = typeof propina === 'string' ? parseFloat(propina) || 0 : (propina || 0);
+  const propAmtCent = aCentavos(propRaw);
+  const totalCent = Math.max(0, subtotalConDescCent + ivaCent + propAmtCent);
+
+  return {
+    sub:             aPesos(subCent),
+    desc:            aPesos(descCent),
+    subtotalConDesc: aPesos(subtotalConDescCent),
+    iva:             aPesos(ivaCent),
+    total:           aPesos(totalCent),
+    propAmt:         aPesos(propAmtCent),
+  };
 }
 
 // ── Helpers ──────────────────────────────────────────────────────────────────
@@ -50,6 +77,11 @@ function item(precio, cantidad, descPct = 0, tasaIva = undefined) {
 
 function near(a, b, msg) {
   assert(Math.abs(a - b) < 0.001, `${msg}: got ${a}, expected ${b}`);
+}
+
+// Verifica que un monto está cuantizado al centavo (lo mostrado == lo cobrado).
+function esCentavoExacto(n, msg) {
+  assert.strictEqual(Math.round(n * 100) / 100, n, `${msg}: ${n} no está cuantizado al centavo`);
 }
 
 // ── MODO: monotributista — sin IVA desglosado ────────────────────────────────
@@ -190,4 +222,59 @@ function near(a, b, msg) {
   console.log('✓ personalizado: modo sin IVA no desglosado');
 }
 
-console.log('\n✓ calculos_fiscales: todos los modos fiscales y casos de borde pasaron');
+// ════════════════════════════════════════════════════════════════════════════
+// REGRESIÓN DE PRECISIÓN (C-3) — estos casos fallaban con la lógica de floats
+// ════════════════════════════════════════════════════════════════════════════
+
+// ── 0.1 + 0.2 clásico: la suma debe ser EXACTAMENTE 0.3 ──────────────────────
+{
+  const carrito = [item(0.1, 1), item(0.2, 1)];
+  const t = calcularTotales(carrito, 'ninguno', 0, 0, 'monotributista', true, 21);
+  assert.strictEqual(t.sub,   0.3, 'precisión: 0.1 + 0.2 debe ser exactamente 0.3');
+  assert.strictEqual(t.total, 0.3, 'precisión: total exactamente 0.3');
+  console.log('✓ precisión: 0.1 + 0.2 === 0.3 (sin basura de float)');
+}
+
+// ── IVA sobre precio con centavos: el total cobrado == total mostrado ────────
+{
+  const carrito = [item(99.99, 1)]; // RI 21%
+  const t = calcularTotales(carrito, 'ninguno', 0, 0, 'responsable_inscripto', true, 21);
+  // 99.99 * 0.21 = 20.9979 → redondea a 21.00 (centavo más cercano)
+  esCentavoExacto(t.iva,   'precisión: iva de 99.99');
+  esCentavoExacto(t.total, 'precisión: total de 99.99');
+  assert.strictEqual(t.iva,   21,     'precisión: iva 99.99*21% = 20.9979 → 21.00');
+  assert.strictEqual(t.total, 120.99, 'precisión: total = 99.99 + 21.00');
+  console.log('✓ precisión: IVA sobre 99.99 cuantizado al centavo');
+}
+
+// ── Cantidad continua (kg) con precio fraccionario ───────────────────────────
+{
+  const carrito = [item(999, 0.15)]; // 0.15 kg × $999 = $149.85
+  const t = calcularTotales(carrito, 'ninguno', 0, 0, 'monotributista', true, 21);
+  esCentavoExacto(t.sub,   'precisión: sub de cantidad continua');
+  assert.strictEqual(t.sub,   149.85, 'precisión: 0.15 × 999 = 149.85');
+  assert.strictEqual(t.total, 149.85, 'precisión: total = 149.85');
+  console.log('✓ precisión: cantidad continua (kg) cuantizada al centavo');
+}
+
+// ── Muchos ítems con precio .99: sin deriva acumulada ────────────────────────
+{
+  const carrito = Array.from({ length: 7 }, () => item(0.99, 1));
+  const t = calcularTotales(carrito, 'ninguno', 0, 0, 'monotributista', true, 21);
+  // 0.99 * 7 = 6.93 exacto; con floats la suma acumulaba error
+  assert.strictEqual(t.sub,   6.93, 'precisión: 7 × 0.99 = 6.93 sin deriva');
+  assert.strictEqual(t.total, 6.93, 'precisión: total = 6.93');
+  console.log('✓ precisión: suma de 7×0.99 sin deriva acumulada');
+}
+
+// ── Todos los campos del retorno están siempre cuantizados al centavo ────────
+{
+  const carrito = [item(33.33, 3, 7, 21), item(12.5, 2, 0, 10.5)];
+  const t = calcularTotales(carrito, 'pct', 13, '5.5', 'farmacia', true, 21);
+  for (const k of ['sub', 'desc', 'subtotalConDesc', 'iva', 'total', 'propAmt']) {
+    esCentavoExacto(t[k], `precisión: campo ${k}`);
+  }
+  console.log('✓ precisión: todos los campos del retorno cuantizados al centavo');
+}
+
+console.log('\n✓ calculos_fiscales: todos los modos fiscales, casos de borde y regresión de precisión pasaron');

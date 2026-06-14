@@ -3,6 +3,7 @@ import { AnimatePresence, motion } from 'framer-motion';
 import { useFocusTrap } from '../../hooks/useFocusTrap';
 import { useSession } from '../../context/SessionContext';
 import { fmt } from './types';
+import { redondear } from './money';
 
 interface ModalAnularProps {
   open: boolean;
@@ -223,7 +224,7 @@ export function ModalAnular({ open, onClose, turnoActivo, showToast }: ModalAnul
                           const devQty  = itemQtys[item.id] ?? 0;
                           const yaTotal = maxDisp === 0;
                           const importe = tipo === 'parcial'
-                            ? item.precio_al_momento * devQty
+                            ? redondear(item.precio_al_momento * devQty)
                             : item.importe_total;
                           return (
                             <tr key={item.id} className={`border-b border-border-sub transition-colors ${yaTotal ? 'opacity-50' : 'hover:bg-surface-2'}`}>
@@ -259,9 +260,9 @@ export function ModalAnular({ open, onClose, turnoActivo, showToast }: ModalAnul
                   {/* Footer */}
                   <div className="px-5 py-4 border-t border-border flex flex-col gap-3 flex-shrink-0">
                     {tipo === 'parcial' && (() => {
-                      const totalDev = selTrans.detalle.reduce(
-                        (s: number, i: any) => s + i.precio_al_momento * (itemQtys[i.id] ?? 0), 0
-                      );
+                      const totalDev = redondear(selTrans.detalle.reduce(
+                        (s: number, i: any) => s + redondear(i.precio_al_momento * (itemQtys[i.id] ?? 0)), 0
+                      ));
                       return (
                         <div className="flex items-center justify-between text-[13px] pb-1 border-b border-border-sub">
                           <span className="text-text-muted">Total a devolver:</span>

@@ -1,5 +1,6 @@
 const { getDb } = require('../database');
 const { registrarMovimiento } = require('./inventario');
+const { aCentavos, redondear } = require('../money');
 
 function getAll() {
   return getDb()
@@ -53,6 +54,88 @@ function getRecientes(limite = 50) {
 
 function create({ transaccion, detalle }) {
   const db = getDb();
+
+  // ── I-1: validación anti-tampering server-side ────────────────────────────
+  // No se confía en precios ni importes que manda el renderer. Se validan contra
+  // la DB y se recalculan. Bloquea precios por debajo del mínimo legítimo
+  // (lista / mayoreo / promo) y montos totales manipulados. La validación corre
+  // ANTES de la transacción: una venta rechazada no escribe nada en la DB.
+  const tienePromos = !!db
+    .prepare("SELECT name FROM sqlite_master WHERE type='table' AND name='promociones'")
+    .get();
+  const getArtPV    = db.prepare('SELECT * FROM articulos WHERE id = ?');
+  const getPromosPV = tienePromos
+    ? db.prepare('SELECT cantidad_desde, cantidad_hasta, precio_promocional FROM promociones WHERE articulo_id = ?')
+    : null;
+
+  let sumImportesCent = 0;
+  const detalleValidado = (detalle ?? []).map((item) => {
+    const cantidad = Number(item.cantidad);
+    if (!Number.isFinite(cantidad) || cantidad <= 0) {
+      throw new Error('Cantidad inválida en un ítem de la venta.');
+    }
+    const descPct = Number(item.descuento_porcentaje ?? 0);
+    if (!Number.isFinite(descPct) || descPct < 0 || descPct > 100) {
+      throw new Error('Descuento por ítem fuera de rango (0–100%).');
+    }
+    const precio = Number(item.precio_al_momento);
+    if (!Number.isFinite(precio) || precio < 0) {
+      throw new Error('Precio inválido en un ítem de la venta.');
+    }
+
+    // Los ítems libres (sin articulo_id) llevan precio que tipea el cajero: no hay
+    // referencia en la DB contra la cual validar. Los registrados sí se validan.
+    if (item.articulo_id != null) {
+      const art = getArtPV.get(item.articulo_id);
+      if (!art) throw new Error(`Artículo ID ${item.articulo_id} no encontrado.`);
+
+      // Precios legítimos para esta cantidad: lista, mayoreo (si está cargado) y
+      // promos cuya franja de cantidad aplique.
+      const preciosValidos = [Number(art.precio_unitario) || 0];
+      if (Number(art.precio_mayoreo) > 0) preciosValidos.push(Number(art.precio_mayoreo));
+      if (getPromosPV) {
+        for (const p of getPromosPV.all(item.articulo_id)) {
+          const aplica = cantidad >= p.cantidad_desde &&
+            (p.cantidad_hasta == null || cantidad <= p.cantidad_hasta);
+          if (aplica) preciosValidos.push(Number(p.precio_promocional) || 0);
+        }
+      }
+      const pisoCent = Math.min(...preciosValidos.map(aCentavos));
+      if (aCentavos(precio) < pisoCent) {
+        throw new Error(
+          `Precio de "${art.nombre}" por debajo del mínimo permitido ` +
+          `($${pisoCent / 100}). Venta rechazada por seguridad.`,
+        );
+      }
+    }
+
+    // importe_total SIEMPRE recalculado en el backend.
+    const importe = redondear(precio * cantidad * (1 - descPct / 100));
+    sumImportesCent += aCentavos(importe);
+    return { ...item, cantidad, descuento_porcentaje: descPct, importe_total: importe };
+  });
+
+  // Coherencia del total: el monto cobrado no puede ser menor que el subtotal
+  // (suma de importes de línea) menos el descuento global. IVA y propina solo suman.
+  const descGlobalCent = aCentavos(Number(transaccion.descuento_global ?? 0));
+  if (descGlobalCent < 0 || descGlobalCent > sumImportesCent + 1) {
+    throw new Error('Descuento global inválido (excede el subtotal).');
+  }
+  const ivaCent  = aCentavos(Number(transaccion.monto_impuesto ?? 0));
+  const propCent = aCentavos(Number(transaccion.propina ?? 0));
+  if (ivaCent < 0 || propCent < 0) throw new Error('Impuesto o propina inválidos.');
+
+  const montoTotal = Number(transaccion.monto_total);
+  if (!Number.isFinite(montoTotal) || montoTotal < 0) {
+    throw new Error('Monto total inválido.');
+  }
+  const TOL = detalleValidado.length + 2; // absorbe redondeo de ≤1 centavo por línea
+  const minTotalCent = sumImportesCent - descGlobalCent;
+  if (aCentavos(montoTotal) + TOL < minTotalCent) {
+    throw new Error('El monto total no coincide con el detalle. Venta rechazada por seguridad.');
+  }
+
+  detalle = detalleValidado;
 
   const insert = db.transaction(() => {
     const { lastInsertRowid } = db

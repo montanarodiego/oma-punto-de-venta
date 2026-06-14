@@ -4,6 +4,7 @@ import { useFocusTrap } from '../../hooks/useFocusTrap';
 import type { Cliente, CreateTransaccionData } from '../../types/api';
 import type { Ticket } from './types';
 import { fmt } from './types';
+import { redondear } from './money';
 import type { Totales } from './calculosFiscales';
 
 export interface ModalCobroHandle {
@@ -48,13 +49,13 @@ export const ModalCobro = forwardRef<ModalCobroHandle, ModalCobroProps>(function
 
   const hayMonto   = monto !== '' && monto !== '0';
   const diferencia = useMemo(
-    () => formaPago === 'efectivo' ? (parseFloat(monto) || 0) - totales.total : 0,
+    () => formaPago === 'efectivo' ? redondear((parseFloat(monto) || 0) - totales.total) : 0,
     [formaPago, monto, totales.total],
   );
   const vuelto = Math.max(0, diferencia);
   const efectivoInsuficiente = formaPago === 'efectivo' && hayMonto && diferencia < 0;
   const mixtoMonto2 = useMemo(
-    () => formaPago === 'mixto' ? Math.max(0, totales.total - (parseFloat(mixtoMonto1) || 0)) : 0,
+    () => formaPago === 'mixto' ? Math.max(0, redondear(totales.total - (parseFloat(mixtoMonto1) || 0))) : 0,
     [formaPago, totales.total, mixtoMonto1],
   );
 
@@ -76,9 +77,9 @@ export const ModalCobro = forwardRef<ModalCobroHandle, ModalCobroProps>(function
 
     try {
       const montoRec = formaPago === 'efectivo' ? parseFloat(monto) || 0 : 0;
-      const vueltoCalc = formaPago === 'efectivo' ? Math.max(0, montoRec - total) : 0;
-      const propAmt = parseFloat(propina) || 0;
-      const mixtoMonto2Calc = formaPago === 'mixto' ? Math.max(0, total - (parseFloat(mixtoMonto1) || 0)) : 0;
+      const vueltoCalc = formaPago === 'efectivo' ? Math.max(0, redondear(montoRec - total)) : 0;
+      const propAmt = redondear(parseFloat(propina) || 0);
+      const mixtoMonto2Calc = formaPago === 'mixto' ? Math.max(0, redondear(total - (parseFloat(mixtoMonto1) || 0))) : 0;
 
       const data: CreateTransaccionData = {
         transaccion: {
@@ -100,7 +101,7 @@ export const ModalCobro = forwardRef<ModalCobroHandle, ModalCobroProps>(function
           cantidad:             it.cantidad,
           precio_al_momento:    it.precio,
           descuento_porcentaje: it.descPct,
-          importe_total:        it.precio * it.cantidad * (1 - it.descPct / 100),
+          importe_total:        redondear(it.precio * it.cantidad * (1 - it.descPct / 100)),
         })),
       };
 

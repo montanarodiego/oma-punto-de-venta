@@ -1,5 +1,6 @@
 import React from 'react';
 import { type CartItem, fmt } from './types';
+import { redondear } from './money';
 
 interface CarritoListaProps {
   carrito: CartItem[];
@@ -81,7 +82,7 @@ const CartRow = React.memo(function CartRow({
   item, idx, selected,
   onToggleSelect, onDecrement, onIncrement, onQtyChange, onDescuento,
 }: CartRowProps) {
-  const importe = item.precio * item.cantidad * (1 - item.descPct / 100);
+  const importe = redondear(item.precio * item.cantidad * (1 - item.descPct / 100));
   return (
     <tr
       data-cart-sel={selected ? 'true' : undefined}

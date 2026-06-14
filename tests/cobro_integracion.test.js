@@ -319,6 +319,52 @@ function runTests() {
   }
 
   // ══════════════════════════════════════════════════════════════════════════════
+  // TEST SEGURIDAD (I-1): validación anti-tampering server-side
+  // ══════════════════════════════════════════════════════════════════════════════
+  {
+    const stockAntes = testDb.prepare('SELECT stock_actual FROM articulos WHERE id = ?').get(artConInventario).stock_actual;
+
+    // (a) precio por debajo del de lista (500) → rechazado
+    assert.throws(() => Transacciones.create({
+      transaccion: { monto_total: 1, subtotal: 1, monto_impuesto: 0, descuento_global: 0, propina: 0,
+        forma_pago: 'efectivo', forma_pago_2: null, monto_pago_2: null, cuenta_cliente_id: null, notas: null },
+      detalle: [{ articulo_id: artConInventario, descripcion_libre: null, cantidad: 1,
+        precio_al_momento: 1, descuento_porcentaje: 0, importe_total: 1 }],
+    }), /mínimo permitido|seguridad/i, 'debe rechazar precio por debajo del de lista');
+
+    // (b) monto_total manipulado con líneas correctas → rechazado
+    assert.throws(() => Transacciones.create({
+      transaccion: { monto_total: 1, subtotal: 1, monto_impuesto: 0, descuento_global: 0, propina: 0,
+        forma_pago: 'efectivo', forma_pago_2: null, monto_pago_2: null, cuenta_cliente_id: null, notas: null },
+      detalle: [{ articulo_id: artConInventario, descripcion_libre: null, cantidad: 2,
+        precio_al_momento: 500, descuento_porcentaje: 0, importe_total: 1000 }],
+    }), /no coincide|seguridad/i, 'debe rechazar monto_total manipulado');
+
+    // (c) descuento por ítem fuera de rango → rechazado
+    assert.throws(() => Transacciones.create({
+      transaccion: { monto_total: 0, subtotal: 0, monto_impuesto: 0, descuento_global: 0, propina: 0,
+        forma_pago: 'efectivo', forma_pago_2: null, monto_pago_2: null, cuenta_cliente_id: null, notas: null },
+      detalle: [{ articulo_id: artConInventario, descripcion_libre: null, cantidad: 1,
+        precio_al_momento: 500, descuento_porcentaje: 150, importe_total: 0 }],
+    }), /Descuento|rango/i, 'debe rechazar descuento fuera de 0–100%');
+
+    // ninguna venta rechazada tocó el stock (validación previa a la transacción)
+    const stockDespues = testDb.prepare('SELECT stock_actual FROM articulos WHERE id = ?').get(artConInventario).stock_actual;
+    assert.strictEqual(stockDespues, stockAntes, 'ventas rechazadas no deben tocar el stock');
+
+    // (d) venta legítima a precio de lista sigue funcionando
+    const ok = Transacciones.create({
+      transaccion: { monto_total: 500, subtotal: 500, monto_impuesto: 0, descuento_global: 0, propina: 0,
+        forma_pago: 'efectivo', forma_pago_2: null, monto_pago_2: null, cuenta_cliente_id: null, notas: null },
+      detalle: [{ articulo_id: artConInventario, descripcion_libre: null, cantidad: 1,
+        precio_al_momento: 500, descuento_porcentaje: 0, importe_total: 500 }],
+    });
+    assert.ok(ok && ok.id, 'venta legítima a precio de lista debe registrarse');
+
+    console.log('✓ seguridad I-1      — rechaza precio bajo, monto manipulado y descuento inválido; acepta venta legítima');
+  }
+
+  // ══════════════════════════════════════════════════════════════════════════════
   // TEST 5: las ventas aparecen en informes.resumenRapido (e)
   // El bug original: create con objeto plano nunca insertaba → Informes siempre $0
   // ══════════════════════════════════════════════════════════════════════════════

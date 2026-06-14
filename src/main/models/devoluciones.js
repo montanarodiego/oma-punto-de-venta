@@ -1,5 +1,6 @@
 const { getDb } = require('../database');
 const { registrarMovimiento } = require('./inventario');
+const { redondear } = require('../money');
 
 function calcularMontoCuentaCorriente(trans) {
   if (!trans.cuenta_cliente_id) return 0;
@@ -126,7 +127,11 @@ function devolucionParcial({ transaccionId, turnoId, motivo, items: rawItems }) 
     throw new Error('Todos los ítems de esta transacción ya fueron devueltos.');
   }
 
-  const montoDevuelto = items.reduce((s, i) => s + i.precio_unitario * i.cantidad, 0);
+  // Centavos enteros: cada línea se cuantiza al centavo y luego se suman, para que
+  // monto_devuelto == suma de los importes guardados por línea (sin deriva de float).
+  const montoDevuelto = redondear(
+    items.reduce((s, i) => s + redondear(i.precio_unitario * i.cantidad), 0),
+  );
 
   const op = db.transaction(() => {
     const updateStock = db.prepare(`
@@ -171,7 +176,7 @@ function devolucionParcial({ transaccionId, turnoId, motivo, items: rawItems }) 
         item.descripcion,
         item.cantidad,
         item.precio_unitario,
-        item.precio_unitario * item.cantidad,
+        redondear(item.precio_unitario * item.cantidad),
       );
     }
 
