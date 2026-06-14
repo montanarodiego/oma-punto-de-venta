@@ -18,6 +18,8 @@ let syncPendientes = async () => ({});
 let verificarLicencia = async () => ({ activa: true });
 let guardarTokenLocal = () => {};
 let leerTokenRaw = () => null;
+let leerLicenseKey = () => null;
+let activar = async () => { throw new Error('Activación no disponible'); };
 
 try {
   const fb = require('./firebase');
@@ -44,6 +46,14 @@ try {
   leerTokenRaw       = syncMod.leerTokenRaw;
 } catch (err) {
   require('electron-log').warn('[sync] módulo no disponible:', err.message);
+}
+
+try {
+  const actMod = require('./activacion');
+  leerLicenseKey = actMod.leerLicenseKey;
+  activar        = actMod.activar;
+} catch (err) {
+  require('electron-log').warn('[activacion] módulo no disponible:', err.message);
 }
 
 const HUD_ZOOM_FACTORS = { compacto: 1.0, normal: 1.4, grande: 1.85, gigante: 2.4 };
@@ -496,10 +506,45 @@ app.whenReady().then(async () => {
   // Startup offline-first: cablear negocioIdActivo y re-auth Firebase en background.
   // Credenciales de sync vienen de oma-creds.json; el negocioId del cliente viene de
   // license.json (tokenRaw) o de oma-creds.negocio_id en la primera instalación.
-  const creds    = require('./credentials');
-  const tokenRaw = leerTokenRaw();
+  const creds      = require('./credentials');
+  const tokenRaw   = leerTokenRaw();
+  const licenseKey = leerLicenseKey();
 
-  if (tokenRaw) {
+  if (licenseKey) {
+    // NUEVO modelo de licencia: licenseKey secreto + custom token (proyecto omatechpos).
+    // Reemplaza la cuenta de sync compartida. Solo se activa si hay un licenseKey
+    // provisionado; las instalaciones viejas (sin licenseKey) siguen por los paths de abajo.
+    // Offline-first: si hay token local válido, arrancar la sync con él mientras se reactiva.
+    if (tokenRaw) { negocioIdActivo = tokenRaw.negocioId; iniciarSyncInterval(); }
+    (async () => {
+      if (!auth) return;
+      let r;
+      try {
+        r = await activar(auth, licenseKey);
+      } catch (e) {
+        require('electron-log').warn('[activacion] no se pudo activar (offline o licencia inválida):', e.message);
+        return; // sigue funcionando offline con el token local si existía
+      }
+      negocioIdActivo = r.negocioId;
+      iniciarSyncInterval();
+      guardarTokenLocal({
+        negocioId:   r.negocioId,
+        activa:      true,
+        vencimiento: typeof r.vencimiento === 'number' ? r.vencimiento : Date.now() + 30 * 24 * 60 * 60 * 1000,
+        timestamp:   Date.now(),
+      });
+      if (!auth.currentUser) return;
+
+      syncPendientes(getDb(), firestore, negocioIdActivo, auth).catch(() => {});
+
+      const lic = await verificarLicencia(firestore, negocioIdActivo);
+      if (lic.razon === 'inactiva') {
+        BrowserWindow.getAllWindows().forEach(w => w.close());
+        dialog.showErrorBox('Licencia suspendida', 'Tu licencia fue suspendida. Contactate con OmaTech.');
+        app.quit();
+      }
+    })();
+  } else if (tokenRaw) {
     negocioIdActivo = tokenRaw.negocioId;
     iniciarSyncInterval();
     (async () => {
