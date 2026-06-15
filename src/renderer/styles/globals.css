@@ -54,6 +54,14 @@
 * { box-sizing: border-box; margin: 0; padding: 0; }
 .hidden { display: none !important; }
 
+/* Transición suave SOLO durante el cambio de tema (la clase se quita sola).
+   Limita a colores para no animar transforms/layouts. */
+html.theme-transition,
+html.theme-transition * {
+  transition: background-color .3s ease, border-color .3s ease, color .3s ease,
+              fill .3s ease, stroke .3s ease !important;
+}
+
 html { font-size: 16px; height: 100%; overflow: hidden; }
 
 body {

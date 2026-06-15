@@ -4,6 +4,13 @@ import { useToast } from '../context/ToastContext';
 import { useSession } from '../context/SessionContext';
 import { Card, CardHeader, CardBody, Toggle, Button, Field, Input, Select, Badge, Modal } from '../components/ui';
 import type { Usuario, BackupInfo } from '../types/api';
+import { setTema, type TemaPref } from '../theme';
+
+const TEMA_OPCIONES: { id: TemaPref; label: string; desc: string }[] = [
+  { id: 'auto',   label: 'Automático', desc: 'Según el sistema' },
+  { id: 'claro',  label: 'Claro',      desc: 'Fondo claro' },
+  { id: 'oscuro', label: 'Oscuro',     desc: 'Fondo oscuro' },
+];
 
 const WIZARD_MODOS = [
   { id: 'monotributista',       nombre: 'Monotributista',         desc: 'Precios finales, sin IVA desglosado',              ejemplos: 'Kiosco, almacén, bazar, librería' },
@@ -45,6 +52,7 @@ export default function Configuracion() {
 
   // HUD
   const [hud, setHud]           = useState('normal');
+  const [tema, setTemaState]   = useState<TemaPref>('auto');
 
   // Backup
   const [backups, setBackups]   = useState<BackupInfo[]>([]);
@@ -108,6 +116,7 @@ export default function Configuracion() {
     setModo(modoVal ?? '');
     setTasaDefault(tasaDef ?? '21');
     setHud(hudVal ?? 'normal');
+    setTemaState((cfg.tema as TemaPref) ?? 'auto');
     setLimiteEfectivo(cfg.limite_efectivo_caja ?? '0');
     setEmailCortes(cfg.email_cortes ?? '');
 
@@ -179,6 +188,12 @@ export default function Configuracion() {
     await window.api.config.set('tamano_hud', id);
     await window.api.ui.setZoom(HUD_FACTORES[id] ?? 1.0);
     showToast('Tamaño actualizado.', 'ok');
+  }
+
+  async function cambiarTema(id: TemaPref) {
+    setTemaState(id);
+    setTema(id, true);
+    await window.api.config.set('tema', id);
   }
 
   async function cargarEstadoSync() {
@@ -408,6 +423,25 @@ export default function Configuracion() {
                         <div className={`text-[13px] font-semibold ${hud === op.id ? 'text-accent' : 'text-text'}`}>{op.label}</div>
                         <div className="text-[11px] text-text-muted mt-0.5">{op.desc}</div>
                       </div>
+                    </button>
+                  ))}
+                </div>
+              </CardBody>
+            </Card>
+
+            <Card>
+              <CardHeader>Apariencia</CardHeader>
+              <CardBody>
+                <p className="text-[12px] text-text-muted mb-3">Tema de la interfaz. "Automático" sigue la configuración de Windows.</p>
+                <div className="grid grid-cols-3 gap-2.5">
+                  {TEMA_OPCIONES.map(op => (
+                    <button
+                      key={op.id}
+                      onClick={() => cambiarTema(op.id)}
+                      className={`flex flex-col gap-1 p-3.5 rounded-[var(--r)] text-left border-2 transition-all ${tema === op.id ? 'bg-[rgba(79,142,245,.08)] border-accent' : 'bg-surface-2 border-border hover:border-border-sub'}`}
+                    >
+                      <div className={`text-[13px] font-semibold ${tema === op.id ? 'text-accent' : 'text-text'}`}>{op.label}</div>
+                      <div className="text-[11px] text-text-muted">{op.desc}</div>
                     </button>
                   ))}
                 </div>
