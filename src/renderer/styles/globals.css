@@ -26,6 +26,12 @@
   --danger:      #ef4444;
   --danger-h:    #dc2626;
   --warning:     #f59e0b;
+  /* Tints del warning para fondos/bordes/texto (evita amber hardcodeado disperso) */
+  --warning-text:        #fbbf24;
+  --warning-bg:          rgba(245,158,11,.12);
+  --warning-bg-soft:     rgba(245,158,11,.07);
+  --warning-border:      rgba(245,158,11,.30);
+  --warning-border-soft: rgba(245,158,11,.20);
 
   --r:       10px;
   --r-card:  14px;

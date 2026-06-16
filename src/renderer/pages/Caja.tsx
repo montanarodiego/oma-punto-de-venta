@@ -432,7 +432,7 @@ export default function Caja() {
 
       {/* ── Alerta límite de efectivo ── */}
       {alertaEfectivo && (
-        <div className="flex items-center gap-2 px-4 py-2 bg-[rgba(234,179,8,.12)] border-b border-[rgba(234,179,8,.3)] text-[#fbbf24] text-[12px] font-semibold flex-shrink-0">
+        <div className="flex items-center gap-2 px-4 py-2 bg-[var(--warning-bg)] border-b border-[var(--warning-border)] text-[var(--warning-text)] text-[12px] font-semibold flex-shrink-0">
           <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" className="flex-shrink-0"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>
           El efectivo en caja supera el límite configurado. Realizá un retiro desde "Entrada-Salida".
         </div>
@@ -456,9 +456,9 @@ export default function Caja() {
           onKeyDownInterceptor={handleCodigoKeyDown}
         />
         {descInlineOpen && (
-          <div className="flex items-center gap-2 flex-shrink-0 bg-[rgba(234,179,8,.07)] border border-[rgba(234,179,8,.2)] rounded-[var(--r-in)] px-3 py-1.5">
-            <button className={`text-[11px] font-bold px-2 py-0.5 rounded border transition-all ${descTipo==='pct' ? 'bg-[#ca8a04] text-white border-[#ca8a04]' : 'border-border text-text-muted bg-transparent'}`} onClick={() => setDescTipo('pct')}>%</button>
-            <button className={`text-[11px] font-bold px-2 py-0.5 rounded border transition-all ${descTipo==='monto' ? 'bg-[#ca8a04] text-white border-[#ca8a04]' : 'border-border text-text-muted bg-transparent'}`} onClick={() => setDescTipo('monto')}>$</button>
+          <div className="flex items-center gap-2 flex-shrink-0 bg-[var(--warning-bg-soft)] border border-[var(--warning-border-soft)] rounded-[var(--r-in)] px-3 py-1.5">
+            <button className={`text-[11px] font-bold px-2 py-0.5 rounded border transition-all ${descTipo==='pct' ? 'bg-warning text-white border-warning' : 'border-border text-text-muted bg-transparent'}`} onClick={() => setDescTipo('pct')}>%</button>
+            <button className={`text-[11px] font-bold px-2 py-0.5 rounded border transition-all ${descTipo==='monto' ? 'bg-warning text-white border-warning' : 'border-border text-text-muted bg-transparent'}`} onClick={() => setDescTipo('monto')}>$</button>
             <input type="number" min="0" step="0.01" value={descVal} onChange={e => setDescVal(e.target.value)} className="inp w-20 py-1 px-2 text-[12px]" placeholder="0" />
             <button className="btn btn-primary btn-sm text-[11px]" onClick={aplicarDescGlobal}>Aplicar</button>
             <button className="btn btn-ghost btn-sm text-[11px]" onClick={() => { setDescInlineOpen(false); updateTicket(activeIdx, { descGlobalTipo: 'ninguno', descGlobalValor: 0 }); setDescVal(''); }}>✕</button>
