@@ -21,6 +21,7 @@ const Kits           = require('./models/kits');
 const Inventario     = require('./models/inventario');
 const PedidosCompra  = require('./models/pedidos');
 const Promociones    = require('./models/promociones');
+const Actividad      = require('./models/actividad');
 const Backup         = require('./backup');
 const Printer        = require('./printer');
 const ReportMailer   = require('./report-mailer');
@@ -32,6 +33,32 @@ let currentUser     = null; // { id, nombre }
 
 function onlyAdmin() {
   if (currentUserRole !== 'admin') throw new Error('Acción restringida a administradores');
+}
+
+// Formato de monto para los detalles del log (es-AR, sin decimales de relleno).
+function fmtMonto(n) {
+  return '$' + (Number(n) || 0).toLocaleString('es-AR', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+}
+
+const FORMA_PAGO_LABEL = {
+  efectivo:         'Efectivo',
+  debito:           'Débito',
+  credito:          'Crédito',
+  transferencia:    'Transferencia',
+  cuenta_corriente: 'Cuenta corriente',
+  mixto:            'Pago mixto',
+};
+
+// Registra una acción en el log de actividad atribuyéndola al usuario activo.
+// A prueba de fallos (el modelo se traga sus propios errores): nunca debe
+// interrumpir la operación de negocio que la disparó.
+function logActividad(accion, detalle) {
+  Actividad.registrar({
+    usuario_id:     currentUser?.id     ?? null,
+    usuario_nombre: currentUser?.nombre ?? null,
+    accion,
+    detalle:        detalle ?? null,
+  });
 }
 
 // ── Exportación de órdenes de compra ──────────────────────────
@@ -324,6 +351,7 @@ function registerHandlers() {
       const user = Usuarios.login(usuario, password);
       currentUserRole = user.rol;
       currentUser = { id: user.id, nombre: user.nombre };
+      logActividad('login', `Inició sesión (${user.rol})`);
       return { ok: true, user };
     } catch (err) {
       return { ok: false, error: err.message };
@@ -376,21 +404,46 @@ function registerHandlers() {
   // ── Transacciones ──────────────────────────────────────────
   ipcMain.handle('transacciones:getAll',      ()                  => Transacciones.getAll());
   ipcMain.handle('transacciones:getById',     (_e, id)            => Transacciones.getById(id));
-  ipcMain.handle('transacciones:create',      (_e, data)          => Transacciones.create(data));
+  ipcMain.handle('transacciones:create',      (_e, data)          => {
+    const t  = Transacciones.create(data);
+    const fp = data?.transaccion?.forma_pago_2
+      ? 'mixto'
+      : (data?.transaccion?.forma_pago ?? t?.forma_pago);
+    logActividad('venta', `Venta #${t.id} · ${fmtMonto(t.monto_total)} · ${FORMA_PAGO_LABEL[fp] ?? fp ?? '—'}`);
+    return t;
+  });
   ipcMain.handle('transacciones:getByFecha',  (_e, desde, hasta)  => Transacciones.getByFecha(desde, hasta));
   ipcMain.handle('transacciones:getRecientes',(_e, limite)        => Transacciones.getRecientes(limite));
   ipcMain.handle('transacciones:getUltima',   (_e, turnoId)       => Transacciones.getUltima(turnoId));
 
   // ── Movimientos de caja ────────────────────────────────────
-  ipcMain.handle('movimientos:registrar',     (_e, data)         => MovimientosCaja.registrar(data));
+  ipcMain.handle('movimientos:registrar',     (_e, data)         => {
+    const mov   = MovimientosCaja.registrar(data);
+    const tipo  = mov.tipo === 'entrada' ? 'Entrada' : 'Salida';
+    const extra = [mov.categoria, mov.descripcion].filter(Boolean).join(' — ');
+    logActividad('movimiento_caja', `${tipo} de caja · ${fmtMonto(mov.monto)}${extra ? ' · ' + extra : ''}`);
+    return mov;
+  });
   ipcMain.handle('movimientos:listarPorTurno',(_e, turnoId)      => MovimientosCaja.listarPorTurno(turnoId));
   ipcMain.handle('movimientos:cancelar',      (_e, id, motivo)   => { onlyAdmin(); return MovimientosCaja.cancelar(id, motivo); });
 
   // ── Devoluciones ───────────────────────────────────────────
-  ipcMain.handle('devoluciones:cancelar',     (_e, data)      => { onlyAdmin(); return Devoluciones.cancelarTransaccion(data); });
-  ipcMain.handle('devoluciones:parcial',      (_e, data)      => Devoluciones.devolucionParcial(data));
+  ipcMain.handle('devoluciones:cancelar',     (_e, data)      => {
+    onlyAdmin();
+    const dv = Devoluciones.cancelarTransaccion(data);
+    logActividad('anulacion', `Anuló la venta #${data?.transaccionId} · ${fmtMonto(dv.monto_devuelto)} · Motivo: ${data?.motivo ?? '—'}`);
+    return dv;
+  });
+  ipcMain.handle('devoluciones:parcial',      (_e, data)      => {
+    const dv = Devoluciones.devolucionParcial(data);
+    logActividad('devolucion_parcial', `Devolución parcial de la venta #${data?.transaccionId} · ${fmtMonto(dv.monto_devuelto)} · Motivo: ${data?.motivo ?? '—'}`);
+    return dv;
+  });
   ipcMain.handle('devoluciones:getByTrans',   (_e, id)        => Devoluciones.getByTransaccion(id));
   ipcMain.handle('devoluciones:recientes',    (_e, limite)    => Devoluciones.getRecientes(limite));
+
+  // ── Log de actividad (auditoría — solo admin) ──────────────────
+  ipcMain.handle('actividad:listar', (_e, filtros) => { onlyAdmin(); return Actividad.listar(filtros ?? {}); });
 
   // ── Informes ───────────────────────────────────────────────
   ipcMain.handle('informes:ventasPorPeriodo',     (_e, d, h) => Informes.ventasPorPeriodo(d, h));
@@ -447,10 +500,17 @@ function registerHandlers() {
 
   // ── Turnos ─────────────────────────────────────────────────
   ipcMain.handle('turnos:obtenerActivo',    ()                           => Turnos.obtenerActivo());
-  ipcMain.handle('turnos:abrir',            (_e, efectivoInicial)        => Turnos.abrir(efectivoInicial));
+  ipcMain.handle('turnos:abrir',            (_e, efectivoInicial)        => {
+    const turno = Turnos.abrir(efectivoInicial);
+    logActividad('turno_abierto', `Abrió el turno #${turno.id} · Fondo inicial ${fmtMonto(turno.efectivo_inicial)}`);
+    return turno;
+  });
   ipcMain.handle('turnos:calcularResumen',  (_e, id)                     => Turnos.calcularResumen(id));
   ipcMain.handle('turnos:cerrar', async (_e, id, efectivoReal, notas) => {
     const result  = Turnos.cerrar(id, efectivoReal, notas);
+    const dif = Number(result?.diferencia ?? 0);
+    const difTxt = dif === 0 ? 'sin diferencia' : `diferencia ${fmtMonto(dif)}`;
+    logActividad('turno_cerrado', `Cerró el turno #${id} · ${difTxt}`);
     // Enviar resumen por email en background — no bloquea el cierre
     (async () => {
       try {

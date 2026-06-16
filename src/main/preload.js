@@ -207,6 +207,11 @@ contextBridge.exposeInMainWorld('api', {
     enviarReporte: (datos) => ipcRenderer.invoke('soporte:enviarReporte', datos),
   },
 
+  // Log de actividad (auditoría — solo admin)
+  actividad: {
+    listar: (filtros) => ipcRenderer.invoke('actividad:listar', filtros),
+  },
+
   // Reportes automáticos por email
   reporteEmail: {
     getConfig:    ()                   => ipcRenderer.invoke('reporteEmail:getConfig'),

@@ -158,16 +158,21 @@ Estas mejoras están en producción (rama `main`):
 
 ## Pendientes
 
-### 12 — Log de actividad (próximo a implementar)
-- Nueva tabla `actividad_log(id, usuario_id, usuario_nombre, accion, detalle, created_at)`
-- Loguear: ventas (`confirmarCobro`), cancelaciones, cambios de precio, movimientos de caja
-- UI: sección "Log de actividad" en Configuracion.tsx visible solo para rol admin
+Todos los ítems funcionales (1–13) están implementados. Lo que resta es de pre-lanzamiento:
+code signing del auto-updater, migración de la cuenta de sync compartida, y el panel admin
+en OMA Manager (ver memoria `project_lanzamiento`).
 
-### 13 — Importación Excel con preview y validación
-- Tabla de preview antes de confirmar la importación
-- Filas en rojo si hay errores (nombre vacío, precio inválido, código duplicado)
-- Botón "Importar X artículos" habilitado solo si hay filas válidas
-- Progreso de importación por lotes
+### 12 — Log de actividad ✅ HECHO
+- Tabla `actividad_log(id, usuario_id, usuario_nombre, accion, detalle, created_at)` + índices.
+- Modelo `models/actividad.js` (`registrar` a prueba de fallos + `listar` con filtros por acción/usuario/fecha).
+- `ipc.js` loguea vía `logActividad()` (closure `currentUser`): venta, anulación, devolución parcial,
+  movimiento de caja, apertura/cierre de turno, login. Los cambios de precio se loguean en `articulos.update`.
+- Handler `actividad:listar` con `onlyAdmin()`; expuesto en `window.api.actividad.listar`.
+- UI: card "Log de actividad" en `Configuracion.tsx` (solo admin) con filtro por tipo de acción.
+
+### 13 — Importación Excel con preview y validación ✅ HECHO
+- `ImportConfig` (previewColumns + validateRow) en `Catalogo.tsx`, reusado en Clientes y Proveedores.
+- Tabla de preview con filas en rojo si hay errores; botón habilitado solo con filas válidas.
 
 ## Convenciones React (renderer)
 

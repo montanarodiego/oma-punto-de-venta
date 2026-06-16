@@ -11,9 +11,10 @@
     "build:renderer": "vite build",
     "dist": "npm run build:renderer && electron-builder --win",
     "dist:dir": "npm run build:renderer && electron-builder --win --dir",
-    "test": "node tests/bug1_monto_total.test.js && electron tests/contrato_backend.test.js && electron tests/cobro_integracion.test.js",
+    "test": "node tests/bug1_monto_total.test.js && electron tests/contrato_backend.test.js && electron tests/cobro_integracion.test.js && electron tests/actividad_log.test.js",
     "test:contrato": "electron tests/contrato_backend.test.js",
-    "test:cobro": "electron tests/cobro_integracion.test.js"
+    "test:cobro": "electron tests/cobro_integracion.test.js",
+    "test:actividad": "electron tests/actividad_log.test.js"
   },
   "dependencies": {
     "@tanstack/react-virtual": "^3.14.2",

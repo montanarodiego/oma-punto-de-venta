@@ -566,6 +566,18 @@ function runMigrations(db) {
     )
   `);
 
+  // ── Feature: actividad_log (auditoría de acciones por usuario) ─
+  db.exec(`
+    CREATE TABLE IF NOT EXISTS actividad_log (
+      id             INTEGER PRIMARY KEY AUTOINCREMENT,
+      usuario_id     INTEGER REFERENCES usuarios(id),
+      usuario_nombre TEXT,
+      accion         TEXT NOT NULL,
+      detalle        TEXT,
+      created_at     TEXT NOT NULL DEFAULT (datetime('now'))
+    )
+  `);
+
   // ── Índices para performance ──────────────────────────────────
   db.exec(`
     CREATE INDEX IF NOT EXISTS idx_articulos_codigo      ON articulos(codigo);
@@ -583,6 +595,9 @@ function runMigrations(db) {
     CREATE INDEX IF NOT EXISTS idx_pagos_cliente         ON pagos_clientes(cliente_id);
     CREATE INDEX IF NOT EXISTS idx_promociones_articulo  ON promociones(articulo_id);
     CREATE INDEX IF NOT EXISTS idx_precio_hist_art       ON precio_historial(articulo_id);
+    CREATE INDEX IF NOT EXISTS idx_actividad_created      ON actividad_log(created_at);
+    CREATE INDEX IF NOT EXISTS idx_actividad_usuario      ON actividad_log(usuario_id);
+    CREATE INDEX IF NOT EXISTS idx_actividad_accion       ON actividad_log(accion);
     CREATE INDEX IF NOT EXISTS idx_articulos_nombre      ON articulos(nombre);
     CREATE INDEX IF NOT EXISTS idx_clientes_nombre       ON clientes(nombre);
     CREATE INDEX IF NOT EXISTS idx_proveedores_nombre    ON proveedores(nombre);

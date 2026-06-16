@@ -423,6 +423,35 @@ export interface PrecioHistorialEntry {
   created_at:     string;
 }
 
+// ─── Log de actividad ─────────────────────────────────────────────────────────
+
+export type AccionActividad =
+  | 'venta'
+  | 'anulacion'
+  | 'devolucion_parcial'
+  | 'movimiento_caja'
+  | 'cambio_precio'
+  | 'turno_abierto'
+  | 'turno_cerrado'
+  | 'login';
+
+export interface ActividadLog {
+  id:             number;
+  usuario_id:     number | null;
+  usuario_nombre: string | null;
+  accion:         AccionActividad | string;
+  detalle:        string | null;
+  created_at:     string;
+}
+
+export interface ActividadFiltros {
+  limite?:    number;
+  accion?:    string | null;
+  usuarioId?: number | null;
+  desde?:     string | null;
+  hasta?:     string | null;
+}
+
 // ─── Kits ─────────────────────────────────────────────────────────────────────
 
 export interface KitComponente {
@@ -783,6 +812,9 @@ declare global {
       };
       soporte: {
         enviarReporte: (datos: { tipo?: string; modulo?: string; descripcion: string; nombre?: string }) => Promise<{ ok: boolean; error?: string }>;
+      };
+      actividad: {
+        listar: (filtros?: ActividadFiltros) => Promise<ActividadLog[]>;
       };
       reporteEmail: {
         getConfig:    () => Promise<ReporteEmailConfig>;

@@ -1,4 +1,5 @@
 const { getDb } = require('../database');
+const Actividad = require('./actividad');
 
 const CAMPOS_EDITABLES = [
   'codigo', 'nombre', 'descripcion', 'costo_unitario', 'precio_unitario', 'precio_mayoreo',
@@ -7,6 +8,12 @@ const CAMPOS_EDITABLES = [
 ];
 
 const CAMPOS_PRECIO = ['precio_unitario', 'costo_unitario', 'precio_mayoreo'];
+
+const CAMPO_LABEL = {
+  precio_unitario: 'Precio',
+  costo_unitario:  'Costo',
+  precio_mayoreo:  'Mayoreo',
+};
 
 const SEL = `
   SELECT a.*,
@@ -136,7 +143,7 @@ function update(id, data, usuario = null) {
   if (campos.length === 0) throw new Error('Sin campos válidos para actualizar');
 
   const db    = getDb();
-  const antes = db.prepare('SELECT precio_unitario, costo_unitario, precio_mayoreo FROM articulos WHERE id = ?').get(id);
+  const antes = db.prepare('SELECT nombre, precio_unitario, costo_unitario, precio_mayoreo FROM articulos WHERE id = ?').get(id);
 
   const set = campos.map(k => `${k} = @${k}`).join(', ');
   const stmt = db.prepare(`UPDATE articulos SET ${set}, sync_status = 'pending', updated_at = datetime('now') WHERE id = @id`);
@@ -157,6 +164,7 @@ function update(id, data, usuario = null) {
       INSERT INTO precio_historial (articulo_id, campo, valor_anterior, valor_nuevo, usuario_id, usuario_nombre)
       VALUES (@articulo_id, @campo, @valor_anterior, @valor_nuevo, @usuario_id, @usuario_nombre)
     `);
+    const cambios = [];
     for (const campo of CAMPOS_PRECIO) {
       if (data[campo] !== undefined && Number(data[campo]) !== Number(antes[campo])) {
         stmtHist.run({
@@ -167,7 +175,17 @@ function update(id, data, usuario = null) {
           usuario_id:     usuario?.id     ?? null,
           usuario_nombre: usuario?.nombre ?? null,
         });
+        cambios.push(`${CAMPO_LABEL[campo] ?? campo}: ${Number(antes[campo] ?? 0)} → ${Number(data[campo])}`);
       }
+    }
+    // Resumen al log de actividad (auditoría unificada), reusando la detección de cambios
+    if (cambios.length > 0) {
+      Actividad.registrar({
+        usuario_id:     usuario?.id     ?? null,
+        usuario_nombre: usuario?.nombre ?? null,
+        accion:         'cambio_precio',
+        detalle:        `${data.nombre ?? antes.nombre ?? `Artículo #${id}`} · ${cambios.join(' · ')}`,
+      });
     }
   }
 

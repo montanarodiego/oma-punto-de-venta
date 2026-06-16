@@ -3,8 +3,28 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { useToast } from '../context/ToastContext';
 import { useSession } from '../context/SessionContext';
 import { Card, CardHeader, CardBody, Toggle, Button, Field, Input, Select, Badge, Modal } from '../components/ui';
-import type { Usuario, BackupInfo } from '../types/api';
+import type { Usuario, BackupInfo, ActividadLog } from '../types/api';
 import { setTema, type TemaPref } from '../theme';
+
+// Etiqueta, color de badge y emoji por tipo de acción del log de actividad
+const ACCION_META: Record<string, { label: string; variant: 'green' | 'red' | 'yellow' | 'blue' | 'purple' | 'gray'; icon: string }> = {
+  venta:              { label: 'Venta',              variant: 'green',  icon: '🛒' },
+  anulacion:          { label: 'Anulación',          variant: 'red',    icon: '✖'  },
+  devolucion_parcial: { label: 'Devolución',         variant: 'yellow', icon: '↩'  },
+  movimiento_caja:    { label: 'Movimiento de caja', variant: 'blue',   icon: '💵' },
+  cambio_precio:      { label: 'Cambio de precio',   variant: 'purple', icon: '🏷'  },
+  turno_abierto:      { label: 'Apertura de turno',  variant: 'green',  icon: '▶'  },
+  turno_cerrado:      { label: 'Cierre de turno',    variant: 'gray',   icon: '⏹'  },
+  login:              { label: 'Inicio de sesión',   variant: 'gray',   icon: '🔑' },
+};
+
+// created_at viene en UTC ("YYYY-MM-DD HH:MM:SS"); lo mostramos en hora local.
+function fmtFechaHora(s: string): string {
+  if (!s) return '';
+  const d = new Date(s.replace(' ', 'T') + 'Z');
+  if (isNaN(d.getTime())) return s;
+  return d.toLocaleString('es-AR', { day: '2-digit', month: '2-digit', year: '2-digit', hour: '2-digit', minute: '2-digit' });
+}
 
 const TEMA_OPCIONES: { id: TemaPref; label: string; desc: string }[] = [
   { id: 'auto',   label: 'Automático', desc: 'Según el sistema' },
@@ -96,7 +116,14 @@ export default function Configuracion() {
   const [uError, setUError]           = useState('');
   const [uSaving, setUSaving]         = useState(false);
 
+  // Log de actividad (solo admin)
+  const [actividad, setActividad]     = useState<ActividadLog[]>([]);
+  const [actFiltro, setActFiltro]     = useState('');
+  const [actLoading, setActLoading]   = useState(false);
+
   useEffect(() => { cargarTodo(); cargarEstadoSync(); }, [esAdmin]);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  useEffect(() => { if (esAdmin) cargarActividad(); }, [actFiltro]);
 
   async function cargarTodo() {
     const [cfg, modoVal, tasaDef, hudVal] = await Promise.all([
@@ -123,7 +150,16 @@ export default function Configuracion() {
     cargarBackups();
     cargarImpresoras();
     cargarReporte();
-    if (esAdmin) cargarUsuarios();
+    if (esAdmin) { cargarUsuarios(); cargarActividad(); }
+  }
+
+  async function cargarActividad() {
+    setActLoading(true);
+    try {
+      const list = await window.api.actividad.listar({ limite: 300, accion: actFiltro || null });
+      setActividad(list ?? []);
+    } catch { setActividad([]); }
+    finally { setActLoading(false); }
   }
 
   async function cargarBackups() {
@@ -640,6 +676,51 @@ export default function Configuracion() {
                     )}
                   </div>
                 ))}
+              </CardBody>
+            </Card>
+            </motion.div>
+          )}
+
+          {/* ── Log de actividad (solo admin) ── */}
+          {esAdmin && (
+            <motion.div initial={{ opacity:0, y:8 }} animate={{ opacity:1, y:0 }} transition={{ delay:0.28 }}>
+            <Card>
+              <CardHeader actions={
+                <div className="flex items-center gap-2">
+                  <Select value={actFiltro} onChange={e => setActFiltro(e.target.value)} className="!h-8 !py-0 text-[12px]">
+                    <option value="">Todas las acciones</option>
+                    {Object.entries(ACCION_META).map(([key, meta]) => (
+                      <option key={key} value={key}>{meta.label}</option>
+                    ))}
+                  </Select>
+                  <Button variant="ghost" size="sm" onClick={cargarActividad} loading={actLoading}>↻ Actualizar</Button>
+                </div>
+              }>Log de actividad</CardHeader>
+              <CardBody className="p-0">
+                {actividad.length === 0 ? (
+                  <div className="px-4 py-8 text-center text-[12px] text-text-muted">
+                    {actLoading ? 'Cargando…' : 'No hay actividad registrada todavía.'}
+                  </div>
+                ) : (
+                  <div className="max-h-[420px] overflow-y-auto">
+                    {actividad.map(a => {
+                      const meta = ACCION_META[a.accion] ?? { label: a.accion, variant: 'gray' as const, icon: '•' };
+                      return (
+                        <div key={a.id} className="flex items-start gap-3 px-4 py-2.5 border-b border-border last:border-none">
+                          <div className="text-[15px] leading-none mt-0.5 w-5 text-center flex-shrink-0">{meta.icon}</div>
+                          <div className="flex-1 min-w-0">
+                            <div className="flex items-center gap-2 flex-wrap">
+                              <Badge variant={meta.variant}>{meta.label}</Badge>
+                              <span className="text-[12px] font-semibold text-text">{a.usuario_nombre ?? 'Sistema'}</span>
+                            </div>
+                            {a.detalle && <div className="text-[12px] text-text-muted mt-0.5 break-words">{a.detalle}</div>}
+                          </div>
+                          <div className="text-[11px] text-text-subtle whitespace-nowrap flex-shrink-0 mt-0.5">{fmtFechaHora(a.created_at)}</div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                )}
               </CardBody>
             </Card>
             </motion.div>
