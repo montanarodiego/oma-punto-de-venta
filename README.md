@@ -2,7 +2,10 @@
 
 Sistema de punto de venta (POS) de escritorio para comercios chicos — kioscos y PyMEs argentinas.
 
-**Versión actual:** v2.3.0 · [Último release](https://github.com/montanarodiego/oma-punto-de-venta/releases/latest)
+**Versión actual:** v2.3.1 · [Último release](https://github.com/montanarodiego/oma-punto-de-venta/releases/latest)
+
+> 🤝 **¿Recién llegás al proyecto?** Leé primero [`docs/handoff.md`](docs/handoff.md) —
+> estado actual, modelo de licencias/activación, cómo testear y qué queda pendiente.
 
 ---
 
@@ -77,6 +80,7 @@ scripts/                   # Utilidades de desarrollo
   recover-db.js            # Repara índices FTS5 corruptos (correr con app cerrada)
 tests/                     # Tests unitarios y de contrato backend
 docs/                      # Documentación técnica
+  handoff.md               # Estado actual + traspaso (LEER PRIMERO)
   arquitectura.md          # Arquitectura del sistema y módulos
   deploy.md                # Proceso de release y operaciones
 ```
@@ -87,9 +91,11 @@ docs/                      # Documentación técnica
 
 | Archivo | Propósito |
 |---------|-----------|
-| `oma-creds.json` | Credenciales Firebase (apiKey, projectId, etc.) |
+| `oma-creds.json` | Credenciales Gmail del mailer (`GMAIL_USER`, `GMAIL_APP_PASSWORD`). **Ya no lleva `license_key`** — la licencia se activa por pantalla (ver [handoff.md](docs/handoff.md) §3). |
 | `.env` | `GH_TOKEN`, `GMAIL_USER`, `GMAIL_APP_PASSWORD` |
 | `src/main/credentials.js` | Cuenta Gmail para el mailer (copiar de `credentials.example.js`) |
+
+> Para activar en dev sin pantalla: `OMA_LICENSE_KEY=OMA-XXXX-... npm run dev`.
 
 ---
 

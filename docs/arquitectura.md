@@ -60,6 +60,12 @@ Expone `window.api` al renderer usando `contextBridge`. Cada método es un wrapp
 - `verificarLicencia()` — lee `negocios/{negocioId}.licencia` en Firestore y cierra la app si está inactiva o vencida
 - `guardarTokenLocal()` / `verificarTokenLocal()` — token offline cifrado con AES-256-GCM en `license.json`
 
+### activacion.js
+Modelo de licencia **nuevo** (custom token), reemplaza al horneado de credenciales.
+- `leerLicenseKey()` — devuelve el `licenseKey`: 1) store cifrado (DPAPI), 2) env `OMA_LICENSE_KEY` (dev), 3) `oma-creds.json` legacy. `null` → el renderer muestra la pantalla de activación.
+- `guardarLicenseKey()` — cifra el key con `safeStorage` (DPAPI en Windows) en `userData/oma-license-key`.
+- `activar(auth, key)` — `POST oma-manager /api/activar` → `{ token, negocioId, vencimiento }` → `signInWithCustomToken`. El uid queda == `negocioId` (lo que piden las reglas de Firestore).
+
 ### models/
 Un archivo por tabla SQLite. Cada modelo exporta funciones sync (better-sqlite3 es síncrono). Las operaciones de escritura crítica usan `db.transaction()` para garantizar atomicidad.
 
@@ -77,10 +83,14 @@ Atajos F1–F8 en main.js envían evento IPC `navegar-global` → `useNavigateGl
 ### SessionContext
 Guarda el usuario local activo (id, nombre, rol). Se hidrata desde `localStorage` al arrancar y sincroniza `window.SESSION` para que los handlers IPC con `onlyAdmin` funcionen.
 
-### Flujo de autenticación
-1. Login Firebase (`auth:login` IPC) → verifica licencia → guarda token local
-2. Login local (`usuarios:login` IPC) → bcryptjs → `setSession()` → navega a `/caja`
-3. En prod sin internet: `verificarTokenLocal()` en main.js → si token válido, arranca directo
+### Flujo de arranque y autenticación
+El gating de pantallas vive en `App.tsx`: `checking → needs-activation → (no-users | ready)`.
+1. **Activación** (`licencia:estado` IPC) → si la instalación no está activada (sin key ni token local válido), muestra `Activacion.tsx` para tipear el `licenseKey`. Ver [activacion.js](#activacionjs).
+2. **Setup** → si no hay usuarios, `Setup.tsx` crea el primer admin (nombre, usuario, **email**, contraseña).
+3. **Login local** (`usuarios:login` IPC) → bcryptjs (tolerante a mayúsculas/espacios) → `setSession()` → navega a `/caja`.
+4. En prod sin internet: `verificarTokenLocal()` en main.js → si el token offline es válido, arranca directo.
+
+> Dos capas separadas: la **licencia** (nube, `negocioId`, la maneja `oma-manager`) y el **usuario operador** (local, SQLite, lo crea el cliente). Ver [handoff.md](handoff.md) §1.
 
 ---
 

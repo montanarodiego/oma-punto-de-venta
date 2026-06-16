@@ -1,5 +1,29 @@
 # Changelog
 
+## Sin publicar (rama `feat/activacion-licensekey` → `main`)
+
+**Activación de licencia por pantalla**
+
+- El POS pide el `licenseKey` en pantalla la primera vez (`pages/Activacion.tsx`) en vez de venir horneado en el instalador. Se valida online contra `oma-manager /api/activar` (custom token) y se guarda cifrado con DPAPI (`activacion.js`).
+- `App.tsx`: nuevo gating de arranque — chequea licencia antes que usuarios (`needs-activation`).
+- IPC `licencia:estado` / `licencia:activar`; `oma-creds.json` ya no lleva `license_key`.
+- Compatibilidad: installs con token local válido o key horneada no ven la pantalla.
+- **Fix Caja:** lock síncrono anti doble-cobro en `ModalCobro` (cierra la ventana de doble-click / Enter + F1).
+- Doc: `docs/handoff.md` (traspaso) + arquitectura/README actualizados.
+
+---
+
+## v2.3.1 — 2026-06-16
+
+**Fixes de login y actualización**
+
+- Login tolerante a mayúsculas/espacios en el usuario (antes daba "usuario o contraseña incorrectos" sin motivo).
+- El registro del primer admin (Setup) ahora exige email — canal de recuperación de contraseña.
+- Recuperación de contraseña: avisa si el email no está registrado en vez de mentir con "código enviado".
+- Limpieza de la caché de Electron al cambiar de versión (evita arrancar con interfaz vieja; no toca la base).
+
+---
+
 ## v2.3.0 — 2026-06-13
 
 **Rediseño UX/UI completo**
