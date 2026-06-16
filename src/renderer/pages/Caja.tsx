@@ -120,21 +120,29 @@ export default function Caja() {
   // ── Init ────────────────────────────────────────────────────────
   useEffect(() => {
     async function init() {
-      const [tasa, ivaDesglosado, modo, mon, turno] = await Promise.all([
-        window.api.config.get('impuesto_porcentaje'),
-        window.api.config.get('mostrar_iva_desglosado'),
-        window.api.config.get('modo_negocio'),
-        window.api.config.get('moneda'),
-        window.api.turnos.getActivo(),
-      ]);
-      setTasaIva(parseFloat(tasa ?? '21') || 21);
-      setMostrarIva(ivaDesglosado !== '0');
-      setModoNegocio(modo ?? '');
-      setMoneda(mon ?? '$');
-      setTurnoActivo(turno);
-      setReady(true);
-      if (!modo) setWizardOpen(true);
-      else aplicarModo(modo);
+      try {
+        const [tasa, ivaDesglosado, modo, mon, turno] = await Promise.all([
+          window.api.config.get('impuesto_porcentaje'),
+          window.api.config.get('mostrar_iva_desglosado'),
+          window.api.config.get('modo_negocio'),
+          window.api.config.get('moneda'),
+          window.api.turnos.getActivo(),
+        ]);
+        setTasaIva(parseFloat(tasa ?? '21') || 21);
+        setMostrarIva(ivaDesglosado !== '0');
+        setModoNegocio(modo ?? '');
+        setMoneda(mon ?? '$');
+        setTurnoActivo(turno);
+        if (!modo) setWizardOpen(true);
+        else aplicarModo(modo);
+      } catch (e) {
+        // No dejamos la caja colgada en "Cargando…": seguimos con los valores por
+        // defecto y avisamos. El cajero puede operar igual y reabrir si persiste.
+        window.api.log?.error?.('[Caja] init falló', String(e));
+        showToast('No se pudo leer la configuración. Se usan valores por defecto.', 'error');
+      } finally {
+        setReady(true);
+      }
     }
     init();
 

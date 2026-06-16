@@ -45,8 +45,15 @@ export default function Inventario() {
 
   async function cargar() {
     setLoading(true);
-    const [m, s] = await Promise.all([window.api.inventario.listarMovimientos({}), window.api.inventario.stockBajo()]);
-    setMovimientos(m); setStockBajo(s); setLoading(false);
+    try {
+      const [m, s] = await Promise.all([window.api.inventario.listarMovimientos({}), window.api.inventario.stockBajo()]);
+      setMovimientos(m); setStockBajo(s);
+    } catch (e) {
+      window.api.log?.error?.('[Inventario] cargar falló', String(e));
+      showToast('No se pudo cargar el inventario. Reintentá.', 'error');
+    } finally {
+      setLoading(false);
+    }
   }
 
   function buscarArt(q: string) {

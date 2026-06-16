@@ -1,4 +1,5 @@
 import { useState, useEffect, useRef, useMemo } from 'react';
+import { useToast } from '../context/ToastContext';
 import { Card, CardHeader, CardBody, VirtualTable } from '../components/ui';
 import type { ResumenRapido, ArticuloVendido, VentaDia, UtilidadBrutaResult, UtilidadItem, MejorDia, VentaDepto, VentaMes } from '../types/api';
 import { Chart, registerables } from 'chart.js';
@@ -28,6 +29,7 @@ export default function Informes() {
   const [ventasDeptos, setVentasDeptos] = useState<VentaDepto[]>([]);
   const [ventasMes,    setVentasMes]    = useState<VentaMes[]>([]);
   const [loading, setLoading] = useState(false);
+  const { showToast } = useToast();
 
   const deptoChartRef = useRef<HTMLCanvasElement>(null);
   const mesChartRef   = useRef<HTMLCanvasElement>(null);
@@ -73,18 +75,24 @@ export default function Informes() {
 
   async function cargar() {
     setLoading(true);
-    const [r, top, util, dias, mej, deptos, meses] = await Promise.all([
-      window.api.informes.resumenRapido(desde, hasta),
-      window.api.informes.articulosMasVendidos(desde, hasta),
-      window.api.informes.utilidadBruta(desde, hasta),
-      window.api.informes.ventasPorDia(desde, hasta),
-      window.api.informes.mejorDia(desde, hasta),
-      window.api.informes.ventasPorDepartamento(desde, hasta),
-      window.api.informes.ventasPorMes(desde, hasta),
-    ]);
-    setResumen(r); setTopArticulos(top ?? []); setUtilidad(util); setVentasPorDia(dias ?? []);
-    setMejor(mej); setVentasDeptos(deptos ?? []); setVentasMes(meses ?? []);
-    setLoading(false);
+    try {
+      const [r, top, util, dias, mej, deptos, meses] = await Promise.all([
+        window.api.informes.resumenRapido(desde, hasta),
+        window.api.informes.articulosMasVendidos(desde, hasta),
+        window.api.informes.utilidadBruta(desde, hasta),
+        window.api.informes.ventasPorDia(desde, hasta),
+        window.api.informes.mejorDia(desde, hasta),
+        window.api.informes.ventasPorDepartamento(desde, hasta),
+        window.api.informes.ventasPorMes(desde, hasta),
+      ]);
+      setResumen(r); setTopArticulos(top ?? []); setUtilidad(util); setVentasPorDia(dias ?? []);
+      setMejor(mej); setVentasDeptos(deptos ?? []); setVentasMes(meses ?? []);
+    } catch (e) {
+      window.api.log?.error?.('[Informes] cargar falló', String(e));
+      showToast('No se pudieron cargar los informes. Reintentá.', 'error');
+    } finally {
+      setLoading(false);
+    }
   }
 
   useEffect(() => {
