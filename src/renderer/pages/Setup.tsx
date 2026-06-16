@@ -7,6 +7,7 @@ export default function Setup() {
 
   const [nombre,   setNombre]   = useState('');
   const [usuario,  setUsuario]  = useState('');
+  const [email,    setEmail]    = useState('');
   const [password, setPassword] = useState('');
   const [confirm,  setConfirm]  = useState('');
   const [error,    setError]    = useState('');
@@ -15,12 +16,14 @@ export default function Setup() {
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
     if (!nombre.trim() || !usuario.trim()) { setError('Completá nombre y usuario.'); return; }
+    // El email es el único canal para recuperar la contraseña: lo exigimos en el admin.
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email.trim())) { setError('Ingresá un email válido para poder recuperar tu contraseña.'); return; }
     if (password.length < 4) { setError('La contraseña debe tener al menos 4 caracteres.'); return; }
     if (password !== confirm) { setError('Las contraseñas no coinciden.'); return; }
     setLoading(true); setError('');
     try {
       await window.api.usuarios.crear({
-        nombre: nombre.trim(), usuario: usuario.trim(), password, rol: 'admin',
+        nombre: nombre.trim(), usuario: usuario.trim(), email: email.trim(), password, rol: 'admin',
       });
       // Notifica a App que hay usuarios ahora — AppRoutes remonta con status 'ready'.
       window.dispatchEvent(new Event(PRIMER_USUARIO_EVENT));
@@ -58,6 +61,11 @@ export default function Setup() {
             <div className="field">
               <label className="field-label">Usuario</label>
               <input className="inp" value={usuario} onChange={e => setUsuario(e.target.value)} placeholder="Ej: admin" autoComplete="username" required />
+            </div>
+            <div className="field">
+              <label className="field-label">Email</label>
+              <input className="inp" type="email" value={email} onChange={e => setEmail(e.target.value)} placeholder="nombre@ejemplo.com" autoComplete="email" required />
+              <span className="field-hint">Lo usamos para recuperar tu contraseña si la olvidás.</span>
             </div>
             <div className="field">
               <label className="field-label">Contraseña</label>

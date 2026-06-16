@@ -2,8 +2,12 @@ const bcrypt    = require('bcryptjs');
 const { getDb } = require('../database');
 
 function login(usuario, password) {
-  const db   = getDb();
-  const user  = db.prepare('SELECT * FROM usuarios WHERE usuario = ? AND activo = 1').get(usuario);
+  const db        = getDb();
+  // Tolerante a mayúsculas/espacios: el usuario se guarda con trim() al crearlo,
+  // pero al tipear el login puede venir con otra capitalización o un espacio del
+  // autollenado. Comparar case-insensitive evita el falso "usuario incorrecto".
+  const ingresado = (usuario ?? '').trim();
+  const user      = db.prepare('SELECT * FROM usuarios WHERE LOWER(usuario) = LOWER(?) AND activo = 1').get(ingresado);
   if (!user) throw new Error('Usuario o contraseña incorrectos.');
   const ok = bcrypt.compareSync(password, user.password_hash);
   if (!ok) throw new Error('Usuario o contraseña incorrectos.');

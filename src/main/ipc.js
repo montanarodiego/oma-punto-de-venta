@@ -320,12 +320,15 @@ function registerHandlers() {
   // ── Recuperación de contraseña ────────────────────────────────
   ipcMain.handle('auth:solicitarReset', async (_e, email) => {
     try {
+      if (!email || !email.trim()) return { ok: false, error: 'Ingresá tu email.' };
       const usuario = PasswordReset.buscarPorEmail(email);
-      if (usuario && usuario.email) {
-        const codigo = PasswordReset.crearToken(usuario.id);
-        await enviarCodigoReset({ email: usuario.email, nombre: usuario.nombre, codigo });
+      // POS local de un solo dueño: avisar honestamente si el email no está
+      // registrado evita el callejón sin salida de "Código enviado" que nunca llega.
+      if (!usuario || !usuario.email) {
+        return { ok: false, error: 'No hay ningún usuario con ese email. Revisá que lo hayas cargado en tu perfil.' };
       }
-      // Siempre devuelve ok: true para no revelar si el email existe
+      const codigo = PasswordReset.crearToken(usuario.id);
+      await enviarCodigoReset({ email: usuario.email, nombre: usuario.nombre, codigo });
       return { ok: true };
     } catch (err) {
       return { ok: false, error: err.message };
