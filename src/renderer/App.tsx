@@ -7,6 +7,7 @@ import { UpdaterModal } from './components/UpdaterModal';
 import { ErrorBoundary } from './components/ErrorBoundary';
 import Login from './pages/Login';
 import Setup from './pages/Setup';
+import Activacion from './pages/Activacion';
 import Caja from './pages/Caja';
 import Catalogo from './pages/Catalogo';
 import Clientes from './pages/Clientes';
@@ -53,11 +54,15 @@ function DbIntegrityWarning() {
 }
 
 // ── Estado de arranque ─────────────────────────────────────────────────────
-type StartupStatus = 'checking' | 'no-users' | 'ready';
+type StartupStatus = 'checking' | 'needs-activation' | 'no-users' | 'ready';
 
 // Nombre del evento que Setup dispara tras crear el primer usuario,
 // para que App vuelva a montar AppRoutes con status fresco.
 const PRIMER_USUARIO_EVENT = 'oma:primer-usuario-creado';
+
+// Nombre del evento que Activacion dispara tras activar la licencia,
+// para que App remonte y avance al onboarding/login.
+const LICENCIA_ACTIVADA_EVENT = 'oma:licencia-activada';
 
 // ── Rutas de la app ────────────────────────────────────────────────────────
 function AppRoutes() {
@@ -72,22 +77,40 @@ function AppRoutes() {
       if (!cancelled) { cancelled = true; logout(); setStatus('ready'); }
     }, 4000);
 
-    window.api.usuarios.hayUsuarios()
-      .then((hay) => {
+    (async () => {
+      try {
+        // 1º licencia: si la instalación no está activada, pedir la clave antes que nada.
+        const lic = await window.api.licencia.estado();
+        if (cancelled) return;
+        if (!lic.activado) { logout(); setStatus('needs-activation'); return; }
+        // 2º usuarios: onboarding del primer admin o login normal.
+        const hay = await window.api.usuarios.hayUsuarios();
         if (cancelled) return;
         if (hay) setStatus('ready');
         else     { logout(); setStatus('no-users'); }
-      })
-      .catch(() => {
+      } catch {
+        // IPC no disponible (build viejo) — no bloquear: seguir el flujo normal.
         if (!cancelled) { logout(); setStatus('ready'); }
-      })
-      .finally(() => clearTimeout(timer));
+      } finally {
+        clearTimeout(timer);
+      }
+    })();
 
     return () => { cancelled = true; clearTimeout(timer); };
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
   // Pantalla negra durante el check inicial — dura < 1 s en condiciones normales
   if (status === 'checking') return null;
+
+  // Sin activar: solo la pantalla de activación. Redirect * → /activacion.
+  if (status === 'needs-activation') {
+    return (
+      <Routes>
+        <Route path="/activacion" element={<ErrorBoundary><Activacion /></ErrorBoundary>} />
+        <Route path="*"           element={<Navigate to="/activacion" replace />} />
+      </Routes>
+    );
+  }
 
   // Sin usuarios: solo onboarding. Redirect * → /setup para no quedar en blank.
   if (status === 'no-users') {
@@ -133,7 +156,11 @@ export default function App() {
 
   useEffect(() => {
     window.addEventListener(PRIMER_USUARIO_EVENT, bumpKey);
-    return () => window.removeEventListener(PRIMER_USUARIO_EVENT, bumpKey);
+    window.addEventListener(LICENCIA_ACTIVADA_EVENT, bumpKey);
+    return () => {
+      window.removeEventListener(PRIMER_USUARIO_EVENT, bumpKey);
+      window.removeEventListener(LICENCIA_ACTIVADA_EVENT, bumpKey);
+    };
   }, [bumpKey]);
 
   return (
@@ -154,4 +181,4 @@ export default function App() {
 }
 
 // Exportamos el nombre del evento para que Setup.tsx lo importe en vez de hardcodear el string.
-export { PRIMER_USUARIO_EVENT };
+export { PRIMER_USUARIO_EVENT, LICENCIA_ACTIVADA_EVENT };

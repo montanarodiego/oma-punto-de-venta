@@ -17,8 +17,10 @@ let encriptar = (v) => v;
 let syncPendientes = async () => ({});
 let verificarLicencia = async () => ({ activa: true });
 let guardarTokenLocal = () => {};
+let verificarTokenLocal = () => ({ activa: false });
 let leerTokenRaw = () => null;
 let leerLicenseKey = () => null;
+let guardarLicenseKey = () => { throw new Error('Activación no disponible'); };
 let activar = async () => { throw new Error('Activación no disponible'); };
 
 try {
@@ -43,6 +45,7 @@ try {
   syncPendientes     = syncMod.syncPendientes;
   verificarLicencia  = syncMod.verificarLicencia;
   guardarTokenLocal  = syncMod.guardarTokenLocal;
+  verificarTokenLocal = syncMod.verificarTokenLocal;
   leerTokenRaw       = syncMod.leerTokenRaw;
 } catch (err) {
   require('electron-log').warn('[sync] módulo no disponible:', err.message);
@@ -50,8 +53,9 @@ try {
 
 try {
   const actMod = require('./activacion');
-  leerLicenseKey = actMod.leerLicenseKey;
-  activar        = actMod.activar;
+  leerLicenseKey   = actMod.leerLicenseKey;
+  guardarLicenseKey = actMod.guardarLicenseKey;
+  activar          = actMod.activar;
 } catch (err) {
   require('electron-log').warn('[activacion] módulo no disponible:', err.message);
 }
@@ -241,6 +245,49 @@ function registerAuthHandlers() {
       return { ok: true, ...resultado };
     } catch (err) {
       return { ok: false, error: err.message };
+    }
+  });
+
+  // ── Licencia: activación en pantalla (reemplaza el licenseKey horneado) ──
+  // Activado = hay una key (store cifrado / env / oma-creds de transición) o un
+  // token local vigente. Las instalaciones viejas (key horneada o token válido)
+  // dan activado=true → nunca ven la pantalla de activación.
+  ipcMain.handle('licencia:estado', () => {
+    try {
+      const tieneKey   = !!leerLicenseKey();
+      const tokenLocal = verificarTokenLocal();
+      return { activado: tieneKey || tokenLocal?.activa === true };
+    } catch {
+      return { activado: false };
+    }
+  });
+
+  // Recibe la clave que el cliente tipea la primera vez. Solo persiste la key
+  // DESPUÉS de que la activación online resuelve OK, para que un intento fallido
+  // (clave mal, suspendida, sin internet) no deje basura en el store.
+  ipcMain.handle('licencia:activar', async (_e, key) => {
+    const limpia = typeof key === 'string' ? key.trim() : '';
+    if (!limpia) return { ok: false, error: 'Ingresá tu clave de licencia.' };
+    if (!auth)   return { ok: false, error: 'No se pudo inicializar la conexión. Reabrí la app.' };
+    try {
+      const r = await activar(auth, limpia);
+      guardarLicenseKey(limpia);
+      negocioIdActivo = r.negocioId;
+      guardarTokenLocal({
+        negocioId:   r.negocioId,
+        activa:      true,
+        vencimiento: typeof r.vencimiento === 'number' ? r.vencimiento : Date.now() + 30 * 24 * 60 * 60 * 1000,
+        timestamp:   Date.now(),
+      });
+      iniciarSyncInterval();
+      syncPendientes(getDb(), firestore, negocioIdActivo, auth).catch(() => {});
+      return { ok: true };
+    } catch (err) {
+      // Mensajes de red más claros que el genérico de fetch/timeout.
+      const msg = /aborted|timeout|fetch failed|network|ENOTFOUND|EAI_AGAIN/i.test(err.message)
+        ? 'No hay conexión a internet. La primera activación necesita red.'
+        : (err.message || 'No se pudo activar la licencia.');
+      return { ok: false, error: msg };
     }
   });
 

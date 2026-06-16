@@ -194,6 +194,12 @@ contextBridge.exposeInMainWorld('api', {
     estadoSync:       ()                         => ipcRenderer.invoke('auth:estadoSync'),
   },
 
+  // Licencia (activación por clave en pantalla)
+  licencia: {
+    estado:  ()    => ipcRenderer.invoke('licencia:estado'),
+    activar: (key) => ipcRenderer.invoke('licencia:activar', key),
+  },
+
   // Inventario
   inventario: {
     ajustar:          (data)    => ipcRenderer.invoke('inventario:ajustar', data),

@@ -52,11 +52,14 @@ function _leerLicenseKeyStore() {
   }
 }
 
-// Devuelve el licenseKey: primero del store cifrado, luego de oma-creds.json
-// (mecanismo de transición). null si no hay ninguno → se usa el modelo viejo.
+// Devuelve el licenseKey: 1) store cifrado (activación en pantalla), 2) env
+// OMA_LICENSE_KEY (solo dev/testing, para no tipear la clave en cada arranque),
+// 3) oma-creds.json license_key (transición / instalaciones viejas horneadas).
+// null si no hay ninguno → el renderer muestra la pantalla de activación.
 function leerLicenseKey() {
   const fromStore = _leerLicenseKeyStore();
   if (fromStore) return fromStore;
+  if (process.env.OMA_LICENSE_KEY) return process.env.OMA_LICENSE_KEY.trim();
   try {
     const creds = require('./credentials');
     if (creds.license_key) return creds.license_key;

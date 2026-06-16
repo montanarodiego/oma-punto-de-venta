@@ -803,6 +803,10 @@ declare global {
         resetearPassword: (email: string, codigo: string, password: string) => Promise<{ ok: boolean; error?: string }>;
         estadoSync:       () => Promise<{ activa: boolean; firebaseConectado: boolean; ultimaSync: number | null }>;
       };
+      licencia: {
+        estado:  () => Promise<{ activado: boolean }>;
+        activar: (key: string) => Promise<{ ok: boolean; error?: string }>;
+      };
       inventario: {
         ajustar:           (data: AjusteInventarioData) => Promise<AjusteResult>;
         listarMovimientos: (filtros: ListarMovimientosParams) => Promise<MovimientoInventario[]>;
