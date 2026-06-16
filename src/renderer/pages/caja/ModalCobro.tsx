@@ -44,6 +44,10 @@ export const ModalCobro = forwardRef<ModalCobroHandle, ModalCobroProps>(function
 
   const modalRef     = useRef<HTMLDivElement>(null);
   const timerCliente = useRef<NodeJS.Timeout | null>(null);
+  // Lock síncrono anti doble-cobro: se toma antes del primer await, así un
+  // segundo disparo en el mismo tick (doble-click, o Enter + atajo F1) lo ve
+  // en true y sale. cobrandoOp (estado) queda solo para el disabled visual.
+  const cobrandoRef  = useRef(false);
 
   useFocusTrap(modalRef, open, onClose);
 
@@ -60,7 +64,7 @@ export const ModalCobro = forwardRef<ModalCobroHandle, ModalCobroProps>(function
   );
 
   const cobrar = useCallback(async (conTicket: boolean) => {
-    if (cobrandoOp) return;
+    if (cobrandoRef.current) return;
     if (!turnoActivo) { showToast('No hay turno abierto.', 'error'); navigate('/turno'); return; }
     if (ticket.carrito.length === 0) { setError('El carrito está vacío.'); return; }
 
@@ -71,6 +75,8 @@ export const ModalCobro = forwardRef<ModalCobroHandle, ModalCobroProps>(function
       if (isNaN(m1) || m1 <= 0 || m1 >= total) { setError('El monto del método 1 debe ser mayor a 0 y menor al total.'); return; }
     }
 
+    // Lock síncrono ANTES de cualquier await: cierra la ventana de doble disparo.
+    cobrandoRef.current = true;
     setError('');
     setCobrandoOp(true);
     window.api.setModalCobro(true);
@@ -124,9 +130,10 @@ export const ModalCobro = forwardRef<ModalCobroHandle, ModalCobroProps>(function
     } catch (err: any) {
       setError(err.message ?? 'Error al registrar la venta.');
     } finally {
+      cobrandoRef.current = false;
       setCobrandoOp(false);
     }
-  }, [cobrandoOp, turnoActivo, ticket, totales, formaPago, monto, cliente, mixtoMonto1, mixtoMetodo1, mixtoMetodo2, propina, activeIdx, limpiarTicket, onClose, showToast, navigate, onVentaRegistrada]);
+  }, [turnoActivo, ticket, totales, formaPago, monto, cliente, mixtoMonto1, mixtoMetodo1, mixtoMetodo2, propina, activeIdx, limpiarTicket, onClose, showToast, navigate, onVentaRegistrada]);
 
   useImperativeHandle(ref, () => ({ cobrar }), [cobrar]);
 
