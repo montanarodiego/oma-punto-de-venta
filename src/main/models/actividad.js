@@ -3,7 +3,7 @@ const log       = require('electron-log');
 
 // Acciones conocidas (claves estables; la UI mapea a etiquetas legibles).
 // venta · anulacion · devolucion_parcial · movimiento_caja · cambio_precio ·
-// turno_abierto · turno_cerrado · login
+// turno_abierto · turno_cerrado
 
 /**
  * Registra una entrada en el log de actividad. Es a prueba de fallos: si algo

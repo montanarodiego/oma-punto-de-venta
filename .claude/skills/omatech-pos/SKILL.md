@@ -166,7 +166,7 @@ en OMA Manager (ver memoria `project_lanzamiento`).
 - Tabla `actividad_log(id, usuario_id, usuario_nombre, accion, detalle, created_at)` + índices.
 - Modelo `models/actividad.js` (`registrar` a prueba de fallos + `listar` con filtros por acción/usuario/fecha).
 - `ipc.js` loguea vía `logActividad()` (closure `currentUser`): venta, anulación, devolución parcial,
-  movimiento de caja, apertura/cierre de turno, login. Los cambios de precio se loguean en `articulos.update`.
+  movimiento de caja, apertura/cierre de turno. Los cambios de precio se loguean en `articulos.update`.
 - Handler `actividad:listar` con `onlyAdmin()`; expuesto en `window.api.actividad.listar`.
 - UI: card "Log de actividad" en `Configuracion.tsx` (solo admin) con filtro por tipo de acción.
 

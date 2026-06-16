@@ -15,7 +15,6 @@ const ACCION_META: Record<string, { label: string; variant: 'green' | 'red' | 'y
   cambio_precio:      { label: 'Cambio de precio',   variant: 'purple', icon: '🏷'  },
   turno_abierto:      { label: 'Apertura de turno',  variant: 'green',  icon: '▶'  },
   turno_cerrado:      { label: 'Cierre de turno',    variant: 'gray',   icon: '⏹'  },
-  login:              { label: 'Inicio de sesión',   variant: 'gray',   icon: '🔑' },
 };
 
 // created_at viene en UTC ("YYYY-MM-DD HH:MM:SS"); lo mostramos en hora local.

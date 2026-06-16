@@ -359,7 +359,6 @@ function registerHandlers() {
       const user = Usuarios.login(usuario, password);
       currentUserRole = user.rol;
       currentUser = { id: user.id, nombre: user.nombre };
-      logActividad('login', `Inició sesión (${user.rol})`);
       return { ok: true, user };
     } catch (err) {
       return { ok: false, error: err.message };

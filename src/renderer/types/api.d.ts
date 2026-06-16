@@ -432,8 +432,7 @@ export type AccionActividad =
   | 'movimiento_caja'
   | 'cambio_precio'
   | 'turno_abierto'
-  | 'turno_cerrado'
-  | 'login';
+  | 'turno_cerrado';
 
 export interface ActividadLog {
   id:             number;

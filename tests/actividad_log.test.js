@@ -44,17 +44,18 @@ function runTests() {
   ).run().lastInsertRowid;
 
   // ── 3. registrar + atribución de usuario ────────────────────────────────────
+  // La 3ra va sin usuario (usuario_id null): acción registrada sin sesión activa.
   Actividad.registrar({ usuario_id: uid, usuario_nombre: 'Diego', accion: 'venta',           detalle: 'Venta #1 · $100' });
   Actividad.registrar({ usuario_id: uid, usuario_nombre: 'Diego', accion: 'movimiento_caja', detalle: 'Salida de caja · $50' });
-  Actividad.registrar({ usuario_id: null, usuario_nombre: null,   accion: 'login',           detalle: 'Inició sesión' });
+  Actividad.registrar({ usuario_id: null, usuario_nombre: null,   accion: 'turno_cerrado',   detalle: 'Cerró el turno #1' });
 
   const todas = Actividad.listar({});
   assert.strictEqual(todas.length, 3, 'deben quedar 3 entradas');
   console.log('✓ registrar          — 3 acciones guardadas y atribuidas');
 
   // ── 4. orden DESC (lo último primero) ───────────────────────────────────────
-  assert.strictEqual(todas[0].accion, 'login',  'la última acción va primero');
-  assert.strictEqual(todas[2].accion, 'venta',  'la primera acción va última');
+  assert.strictEqual(todas[0].accion, 'turno_cerrado', 'la última acción va primero');
+  assert.strictEqual(todas[2].accion, 'venta',         'la primera acción va última');
   console.log('✓ listar             — orden descendente (lo más nuevo primero)');
 
   // ── 5. filtro por acción ────────────────────────────────────────────────────
@@ -65,7 +66,7 @@ function runTests() {
 
   // ── 6. filtro por usuario ───────────────────────────────────────────────────
   const delUsuario = Actividad.listar({ usuarioId: uid });
-  assert.strictEqual(delUsuario.length, 2, 'el usuario tiene 2 acciones (la de login es null)');
+  assert.strictEqual(delUsuario.length, 2, 'el usuario tiene 2 acciones (la 3ra es de usuario null)');
   console.log('✓ filtro usuario     — devuelve solo las del usuario');
 
   // ── 7. filtro por fecha (rango imposible no devuelve nada) ───────────────────
