@@ -515,6 +515,7 @@ app.whenReady().then(async () => {
     // Reemplaza la cuenta de sync compartida. Solo se activa si hay un licenseKey
     // provisionado; las instalaciones viejas (sin licenseKey) siguen por los paths de abajo.
     // Offline-first: si hay token local válido, arrancar la sync con él mientras se reactiva.
+    require('electron-log').info('[auth] modelo de licencia: CUSTOM_TOKEN (seguro, scopeado por negocio).');
     if (tokenRaw) { negocioIdActivo = tokenRaw.negocioId; iniciarSyncInterval(); }
     (async () => {
       if (!auth) return;
@@ -550,6 +551,11 @@ app.whenReady().then(async () => {
     (async () => {
       if (!auth) return;
       if (creds.firebase_email && creds.firebase_password) {
+        // DEPRECADO — cuenta de sync compartida con acceso a todos los negocios.
+        // Migrar este install a licenseKey + custom token (ver activacion.js) y
+        // quitar firebase_email/password de oma-creds.json. Mientras siga acá, las
+        // credenciales maestras viajan en el instalador.
+        require('electron-log').warn('[auth][SEGURIDAD] modelo LEGACY: cuenta de sync COMPARTIDA en uso (token local). Migrar a licenseKey.');
         try { await loginConEmail(auth, creds.firebase_email, creds.firebase_password); }
         catch { /* sin internet — sync cuando vuelva */ }
       } else {
@@ -580,6 +586,9 @@ app.whenReady().then(async () => {
   } else if (creds.firebase_email && creds.firebase_password && creds.negocio_id) {
     // Primera instalación: sin license.json pero con credenciales embebidas en oma-creds.json.
     // negocio_id es el uid del cliente en Firestore, independiente de la cuenta de sync.
+    // DEPRECADO — este path usa la cuenta de sync COMPARTIDA (acceso a todos los negocios).
+    // Reemplazar por provisión de licenseKey + custom token (activacion.js) antes de vender.
+    require('electron-log').warn('[auth][SEGURIDAD] modelo LEGACY: primera instalación con cuenta de sync COMPARTIDA. Migrar a licenseKey.');
     (async () => {
       if (!auth || !firestore) return;
       try {
@@ -604,6 +613,29 @@ app.whenReady().then(async () => {
         require('electron-log').warn('[auth] primera auth desde oma-creds falló:', e.message);
       }
     })();
+  }
+
+  // ── Limpieza de caché al actualizar ───────────────────────────
+  // Si cambió la versión instalada, borramos la caché HTTP y de código de
+  // Electron para que una actualización nunca arranque con assets viejos
+  // ("interfaz vieja"). La base de datos y la config NO se tocan: las ventas
+  // del cliente quedan intactas.
+  try {
+    const db            = getDb();
+    const row           = db.prepare("SELECT valor FROM configuracion WHERE clave = 'app_version_instalada'").get();
+    const versionPrevia = row?.valor ?? null;
+    const versionActual = app.getVersion();
+    if (versionPrevia !== versionActual) {
+      await session.defaultSession.clearCache();
+      try { await session.defaultSession.clearCodeCaches({ urls: [] }); } catch { /* API best-effort */ }
+      db.prepare(
+        "INSERT INTO configuracion (clave, valor) VALUES ('app_version_instalada', ?) " +
+        "ON CONFLICT(clave) DO UPDATE SET valor = excluded.valor"
+      ).run(versionActual);
+      log.info(`[cache] limpiada por cambio de versión: ${versionPrevia ?? '(primer arranque)'} → ${versionActual}`);
+    }
+  } catch (err) {
+    log.error('[cache] no se pudo limpiar la caché al actualizar:', err.message);
   }
 
   // auth-guard.js en cada vista redirige a login.html si no hay sesión local
