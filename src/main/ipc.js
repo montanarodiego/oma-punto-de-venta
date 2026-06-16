@@ -50,15 +50,23 @@ const FORMA_PAGO_LABEL = {
 };
 
 // Registra una acción en el log de actividad atribuyéndola al usuario activo.
-// A prueba de fallos (el modelo se traga sus propios errores): nunca debe
-// interrumpir la operación de negocio que la disparó.
+// Totalmente a prueba de fallos: NADA acá (ni la construcción del detalle, que
+// puede tocar el resultado de la operación) debe interrumpir la operación de
+// negocio que ya se cometió. `detalle` puede ser string o función (thunk) — si
+// es función, se evalúa dentro del try para que un throw al armar el texto
+// tampoco escape. Una venta jamás debe fallar porque el log falló.
 function logActividad(accion, detalle) {
-  Actividad.registrar({
-    usuario_id:     currentUser?.id     ?? null,
-    usuario_nombre: currentUser?.nombre ?? null,
-    accion,
-    detalle:        detalle ?? null,
-  });
+  try {
+    const txt = typeof detalle === 'function' ? detalle() : detalle;
+    Actividad.registrar({
+      usuario_id:     currentUser?.id     ?? null,
+      usuario_nombre: currentUser?.nombre ?? null,
+      accion,
+      detalle:        txt ?? null,
+    });
+  } catch (err) {
+    log.warn('[actividad] no se pudo registrar la acción:', accion, '-', err.message);
+  }
 }
 
 // ── Exportación de órdenes de compra ──────────────────────────
@@ -405,11 +413,13 @@ function registerHandlers() {
   ipcMain.handle('transacciones:getAll',      ()                  => Transacciones.getAll());
   ipcMain.handle('transacciones:getById',     (_e, id)            => Transacciones.getById(id));
   ipcMain.handle('transacciones:create',      (_e, data)          => {
-    const t  = Transacciones.create(data);
-    const fp = data?.transaccion?.forma_pago_2
-      ? 'mixto'
-      : (data?.transaccion?.forma_pago ?? t?.forma_pago);
-    logActividad('venta', `Venta #${t.id} · ${fmtMonto(t.monto_total)} · ${FORMA_PAGO_LABEL[fp] ?? fp ?? '—'}`);
+    const t = Transacciones.create(data);
+    logActividad('venta', () => {
+      const fp = data?.transaccion?.forma_pago_2
+        ? 'mixto'
+        : (data?.transaccion?.forma_pago ?? t?.forma_pago);
+      return `Venta #${t.id} · ${fmtMonto(t.monto_total)} · ${FORMA_PAGO_LABEL[fp] ?? fp ?? '—'}`;
+    });
     return t;
   });
   ipcMain.handle('transacciones:getByFecha',  (_e, desde, hasta)  => Transacciones.getByFecha(desde, hasta));
@@ -418,10 +428,12 @@ function registerHandlers() {
 
   // ── Movimientos de caja ────────────────────────────────────
   ipcMain.handle('movimientos:registrar',     (_e, data)         => {
-    const mov   = MovimientosCaja.registrar(data);
-    const tipo  = mov.tipo === 'entrada' ? 'Entrada' : 'Salida';
-    const extra = [mov.categoria, mov.descripcion].filter(Boolean).join(' — ');
-    logActividad('movimiento_caja', `${tipo} de caja · ${fmtMonto(mov.monto)}${extra ? ' · ' + extra : ''}`);
+    const mov = MovimientosCaja.registrar(data);
+    logActividad('movimiento_caja', () => {
+      const tipo  = mov.tipo === 'entrada' ? 'Entrada' : 'Salida';
+      const extra = [mov.categoria, mov.descripcion].filter(Boolean).join(' — ');
+      return `${tipo} de caja · ${fmtMonto(mov.monto)}${extra ? ' · ' + extra : ''}`;
+    });
     return mov;
   });
   ipcMain.handle('movimientos:listarPorTurno',(_e, turnoId)      => MovimientosCaja.listarPorTurno(turnoId));
@@ -431,12 +443,12 @@ function registerHandlers() {
   ipcMain.handle('devoluciones:cancelar',     (_e, data)      => {
     onlyAdmin();
     const dv = Devoluciones.cancelarTransaccion(data);
-    logActividad('anulacion', `Anuló la venta #${data?.transaccionId} · ${fmtMonto(dv.monto_devuelto)} · Motivo: ${data?.motivo ?? '—'}`);
+    logActividad('anulacion', () => `Anuló la venta #${data?.transaccionId} · ${fmtMonto(dv.monto_devuelto)} · Motivo: ${data?.motivo ?? '—'}`);
     return dv;
   });
   ipcMain.handle('devoluciones:parcial',      (_e, data)      => {
     const dv = Devoluciones.devolucionParcial(data);
-    logActividad('devolucion_parcial', `Devolución parcial de la venta #${data?.transaccionId} · ${fmtMonto(dv.monto_devuelto)} · Motivo: ${data?.motivo ?? '—'}`);
+    logActividad('devolucion_parcial', () => `Devolución parcial de la venta #${data?.transaccionId} · ${fmtMonto(dv.monto_devuelto)} · Motivo: ${data?.motivo ?? '—'}`);
     return dv;
   });
   ipcMain.handle('devoluciones:getByTrans',   (_e, id)        => Devoluciones.getByTransaccion(id));
@@ -502,15 +514,16 @@ function registerHandlers() {
   ipcMain.handle('turnos:obtenerActivo',    ()                           => Turnos.obtenerActivo());
   ipcMain.handle('turnos:abrir',            (_e, efectivoInicial)        => {
     const turno = Turnos.abrir(efectivoInicial);
-    logActividad('turno_abierto', `Abrió el turno #${turno.id} · Fondo inicial ${fmtMonto(turno.efectivo_inicial)}`);
+    logActividad('turno_abierto', () => `Abrió el turno #${turno.id} · Fondo inicial ${fmtMonto(turno.efectivo_inicial)}`);
     return turno;
   });
   ipcMain.handle('turnos:calcularResumen',  (_e, id)                     => Turnos.calcularResumen(id));
   ipcMain.handle('turnos:cerrar', async (_e, id, efectivoReal, notas) => {
     const result  = Turnos.cerrar(id, efectivoReal, notas);
-    const dif = Number(result?.diferencia ?? 0);
-    const difTxt = dif === 0 ? 'sin diferencia' : `diferencia ${fmtMonto(dif)}`;
-    logActividad('turno_cerrado', `Cerró el turno #${id} · ${difTxt}`);
+    logActividad('turno_cerrado', () => {
+      const dif = Number(result?.diferencia ?? 0);
+      return `Cerró el turno #${id} · ${dif === 0 ? 'sin diferencia' : `diferencia ${fmtMonto(dif)}`}`;
+    });
     // Enviar resumen por email en background — no bloquea el cierre
     (async () => {
       try {

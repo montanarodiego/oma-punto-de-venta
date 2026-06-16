@@ -178,14 +178,17 @@ function update(id, data, usuario = null) {
         cambios.push(`${CAMPO_LABEL[campo] ?? campo}: ${Number(antes[campo] ?? 0)} → ${Number(data[campo])}`);
       }
     }
-    // Resumen al log de actividad (auditoría unificada), reusando la detección de cambios
+    // Resumen al log de actividad (auditoría unificada), reusando la detección de cambios.
+    // try/catch defensivo: el artículo ya se actualizó; el log nunca debe romper el update.
     if (cambios.length > 0) {
-      Actividad.registrar({
-        usuario_id:     usuario?.id     ?? null,
-        usuario_nombre: usuario?.nombre ?? null,
-        accion:         'cambio_precio',
-        detalle:        `${data.nombre ?? antes.nombre ?? `Artículo #${id}`} · ${cambios.join(' · ')}`,
-      });
+      try {
+        Actividad.registrar({
+          usuario_id:     usuario?.id     ?? null,
+          usuario_nombre: usuario?.nombre ?? null,
+          accion:         'cambio_precio',
+          detalle:        `${data.nombre ?? antes.nombre ?? `Artículo #${id}`} · ${cambios.join(' · ')}`,
+        });
+      } catch { /* el log es best-effort, no interrumpe la edición del artículo */ }
     }
   }
 
