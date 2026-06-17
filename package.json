@@ -17,6 +17,7 @@
     "test:actividad": "electron tests/actividad_log.test.js"
   },
   "dependencies": {
+    "@afipsdk/afip.js": "^1.2.3",
     "@tanstack/react-virtual": "^3.14.2",
     "bcryptjs": "^2.4.3",
     "better-sqlite3": "^9.4.3",

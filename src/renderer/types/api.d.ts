@@ -642,6 +642,10 @@ export interface ReporteEmailConfig {
   ultimoEnvio: string;
 }
 
+// ─── Facturación electrónica (ARCA/AFIP) ─────────────────────────────────────
+export interface AfipServerStatus { AppServer: string; DbServer: string; AuthServer: string; }
+export interface AfipComprobanteEmitido { CAE: string; CAEFchVto: string; voucherNumber: number; }
+
 // ─────────────────────────────────────────────────────────────────────────────
 // Declaración global de window.api
 // ─────────────────────────────────────────────────────────────────────────────
@@ -806,6 +810,11 @@ declare global {
       licencia: {
         estado:  () => Promise<{ activado: boolean }>;
         activar: (key: string) => Promise<{ ok: boolean; error?: string }>;
+      };
+      facturacion: {
+        estado:  () => Promise<{ ok: true; data: AfipServerStatus } | { ok: false; error: string }>;
+        ultimo:  () => Promise<{ ok: true; data: number } | { ok: false; error: string }>;
+        emitirC: (total: number) => Promise<{ ok: true; data: AfipComprobanteEmitido } | { ok: false; error: string }>;
       };
       inventario: {
         ajustar:           (data: AjusteInventarioData) => Promise<AjusteResult>;

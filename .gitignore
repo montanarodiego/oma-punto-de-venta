@@ -9,3 +9,8 @@ out/
 oma-creds.json
 .oma-creds.json
 src/renderer/css/output.css
+
+# Facturación electrónica AFIP/ARCA — secretos, NUNCA commitear
+cert.crt
+private.key
+VARIABLES-ENV.txt

@@ -200,6 +200,13 @@ contextBridge.exposeInMainWorld('api', {
     activar: (key) => ipcRenderer.invoke('licencia:activar', key),
   },
 
+  // Facturación electrónica (ARCA/AFIP)
+  facturacion: {
+    estado:  ()      => ipcRenderer.invoke('facturacion:estado'),
+    ultimo:  ()      => ipcRenderer.invoke('facturacion:ultimo'),
+    emitirC: (total) => ipcRenderer.invoke('facturacion:emitirC', total),
+  },
+
   // Inventario
   inventario: {
     ajustar:          (data)    => ipcRenderer.invoke('inventario:ajustar', data),

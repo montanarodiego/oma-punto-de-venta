@@ -22,6 +22,7 @@ const Inventario     = require('./models/inventario');
 const PedidosCompra  = require('./models/pedidos');
 const Promociones    = require('./models/promociones');
 const Actividad      = require('./models/actividad');
+const Facturacion    = require('./models/facturacion');
 const Backup         = require('./backup');
 const Printer        = require('./printer');
 const ReportMailer   = require('./report-mailer');
@@ -458,6 +459,20 @@ function registerHandlers() {
 
   // ── Log de actividad (auditoría — solo admin) ──────────────────
   ipcMain.handle('actividad:listar', (_e, filtros) => { onlyAdmin(); return Actividad.listar(filtros ?? {}); });
+
+  // ── Facturación electrónica (ARCA/AFIP) ──
+  ipcMain.handle('facturacion:estado', async () => {
+    try { return { ok: true, data: await Facturacion.estadoServidor() }; }
+    catch (err) { return { ok: false, error: err.message, detail: err.afipData ?? null, status: err.afipStatus ?? null }; }
+  });
+  ipcMain.handle('facturacion:ultimo', async () => {
+    try { return { ok: true, data: await Facturacion.getUltimoComprobante() }; }
+    catch (err) { return { ok: false, error: err.message, detail: err.afipData ?? null, status: err.afipStatus ?? null }; }
+  });
+  ipcMain.handle('facturacion:emitirC', async (_e, total) => {
+    try { return { ok: true, data: await Facturacion.emitirFacturaC(total) }; }
+    catch (err) { return { ok: false, error: err.message, detail: err.afipData ?? null, status: err.afipStatus ?? null }; }
+  });
 
   // ── Informes ───────────────────────────────────────────────
   ipcMain.handle('informes:ventasPorPeriodo',     (_e, d, h) => Informes.ventasPorPeriodo(d, h));
