@@ -23,6 +23,8 @@ const PedidosCompra  = require('./models/pedidos');
 const Promociones    = require('./models/promociones');
 const Actividad      = require('./models/actividad');
 const Facturacion    = require('./models/facturacion');
+const Comprobantes   = require('./models/comprobantes');
+const QRCode         = require('qrcode');
 const Backup         = require('./backup');
 const Printer        = require('./printer');
 const ReportMailer   = require('./report-mailer');
@@ -473,6 +475,15 @@ function registerHandlers() {
     try { return { ok: true, data: await Facturacion.emitirFacturaC(total) }; }
     catch (err) { return { ok: false, error: err.message, detail: err.afipData ?? null, status: err.afipStatus ?? null }; }
   });
+  // Comprobante fiscal persistido de una transacción + QR ya renderizado (dataURL PNG)
+  ipcMain.handle('comprobantes:obtenerPorTransaccion', async (_e, transaccionId) => {
+    try {
+      const c = Comprobantes.obtenerPorTransaccion(transaccionId);
+      if (!c) return { ok: true, data: null };
+      const qrImage = c.qr_url ? await QRCode.toDataURL(c.qr_url, { margin: 1, width: 220 }) : null;
+      return { ok: true, data: { ...c, qrImage } };
+    } catch (err) { return { ok: false, error: err.message }; }
+  });
 
   // ── Informes ───────────────────────────────────────────────
   ipcMain.handle('informes:ventasPorPeriodo',     (_e, d, h) => Informes.ventasPorPeriodo(d, h));
@@ -664,7 +675,7 @@ function registerHandlers() {
     return Object.fromEntries(rows.map(r => [r.clave, r.valor]));
   });
   // Claves que cualquier usuario puede cambiar (preferencias de UI, no config de negocio)
-  const CONFIG_CAJERO = new Set(['tamano_hud', 'modo_negocio']);
+  const CONFIG_CAJERO = new Set(['tamano_hud', 'modo_negocio', 'modo_fiscal']);
   ipcMain.handle('config:set', (_e, clave, valor) => {
     if (!CONFIG_CAJERO.has(clave)) onlyAdmin();
     getDb()
@@ -703,6 +714,7 @@ function registerHandlers() {
       if (!trans) return { ok: false, error: 'Transacción no encontrada' };
       trans._montoRecibido = extra?.montoRecibido ?? null;
       trans._vuelto        = extra?.vuelto        ?? 0;
+      trans._fiscal        = Comprobantes.obtenerPorTransaccion(transaccionId) || null;
 
       const buf = Printer.buildTicketBuffer(trans, cfg);
       return await Printer.enviarRaw(nombreImpresora, buf);

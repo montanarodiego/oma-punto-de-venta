@@ -645,6 +645,30 @@ export interface ReporteEmailConfig {
 // ─── Facturación electrónica (ARCA/AFIP) ─────────────────────────────────────
 export interface AfipServerStatus { AppServer: string; DbServer: string; AuthServer: string; }
 export interface AfipComprobanteEmitido { CAE: string; CAEFchVto: string; voucherNumber: number; }
+export interface ComprobanteFiscal {
+  id: number;
+  transaccion_id: number | null;
+  cuit_emisor: string;
+  pto_venta: number;
+  cbte_tipo: number;
+  cbte_nro: number;
+  cae: string;
+  cae_vto: string;
+  cbte_fch: string;
+  doc_tipo: number;
+  doc_nro: string;
+  cond_iva_receptor: number;
+  imp_neto: number;
+  imp_iva: number;
+  imp_total: number;
+  moneda: string;
+  cotizacion: number;
+  alicuotas_json: string | null;
+  qr_url: string;
+  ambiente: string;
+  created_at: string;
+  qrImage?: string | null;
+}
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Declaración global de window.api
@@ -815,6 +839,7 @@ declare global {
         estado:  () => Promise<{ ok: true; data: AfipServerStatus } | { ok: false; error: string }>;
         ultimo:  () => Promise<{ ok: true; data: number } | { ok: false; error: string }>;
         emitirC: (total: number) => Promise<{ ok: true; data: AfipComprobanteEmitido } | { ok: false; error: string }>;
+        porTransaccion: (id: number) => Promise<{ ok: true; data: ComprobanteFiscal | null } | { ok: false; error: string }>;
       };
       inventario: {
         ajustar:           (data: AjusteInventarioData) => Promise<AjusteResult>;

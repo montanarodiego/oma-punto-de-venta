@@ -37,6 +37,30 @@ function enc(str) {
 function rpad(s, w) { return String(s).slice(0, w).padEnd(w); }
 function lpad(s, w) { return String(s).slice(-w).padStart(w); }
 
+// ── QR nativo ESC/POS (GS ( k, modelo 2) ─────────────────────────
+// Imprime un QR escaneable sin renderizar imágenes. `size` = tamaño de módulo
+// (1..16; 5 entra cómodo en 80mm). Error correction M.
+function escposQR(data, size = 5) {
+  const bytes = Buffer.from(String(data), 'utf8');
+  const len = bytes.length + 3; // +3 = cn(0x31) fn(0x50) m(0x30)
+  const pL = len & 0xFF, pH = (len >> 8) & 0xFF;
+  return Buffer.concat([
+    Buffer.from([GS, 0x28, 0x6B, 0x04, 0x00, 0x31, 0x41, 0x32, 0x00]),       // modelo 2
+    Buffer.from([GS, 0x28, 0x6B, 0x03, 0x00, 0x31, 0x43, size]),             // tamaño de módulo
+    Buffer.from([GS, 0x28, 0x6B, 0x03, 0x00, 0x31, 0x45, 0x31]),             // corrección de error M
+    Buffer.from([GS, 0x28, 0x6B, pL, pH, 0x31, 0x50, 0x30]), bytes,          // cargar datos
+    Buffer.from([GS, 0x28, 0x6B, 0x03, 0x00, 0x31, 0x51, 0x30]),             // imprimir
+  ]);
+}
+
+// Letra del comprobante según tipo AFIP (1/2/3=A, 6/7/8=B, 11/12/13=C)
+function letraComprobante(tipo) {
+  if ([1, 2, 3].includes(tipo)) return 'A';
+  if ([6, 7, 8].includes(tipo)) return 'B';
+  if ([11, 12, 13].includes(tipo)) return 'C';
+  return '';
+}
+
 // ── Build ticket ESC/POS ─────────────────────────────────────────
 function buildTicketBuffer(trans, cfg) {
   const parts = [];
@@ -139,6 +163,45 @@ function buildTicketBuffer(trans, cfg) {
   if (trans._montoRecibido != null && trans.forma_pago === 'efectivo') {
     txt(der('Recibido:', fmt(trans._montoRecibido)));
     txt(der('Vuelto:', fmt(trans._vuelto || 0)));
+  }
+
+  // ── Bloque fiscal (factura electrónica ARCA) ──
+  const f = trans._fiscal;
+  if (f) {
+    const letra = letraComprobante(f.cbte_tipo);
+    const nroFmt = String(f.pto_venta).padStart(4, '0') + '-' + String(f.cbte_nro).padStart(8, '0');
+    const vto = String(f.cae_vto);
+    const vtoFmt = /^\d{8}$/.test(vto) ? `${vto.slice(6,8)}/${vto.slice(4,6)}/${vto.slice(0,4)}` : vto;
+
+    sep();
+    cmd(ESC, 0x61, 0x01); // centrar
+    cmd(ESC, 0x21, 0x30); // doble alto/ancho
+    txt(`FACTURA ${letra}\n`);
+    cmd(ESC, 0x21, 0x00);
+    txt('(Comprobante autorizado por ARCA)\n');
+    cmd(ESC, 0x61, 0x00); // izquierda
+    txt(der('Comprobante:', nroFmt));
+    if (f.doc_tipo && f.doc_tipo !== 99) txt(der('Receptor doc:', f.doc_nro));
+    // En factura A/B el IVA va discriminado
+    if (parseFloat(f.imp_iva || 0) > 0) {
+      txt(der('Neto gravado:', fmt(f.imp_neto)));
+      txt(der('IVA:', fmt(f.imp_iva)));
+    }
+    txt(der('CAE:', f.cae));
+    txt(der('Vto. CAE:', vtoFmt));
+    if (f.ambiente && f.ambiente !== 'produccion') {
+      cmd(ESC, 0x61, 0x01);
+      txt('*** HOMOLOGACION - SIN VALOR FISCAL ***\n');
+      cmd(ESC, 0x61, 0x00);
+    }
+    // QR oficial de ARCA
+    if (f.qr_url) {
+      txt('\n');
+      cmd(ESC, 0x61, 0x01);
+      parts.push(escposQR(f.qr_url, 5));
+      cmd(ESC, 0x61, 0x00);
+      txt('\n');
+    }
   }
 
   if (cfg.mensajeTicket) {

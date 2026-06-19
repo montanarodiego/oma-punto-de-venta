@@ -11,6 +11,7 @@
 
 const wsaa = require('./wsaa');
 const wsfe = require('./wsfev1');
+const qr   = require('./qr');
 
 const CBTE = { A: 1, B: 6, C: 11 };                 // Factura A / B / C
 const DOC  = { CUIT: 80, CUIL: 86, DNI: 96, CF: 99 };
@@ -123,10 +124,17 @@ async function emitir({ emisor, receptor, items, cacheDir } = {}) {
         cab: { PtoVta: ptoVta, CbteTipo: cbteTipo },
         det: { ...det, CbteDesde: nro, CbteHasta: nro },
       });
+      const nroFinal = r.nro || nro;
+      const fchFinal = r.cbteFch || cbteFch;
+      const qrUrl = qr.construirUrl({
+        cuit: emisor.cuit, ptoVta, tipoCmp: cbteTipo, nroCmp: nroFinal,
+        importe: total, moneda: 'PES', ctz: 1,
+        tipoDocRec: docTipo, nroDocRec: docNro, fecha: fchFinal, cae: r.cae,
+      });
       return {
-        tipo: cbteTipo, ptoVta, nro: r.nro || nro,
-        cae: r.cae, caeVto: r.caeVto, cbteFch: r.cbteFch || cbteFch,
-        neto, iva, total, alicuotas,
+        tipo: cbteTipo, ptoVta, nro: nroFinal,
+        cae: r.cae, caeVto: r.caeVto, cbteFch: fchFinal,
+        neto, iva, total, alicuotas, qrUrl,
         docTipo, docNro, condicionIVAId: condReceptorId,
         cuitEmisor: String(emisor.cuit), production,
         observaciones: r.observaciones,

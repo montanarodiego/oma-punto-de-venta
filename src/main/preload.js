@@ -205,6 +205,7 @@ contextBridge.exposeInMainWorld('api', {
     estado:  ()      => ipcRenderer.invoke('facturacion:estado'),
     ultimo:  ()      => ipcRenderer.invoke('facturacion:ultimo'),
     emitirC: (total) => ipcRenderer.invoke('facturacion:emitirC', total),
+    porTransaccion: (id) => ipcRenderer.invoke('comprobantes:obtenerPorTransaccion', id),
   },
 
   // Inventario

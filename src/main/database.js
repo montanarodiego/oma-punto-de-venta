@@ -578,6 +578,35 @@ function runMigrations(db) {
     )
   `);
 
+  // ── Feature: comprobantes_fiscales (facturación electrónica ARCA) ─
+  // Persistencia legal de cada comprobante autorizado: sin esto no se puede
+  // reimprimir ni acreditar el CAE. Un comprobante por transacción (a lo sumo).
+  db.exec(`
+    CREATE TABLE IF NOT EXISTS comprobantes_fiscales (
+      id                INTEGER PRIMARY KEY AUTOINCREMENT,
+      transaccion_id    INTEGER REFERENCES transacciones(id),
+      cuit_emisor       TEXT    NOT NULL,
+      pto_venta         INTEGER NOT NULL,
+      cbte_tipo         INTEGER NOT NULL,
+      cbte_nro          INTEGER NOT NULL,
+      cae               TEXT    NOT NULL,
+      cae_vto           TEXT    NOT NULL,
+      cbte_fch          TEXT    NOT NULL,
+      doc_tipo          INTEGER NOT NULL,
+      doc_nro           TEXT    NOT NULL,
+      cond_iva_receptor INTEGER NOT NULL,
+      imp_neto          REAL    NOT NULL,
+      imp_iva           REAL    NOT NULL,
+      imp_total         REAL    NOT NULL,
+      moneda            TEXT    NOT NULL DEFAULT 'PES',
+      cotizacion        REAL    NOT NULL DEFAULT 1,
+      alicuotas_json    TEXT,
+      qr_url            TEXT    NOT NULL,
+      ambiente          TEXT    NOT NULL DEFAULT 'homologacion',
+      created_at        TEXT    NOT NULL DEFAULT (datetime('now'))
+    )
+  `);
+
   // ── Índices para performance ──────────────────────────────────
   db.exec(`
     CREATE INDEX IF NOT EXISTS idx_articulos_codigo      ON articulos(codigo);
@@ -601,6 +630,8 @@ function runMigrations(db) {
     CREATE INDEX IF NOT EXISTS idx_articulos_nombre      ON articulos(nombre);
     CREATE INDEX IF NOT EXISTS idx_clientes_nombre       ON clientes(nombre);
     CREATE INDEX IF NOT EXISTS idx_proveedores_nombre    ON proveedores(nombre);
+    CREATE INDEX IF NOT EXISTS idx_comprobantes_trans     ON comprobantes_fiscales(transaccion_id);
+    CREATE UNIQUE INDEX IF NOT EXISTS idx_comprobantes_unico ON comprobantes_fiscales(cuit_emisor, pto_venta, cbte_tipo, cbte_nro, ambiente);
   `);
 
   // ── FTS5: búsqueda full-text de artículos ─────────────────────
