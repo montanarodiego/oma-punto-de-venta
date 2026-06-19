@@ -14,3 +14,5 @@ src/renderer/css/output.css
 cert.crt
 private.key
 VARIABLES-ENV.txt
+# Cache de Ticket de Acceso WSAA (contiene token+sign vigentes)
+wsaa-ta-*.json
