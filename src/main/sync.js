@@ -59,6 +59,26 @@ function desencriptar(dato, negocioId) {
   return Buffer.concat([dec.update(Buffer.from(encHex, 'hex')), dec.final()]).toString('utf8');
 }
 
+// ── Cifrado local atado a la instalación (no al negocioId) ──
+// Para secretos que deben poder cifrarse/descifrarse sin sesión activa, como el
+// certificado fiscal. Clave = SHA-256('fiscal' + salt por instalación): copiar el
+// archivo a otra máquina no sirve (salt distinto). Mismo formato iv:tag:cifrado.
+function _claveLocal(ns) {
+  return crypto.createHash('sha256').update(ns + ':' + _getSalt()).digest();
+}
+function encriptarLocal(texto, ns = 'fiscal') {
+  const iv     = crypto.randomBytes(16);
+  const cipher = crypto.createCipheriv('aes-256-gcm', _claveLocal(ns), iv);
+  const enc    = Buffer.concat([cipher.update(texto, 'utf8'), cipher.final()]);
+  return `${iv.toString('hex')}:${cipher.getAuthTag().toString('hex')}:${enc.toString('hex')}`;
+}
+function desencriptarLocal(dato, ns = 'fiscal') {
+  const [ivHex, tagHex, encHex] = dato.split(':');
+  const dec = crypto.createDecipheriv('aes-256-gcm', _claveLocal(ns), Buffer.from(ivHex, 'hex'));
+  dec.setAuthTag(Buffer.from(tagHex, 'hex'));
+  return Buffer.concat([dec.update(Buffer.from(encHex, 'hex')), dec.final()]).toString('utf8');
+}
+
 // Sube todos los registros pendientes de SQLite a Firestore y los marca 'synced'.
 // authInst es la instancia de Firebase Auth; si currentUser es null la sync se cancela
 // porque Firestore rechazaría las escrituras por falta de sesión (inMemoryPersistence).
@@ -174,6 +194,8 @@ function leerTokenRaw() {
 module.exports = {
   encriptar,
   desencriptar,
+  encriptarLocal,
+  desencriptarLocal,
   syncPendientes,
   contarPendientes,
   verificarLicencia,

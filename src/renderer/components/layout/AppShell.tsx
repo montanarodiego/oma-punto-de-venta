@@ -3,6 +3,7 @@ import { Navigate, Outlet, useLocation } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Sidebar } from './Sidebar';
 import { useSession } from '../../context/SessionContext';
+import { useFiscal } from '../../context/FiscalContext';
 import { ModalApertura, ModalCierre } from '../TurnoModales';
 import { VerificadorPrecios } from '../VerificadorPrecios';
 import type { Turno } from '../../types/api';
@@ -66,6 +67,14 @@ export function AppShell() {
             <Outlet />
           </motion.div>
         </AnimatePresence>
+
+        <footer style={{
+          height: 26, flexShrink: 0, display: 'flex', alignItems: 'center',
+          justifyContent: 'flex-end', padding: '0 14px',
+          borderTop: '1px solid var(--border)', background: 'var(--surface)',
+        }}>
+          <FiscalIndicator />
+        </footer>
       </div>
 
       <ModalApertura
@@ -86,5 +95,37 @@ export function AppShell() {
         onClose={() => setVerificadorOpen(false)}
       />
     </div>
+  );
+}
+
+// Indicador minimalista de modo fiscal en el footer: ícono de comprobante,
+// sin texto. Verde + punto con glow cuando está activo; gris atenuado si no.
+// El tooltip (title) explica el estado y el atajo sin agregar texto visible.
+function FiscalIndicator() {
+  const { modoFiscal } = useFiscal();
+  return (
+    <span
+      title={modoFiscal
+        ? 'Modo fiscal ACTIVO — se emite factura C al cobrar (Ctrl+Shift+F)'
+        : 'Modo fiscal inactivo (Ctrl+Shift+F)'}
+      style={{
+        display: 'inline-flex', alignItems: 'center',
+        color: modoFiscal ? 'var(--success)' : 'var(--text-subtle)',
+        opacity: modoFiscal ? 1 : 0.4,
+        transition: 'opacity .2s, color .2s',
+      }}
+    >
+      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+           strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+        <path d="M4 2v20l2-1 2 1 2-1 2 1 2-1 2 1 2-1 2 1V2l-2 1-2-1-2 1-2-1-2 1-2-1-2 1z" />
+        <path d="M8 7h8M8 11h8M8 15h5" />
+      </svg>
+      {modoFiscal && (
+        <span style={{
+          width: 5, height: 5, borderRadius: '50%', marginLeft: 5,
+          background: 'var(--success)', boxShadow: '0 0 6px var(--success)',
+        }} />
+      )}
+    </span>
   );
 }

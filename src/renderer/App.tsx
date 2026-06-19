@@ -2,6 +2,7 @@ import { useState, useEffect, useCallback } from 'react';
 import { HashRouter, Routes, Route, Navigate } from 'react-router-dom';
 import { SessionProvider, useSession } from './context/SessionContext';
 import { ToastProvider } from './context/ToastContext';
+import { FiscalProvider } from './context/FiscalContext';
 import { AppShell } from './components/layout/AppShell';
 import { UpdaterModal } from './components/UpdaterModal';
 import { ErrorBoundary } from './components/ErrorBoundary';
@@ -169,11 +170,13 @@ export default function App() {
     <ErrorBoundary>
       <SessionProvider>
         <ToastProvider>
-          <DbIntegrityWarning />
-          <UpdaterModal />
-          <HashRouter>
-            <AppRoutes key={routerKey} />
-          </HashRouter>
+          <FiscalProvider>
+            <DbIntegrityWarning />
+            <UpdaterModal />
+            <HashRouter>
+              <AppRoutes key={routerKey} />
+            </HashRouter>
+          </FiscalProvider>
         </ToastProvider>
       </SessionProvider>
     </ErrorBoundary>

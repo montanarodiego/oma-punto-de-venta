@@ -669,6 +669,20 @@ export interface ComprobanteFiscal {
   created_at: string;
   qrImage?: string | null;
 }
+export interface FiscalConfig {
+  cuit: string;
+  razonSocial: string;
+  condicionFiscal: 'monotributo' | 'responsable_inscripto';
+  ptoVenta: number;
+  ambiente: 'homologacion' | 'produccion';
+  alias: string;
+}
+export interface FiscalCertInfo { subject: string; emisor: string; desde: string; vencimiento: string; }
+export interface FiscalEstado {
+  config: FiscalConfig;
+  estadoCert: 'sin_solicitar' | 'csr_pendiente' | 'activo';
+  cert: FiscalCertInfo | null;
+}
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Declaración global de window.api
@@ -841,6 +855,15 @@ declare global {
         emitirC: (total: number) => Promise<{ ok: true; data: AfipComprobanteEmitido } | { ok: false; error: string }>;
         porTransaccion: (id: number) => Promise<{ ok: true; data: ComprobanteFiscal | null } | { ok: false; error: string }>;
       };
+      fiscal: {
+        estado:         () => Promise<{ ok: true; data: FiscalEstado } | { ok: false; error: string }>;
+        guardarConfig:  (cfg: Partial<FiscalConfig>) => Promise<{ ok: true; data: FiscalConfig } | { ok: false; error: string }>;
+        generarCSR:     (datos: { cuit: string; razonSocial: string; alias?: string }) => Promise<{ ok: true; data: { alias: string; guardadoEn: string | null } } | { ok: false; error: string }>;
+        importarCert:   () => Promise<{ ok: true; data: FiscalCertInfo } | { ok: false; canceled?: boolean; error?: string }>;
+        probarConexion: () => Promise<{ ok: true; data: { servidores: AfipServerStatus; ambiente: string } } | { ok: false; error: string }>;
+        limpiarCert:    () => Promise<{ ok: true; data: { ok: boolean } } | { ok: false; error: string }>;
+      };
+      abrirExterno: (url: string) => Promise<boolean>;
       inventario: {
         ajustar:           (data: AjusteInventarioData) => Promise<AjusteResult>;
         listarMovimientos: (filtros: ListarMovimientosParams) => Promise<MovimientoInventario[]>;

@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useToast } from '../context/ToastContext';
 import { useSession } from '../context/SessionContext';
+import FiscalOnboarding from '../components/FiscalOnboarding';
 import { Card, CardHeader, CardBody, Toggle, Button, Field, Input, Select, Badge, Modal } from '../components/ui';
 import type { Usuario, BackupInfo, ActividadLog } from '../types/api';
 import { setTema, type TemaPref } from '../theme';
@@ -650,6 +651,18 @@ export default function Configuracion() {
             </CardBody>
           </Card>
           </motion.div>
+
+          {/* ── Facturación electrónica (solo admin) ── */}
+          {esAdmin && (
+            <motion.div initial={{ opacity:0, y:8 }} animate={{ opacity:1, y:0 }} transition={{ delay:0.22 }}>
+            <Card>
+              <CardHeader>Facturación electrónica (ARCA)</CardHeader>
+              <CardBody>
+                <FiscalOnboarding />
+              </CardBody>
+            </Card>
+            </motion.div>
+          )}
 
           {/* ── Usuarios (solo admin) ── */}
           {esAdmin && (

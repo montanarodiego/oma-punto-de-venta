@@ -208,6 +208,17 @@ contextBridge.exposeInMainWorld('api', {
     porTransaccion: (id) => ipcRenderer.invoke('comprobantes:obtenerPorTransaccion', id),
   },
 
+  // Onboarding/configuración del certificado fiscal (ARCA)
+  fiscal: {
+    estado:         ()      => ipcRenderer.invoke('fiscal:estado'),
+    guardarConfig:  (cfg)   => ipcRenderer.invoke('fiscal:guardarConfig', cfg),
+    generarCSR:     (datos) => ipcRenderer.invoke('fiscal:generarCSR', datos),
+    importarCert:   ()      => ipcRenderer.invoke('fiscal:importarCert'),
+    probarConexion: ()      => ipcRenderer.invoke('fiscal:probarConexion'),
+    limpiarCert:    ()      => ipcRenderer.invoke('fiscal:limpiarCert'),
+  },
+  abrirExterno: (url) => ipcRenderer.invoke('shell:abrirExterno', url),
+
   // Inventario
   inventario: {
     ajustar:          (data)    => ipcRenderer.invoke('inventario:ajustar', data),

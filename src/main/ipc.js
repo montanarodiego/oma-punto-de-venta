@@ -24,6 +24,9 @@ const Promociones    = require('./models/promociones');
 const Actividad      = require('./models/actividad');
 const Facturacion    = require('./models/facturacion');
 const Comprobantes   = require('./models/comprobantes');
+const Certs          = require('./fiscal/certs');
+const wsaaFiscal     = require('./fiscal/wsaa');
+const wsfeFiscal     = require('./fiscal/wsfev1');
 const QRCode         = require('qrcode');
 const Backup         = require('./backup');
 const Printer        = require('./printer');
@@ -485,6 +488,61 @@ function registerHandlers() {
     } catch (err) { return { ok: false, error: err.message }; }
   });
 
+  // ── Onboarding del certificado fiscal (solo admin) ──
+  ipcMain.handle('fiscal:estado', () => {
+    try { return { ok: true, data: Certs.estado() }; }
+    catch (err) { return { ok: false, error: err.message }; }
+  });
+  ipcMain.handle('fiscal:guardarConfig', (_e, cfg) => {
+    onlyAdmin();
+    try { return { ok: true, data: Certs.guardarConfig(cfg) }; }
+    catch (err) { return { ok: false, error: err.message }; }
+  });
+  ipcMain.handle('fiscal:generarCSR', async (e, datos) => {
+    onlyAdmin();
+    try {
+      const { csrPem, alias } = Certs.generarCSR(datos);
+      const win = e.sender.getOwnerBrowserWindow();
+      const res = await dialog.showSaveDialog(win, {
+        title: 'Guardar solicitud de certificado (CSR) para subir a ARCA',
+        defaultPath: `${alias}.csr`,
+        filters: [{ name: 'Solicitud de certificado', extensions: ['csr'] }],
+      });
+      if (!res.canceled && res.filePath) fs.writeFileSync(res.filePath, csrPem, 'utf8');
+      return { ok: true, data: { alias, guardadoEn: res.canceled ? null : res.filePath } };
+    } catch (err) { return { ok: false, error: err.message }; }
+  });
+  ipcMain.handle('fiscal:importarCert', async (e) => {
+    onlyAdmin();
+    try {
+      const win = e.sender.getOwnerBrowserWindow();
+      const res = await dialog.showOpenDialog(win, {
+        title: 'Seleccionar el certificado (.crt) descargado de ARCA',
+        filters: [{ name: 'Certificado', extensions: ['crt', 'pem', 'cer'] }],
+        properties: ['openFile'],
+      });
+      if (res.canceled || !res.filePaths.length) return { ok: false, canceled: true };
+      const certPem = fs.readFileSync(res.filePaths[0], 'utf8');
+      return { ok: true, data: Certs.importarCertificado(certPem) };
+    } catch (err) { return { ok: false, error: err.message }; }
+  });
+  ipcMain.handle('fiscal:probarConexion', async () => {
+    try {
+      const cred = Certs.cargarCredenciales();
+      if (!cred) return { ok: false, error: 'Todavía no hay un certificado activo.' };
+      const cfg = Certs.obtenerConfig();
+      const production = cfg.ambiente === 'produccion';
+      await wsaaFiscal.obtenerTA({ cert: cred.cert, key: cred.key, cuit: cfg.cuit, production, service: 'wsfe', cacheDir: app.getPath('userData') });
+      const servidores = await wsfeFiscal.dummy(production);
+      return { ok: true, data: { servidores, ambiente: cfg.ambiente } };
+    } catch (err) { return { ok: false, error: err.message }; }
+  });
+  ipcMain.handle('fiscal:limpiarCert', () => {
+    onlyAdmin();
+    try { return { ok: true, data: Certs.limpiarCertificado() }; }
+    catch (err) { return { ok: false, error: err.message }; }
+  });
+
   // ── Informes ───────────────────────────────────────────────
   ipcMain.handle('informes:ventasPorPeriodo',     (_e, d, h) => Informes.ventasPorPeriodo(d, h));
   ipcMain.handle('informes:articulosMasVendidos', (_e, d, h) => Informes.articulosMasVendidos(d, h));
@@ -589,6 +647,7 @@ function registerHandlers() {
   ipcMain.handle('backup:listar',       () => Backup.listarBackups());
   ipcMain.handle('backup:getRuta',      () => Backup.getBackupDir());
   ipcMain.handle('backup:abrirCarpeta', () => { shell.openPath(Backup.getBackupDir()); return true; });
+  ipcMain.handle('shell:abrirExterno', (_e, url) => { if (/^https:\/\//i.test(String(url))) shell.openExternal(url); return true; });
 
   ipcMain.handle('backup:seleccionarArchivo', async (e) => {
     const win = e.sender.getOwnerBrowserWindow();
