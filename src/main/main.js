@@ -71,6 +71,15 @@ function getHudZoomFactor() {
   }
 }
 
+// Reaplica el zoom guardado sobre un webContents. Electron resetea el
+// zoomFactor a 1.0 en cada carga/navegación completa (reload, loadFile,
+// redirect de turno, relanzamiento por update), así que esto debe correr
+// después de CADA carga — no solo al crear la ventana.
+function aplicarZoomGuardado(wc) {
+  if (!wc || wc.isDestroyed()) return;
+  try { wc.setZoomFactor(getHudZoomFactor()); } catch { /* webContents no listo */ }
+}
+
 let mainWindow        = null;
 let loginWindow       = null;
 let negocioIdActivo   = null;
@@ -130,7 +139,14 @@ function createWindow() {
   });
 
   // Aplicar zoom nativo antes de cargar la página — evita flash de tamaño
-  mainWindow.webContents.setZoomFactor(getHudZoomFactor());
+  aplicarZoomGuardado(mainWindow.webContents);
+
+  // Reaplicar el zoom tras CADA carga/navegación. Electron lo resetea a 1.0
+  // en reloads, loadFile (redirect de turno / navegar) y relanzamientos por
+  // update; este listener es la fuente de verdad que mantiene la persistencia.
+  mainWindow.webContents.on('did-finish-load', function () {
+    aplicarZoomGuardado(mainWindow.webContents);
+  });
 
   mainWindow.once('ready-to-show', function () {
     mainWindow.maximize();
