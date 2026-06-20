@@ -1,15 +1,21 @@
+// ─────────────────────────────────────────────────────────────────────────────
+// REGLAS DE FIRESTORE — MODELO CUSTOM TOKEN (post-migración)
+//
+// Cada cliente se autentica con un custom token cuyo uid == negocioId (lo emite
+// OMA Manager /api/activar), así que cada negocio accede SOLO a sus propios datos.
+// Ya NO existe la cuenta de sync compartida (esCuentaSync): se eliminó la brecha
+// server-side de acceso global.
+//
+// Para activar estas reglas:  firebase deploy --only firestore:rules
+// (requiere estar logueado en Firebase con acceso al proyecto).
+//
+// Verificación post-deploy (Firebase Console → Firestore → Rules Playground):
+//   simular get a negocios/OTRO_ID/articulos con auth.uid = <negocioId propio>
+//   → debe dar DENY. Solo negocios/<uid propio>/* debe dar ALLOW.
+// ─────────────────────────────────────────────────────────────────────────────
 rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
-
-    // ── CUENTA DE SYNC (proceso main del POS) ────────────────────────────
-    // sync@omatech.com — uid fijo del proceso interno de sincronización.
-    // Tiene acceso de lectura/escritura a todos los negocios para poder
-    // verificar licencias y subir pendientes sin conocer el uid del cliente.
-    function esCuentaSync() {
-      return request.auth != null
-          && request.auth.uid == 'v0M2YY3XEhTkqKNrvZuFjuppQOe2';
-    }
 
     // ── DENEGACIÓN POR DEFECTO ────────────────────────────────────────────
     match /{document=**} {
@@ -18,39 +24,25 @@ service cloud.firestore {
 
     // ── DOCUMENTO RAÍZ DEL NEGOCIO ────────────────────────────────────────
     // negocios/{negocioId}  →  { licencia: { activa, vencimiento } }
-    //
-    // El campo "licencia" solo puede escribirse desde Firebase Admin SDK o
-    // la Firebase Console — nunca desde la app del cliente.
+    // El campo "licencia" solo se escribe desde Firebase Admin SDK / Console.
     match /negocios/{negocioId} {
-      allow get: if request.auth != null
-                 && (request.auth.uid == negocioId || esCuentaSync());
-
-      // Ningún cliente ni la cuenta sync puede escribir el documento raíz.
+      allow get:   if request.auth != null && request.auth.uid == negocioId;
       allow write: if false;
     }
 
-    // ── SUBCOLECCIÓN: ARTÍCULOS ───────────────────────────────────────────
+    // ── SUBCOLECCIONES DEL NEGOCIO ────────────────────────────────────────
+    // Cada negocio accede solo a las suyas. Sin cuenta de sync compartida.
     match /negocios/{negocioId}/articulos/{docId} {
-      allow read, create, update: if request.auth != null
-                                  && (request.auth.uid == negocioId || esCuentaSync());
+      allow read, create, update: if request.auth != null && request.auth.uid == negocioId;
     }
-
-    // ── SUBCOLECCIÓN: CLIENTES ────────────────────────────────────────────
     match /negocios/{negocioId}/clientes/{docId} {
-      allow read, create, update: if request.auth != null
-                                  && (request.auth.uid == negocioId || esCuentaSync());
+      allow read, create, update: if request.auth != null && request.auth.uid == negocioId;
     }
-
-    // ── SUBCOLECCIÓN: TRANSACCIONES ───────────────────────────────────────
     match /negocios/{negocioId}/transacciones/{docId} {
-      allow read, create, update: if request.auth != null
-                                  && (request.auth.uid == negocioId || esCuentaSync());
+      allow read, create, update: if request.auth != null && request.auth.uid == negocioId;
     }
-
-    // ── SUBCOLECCIÓN: PROVEEDORES ─────────────────────────────────────────
     match /negocios/{negocioId}/proveedores/{docId} {
-      allow read, create, update: if request.auth != null
-                                  && (request.auth.uid == negocioId || esCuentaSync());
+      allow read, create, update: if request.auth != null && request.auth.uid == negocioId;
     }
 
   }
