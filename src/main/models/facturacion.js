@@ -1,95 +1,93 @@
-const Afip = require('@afipsdk/afip.js');
-const fs   = require('fs');
-const path = require('path');
+// Orquestación de la emisión de comprobantes fiscales en la venta.
+//
+// Une las piezas del módulo fiscal directo (sin afipsdk):
+//   certs.js        → certificado + clave + config del comercio (CUIT, ambiente, ptoVenta)
+//   fiscal/*        → WSAA + WSFEv1 + armado del comprobante (A/B/C, IVA, QR)
+//   comprobantes.js → persistencia legal del CAE en SQLite
+//
+// El emisor (CUIT, producción/homologación, condición fiscal, punto de venta) NUNCA
+// se hardcodea: sale del onboarding fiscal que cargó el comercio. Así cada instalación
+// factura con SU propio certificado y en SU ambiente real.
 
-// Instancia lazy — se crea la primera vez que se usa, no al cargar el módulo.
-// Así el proceso main no se cae al arrancar si el token todavía no está configurado;
-// el error queda atrapado por el try/catch de ipc.js y llega al renderer como { ok: false }.
-let _afip = null;
-function getAfip() {
-  if (_afip) return _afip;
-  const token = process.env.AFIP_ACCESS_TOKEN;
-  if (!token) throw new Error('Falta configurar AFIP_ACCESS_TOKEN en el archivo .env');
-  const cuit = parseInt(process.env.AFIP_CUIT || '20111111112', 10);
-  const certPath = path.join(__dirname, '..', '..', '..', 'cert.crt');
-  const keyPath  = path.join(__dirname, '..', '..', '..', 'private.key');
-  if (!fs.existsSync(certPath)) throw new Error('Falta el archivo cert.crt en la raíz del proyecto');
-  if (!fs.existsSync(keyPath))  throw new Error('Falta el archivo private.key en la raíz del proyecto');
-  const cert = fs.readFileSync(certPath, 'utf8');
-  const key  = fs.readFileSync(keyPath,  'utf8');
-  _afip = new Afip({ CUIT: cuit, production: false, access_token: token, cert, key });
-  return _afip;
-}
+const { app }      = require('electron');
+const Certs        = require('../fiscal/certs');
+const comprobante  = require('../fiscal/comprobante');
+const wsfe         = require('../fiscal/wsfev1');
+const Comprobantes = require('./comprobantes');
 
-// Enriquece errores de afip.js volcando todo lo que se pueda extraer del objeto.
-// El interceptor axios del SDK rethrowea con err.status y err.data como props directas,
-// NO bajo err.response — por eso se chequean en ambos lugares.
-function afipErr(err) {
-  console.error('[facturacion] error completo:', err);
-
-  const status = err.status     ?? err.response?.status ?? null;
-  const data   = err.data       ?? err.response?.data   ?? null;
-
-  const parts = [err.message];
-  if (status != null) parts.push(`HTTP ${status}`);
-  if (data   != null) {
-    parts.push(`data: ${typeof data === 'string' ? data : JSON.stringify(data)}`);
-    if (data && typeof data === 'object') {
-      if (data.error)       parts.push(`error: ${data.error}`);
-      if (data.message)     parts.push(`message: ${data.message}`);
-      if (data.details)     parts.push(`details: ${JSON.stringify(data.details)}`);
-      if (data.data_errors) parts.push(`data_errors: ${JSON.stringify(data.data_errors)}`);
-    }
+// Arma el emisor desde el onboarding. Lanza errores claros (los ve el cajero) si
+// falta algo, en vez de emitir con datos por defecto inválidos.
+function _emisor() {
+  const cred = Certs.cargarCredenciales();
+  if (!cred) throw new Error('No hay un certificado fiscal activo. Completá el onboarding fiscal en Configuración.');
+  const cfg = Certs.obtenerConfig();
+  if (!cfg.cuit || String(cfg.cuit).length !== 11) {
+    throw new Error('Falta configurar el CUIT del emisor en el onboarding fiscal.');
   }
-
-  return Object.assign(
-    new Error(parts.join(' | ')),
-    { afipData: data, afipStatus: status }
-  );
+  return {
+    cert:       cred.cert,
+    key:        cred.key,
+    cuit:       cfg.cuit,
+    condicion:  cfg.condicionFiscal,            // 'monotributo' | 'responsable_inscripto'
+    ptoVenta:   cfg.ptoVenta,
+    production: cfg.ambiente === 'produccion',
+  };
 }
 
-// Cola de serialización — evita dos pedidos de CAE en paralelo para el mismo PtoVta
+// Cola de serialización: ARCA numera por (PtoVta, CbteTipo); dos pedidos de CAE en
+// paralelo pelean por el mismo número. Serializamos para no chocar (error 10016).
 let _caeQueue = Promise.resolve();
-function serializarCAE(fn) {
-  const result = _caeQueue.then(() => fn());
-  _caeQueue = result.then(() => {}, () => {});
-  return result;
+function _serial(fn) {
+  const r = _caeQueue.then(() => fn());
+  _caeQueue = r.then(() => {}, () => {});
+  return r;
 }
 
+// Estado de los servidores de ARCA (FEDummy) en el ambiente configurado.
 async function estadoServidor() {
-  try {
-    return await getAfip().ElectronicBilling.getServerStatus();
-  } catch (err) { throw afipErr(err); }
+  const emisor = _emisor();
+  return wsfe.dummy(emisor.production);
 }
 
-async function getUltimoComprobante() {
-  try {
-    return await getAfip().ElectronicBilling.getLastVoucher(1, 11);
-  } catch (err) { throw afipErr(err); }
-}
+/**
+ * Emite el comprobante fiscal de una venta ya registrada y lo persiste.
+ * @param {object} o
+ * @param {number} [o.transaccionId]  Para asociar e idempotencia (no re-emite si ya hay).
+ * @param {number} o.total            Total cobrado (se usa tal cual para Factura C).
+ * @param {Array}  [o.items]          [{ importe, tasaIva }] — sólo para Responsable Inscripto (A/B).
+ * @param {object} [o.receptor]       { condicionIVAId, docTipo, docNro } — default consumidor final.
+ * @returns {Promise<object>}  El registro guardado en comprobantes_fiscales.
+ */
+async function emitir({ transaccionId, total, items, receptor } = {}) {
+  return _serial(async () => {
+    const emisor = _emisor();
 
-async function emitirFacturaC(importeTotal) {
-  return serializarCAE(async () => {
-    const fecha = parseInt(new Date().toISOString().slice(0, 10).replace(/-/g, ''));
-    try { return await getAfip().ElectronicBilling.createNextVoucher({
-      CantReg:    1,
-      PtoVta:     1,
-      CbteTipo:   11,
-      Concepto:   1,
-      DocTipo:    99,
-      DocNro:     0,
-      CbteFch:    fecha,
-      ImpTotal:   importeTotal,
-      ImpTotConc: 0,
-      ImpNeto:    importeTotal,
-      ImpOpEx:    0,
-      ImpIVA:     0,
-      ImpTrib:    0,
-      MonId:      'PES',
-      MonCotiz:   1,
-      CondicionIVAReceptorId: 5,
-    }); } catch (err) { throw afipErr(err); }
+    // Idempotencia: si la venta ya tiene comprobante, devolverlo en vez de duplicar
+    // (un reintento del cajero no debe pedir un CAE nuevo).
+    if (transaccionId != null) {
+      const ya = Comprobantes.obtenerPorTransaccion(transaccionId);
+      if (ya) return ya;
+    }
+
+    // Monotributo → Factura C: no discrimina IVA, una sola línea con el total exacto
+    // cobrado (evita descuadres por redondeo). Responsable Inscripto → desglose real
+    // por línea con su tasa de IVA para que A/B salgan correctas.
+    let lineas;
+    if (emisor.condicion === 'responsable_inscripto' && Array.isArray(items) && items.length) {
+      lineas = items.map(it => ({ importe: Number(it.importe || 0), tasaIva: Number(it.tasaIva || 0) }));
+    } else {
+      lineas = [{ importe: Number(total || 0), tasaIva: 0 }];
+    }
+
+    const r = await comprobante.emitir({
+      emisor,
+      receptor: receptor || null,
+      items: lineas,
+      cacheDir: app.getPath('userData'),
+    });
+
+    return Comprobantes.guardar({ ...r, transaccionId: transaccionId ?? null });
   });
 }
 
-module.exports = { estadoServidor, getUltimoComprobante, emitirFacturaC };
+module.exports = { estadoServidor, emitir };

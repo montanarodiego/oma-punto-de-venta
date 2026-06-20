@@ -644,7 +644,13 @@ export interface ReporteEmailConfig {
 
 // ─── Facturación electrónica (ARCA/AFIP) ─────────────────────────────────────
 export interface AfipServerStatus { AppServer: string; DbServer: string; AuthServer: string; }
-export interface AfipComprobanteEmitido { CAE: string; CAEFchVto: string; voucherNumber: number; }
+export interface FacturaItem { importe: number; tasaIva: number; }
+export interface EmitirFiscalPayload {
+  transaccionId?: number;
+  total: number;
+  items?: FacturaItem[];
+  receptor?: { condicionIVAId?: number; docTipo?: number; docNro?: number };
+}
 export interface ComprobanteFiscal {
   id: number;
   transaccion_id: number | null;
@@ -851,8 +857,7 @@ declare global {
       };
       facturacion: {
         estado:  () => Promise<{ ok: true; data: AfipServerStatus } | { ok: false; error: string }>;
-        ultimo:  () => Promise<{ ok: true; data: number } | { ok: false; error: string }>;
-        emitirC: (total: number) => Promise<{ ok: true; data: AfipComprobanteEmitido } | { ok: false; error: string }>;
+        emitir:  (payload: EmitirFiscalPayload) => Promise<{ ok: true; data: ComprobanteFiscal } | { ok: false; error: string; detail?: unknown }>;
         porTransaccion: (id: number) => Promise<{ ok: true; data: ComprobanteFiscal | null } | { ok: false; error: string }>;
       };
       fiscal: {

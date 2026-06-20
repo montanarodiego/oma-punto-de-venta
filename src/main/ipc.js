@@ -468,15 +468,13 @@ function registerHandlers() {
   // ── Facturación electrónica (ARCA/AFIP) ──
   ipcMain.handle('facturacion:estado', async () => {
     try { return { ok: true, data: await Facturacion.estadoServidor() }; }
-    catch (err) { return { ok: false, error: err.message, detail: err.afipData ?? null, status: err.afipStatus ?? null }; }
+    catch (err) { return { ok: false, error: err.message }; }
   });
-  ipcMain.handle('facturacion:ultimo', async () => {
-    try { return { ok: true, data: await Facturacion.getUltimoComprobante() }; }
-    catch (err) { return { ok: false, error: err.message, detail: err.afipData ?? null, status: err.afipStatus ?? null }; }
-  });
-  ipcMain.handle('facturacion:emitirC', async (_e, total) => {
-    try { return { ok: true, data: await Facturacion.emitirFacturaC(total) }; }
-    catch (err) { return { ok: false, error: err.message, detail: err.afipData ?? null, status: err.afipStatus ?? null }; }
+  // Emite el comprobante fiscal de una venta y lo persiste. Recibe
+  // { transaccionId, total, items?, receptor? }. Idempotente por transacción.
+  ipcMain.handle('facturacion:emitir', async (_e, payload) => {
+    try { return { ok: true, data: await Facturacion.emitir(payload || {}) }; }
+    catch (err) { return { ok: false, error: err.message, detail: err.afipErrors ?? err.observaciones ?? null }; }
   });
   // Comprobante fiscal persistido de una transacción + QR ya renderizado (dataURL PNG)
   ipcMain.handle('comprobantes:obtenerPorTransaccion', async (_e, transaccionId) => {

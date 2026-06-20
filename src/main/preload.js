@@ -202,9 +202,8 @@ contextBridge.exposeInMainWorld('api', {
 
   // Facturación electrónica (ARCA/AFIP)
   facturacion: {
-    estado:  ()      => ipcRenderer.invoke('facturacion:estado'),
-    ultimo:  ()      => ipcRenderer.invoke('facturacion:ultimo'),
-    emitirC: (total) => ipcRenderer.invoke('facturacion:emitirC', total),
+    estado:  ()        => ipcRenderer.invoke('facturacion:estado'),
+    emitir:  (payload) => ipcRenderer.invoke('facturacion:emitir', payload),
     porTransaccion: (id) => ipcRenderer.invoke('comprobantes:obtenerPorTransaccion', id),
   },
 
