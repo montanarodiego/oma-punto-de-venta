@@ -124,6 +124,7 @@ function createWindow() {
       preload: path.join(__dirname, 'preload.js'),
       contextIsolation: true,
       nodeIntegration: false,
+      sandbox: true,          // default en Electron 29; explícito para blindar el renderer
     },
     title: 'Oma — Punto de Venta',
   });
@@ -455,6 +456,21 @@ app.whenReady().then(async () => {
     });
   }
 
+  // ── Blindaje de navegación ───────────────────────────────────────
+  // Un renderer comprometido no debe poder abrir ventanas arbitrarias ni
+  // navegar fuera de la app (la SPA navega por hash, no dispara will-navigate).
+  // Cubre TODAS las webContents (ventana principal + popup de comprobante).
+  app.on('web-contents-created', (_e, contents) => {
+    contents.setWindowOpenHandler(() => ({ action: 'deny' }));
+    contents.on('will-navigate', (event, url) => {
+      const permitido = (isDev && url.startsWith(VITE_URL)) || url.startsWith('file://');
+      if (!permitido) {
+        event.preventDefault();
+        log.warn('[seguridad] navegación externa bloqueada:', url);
+      }
+    });
+  });
+
   initDatabase();
 
   // ── PRAGMA quick_check al arrancar ────────────────────────────
@@ -536,6 +552,7 @@ app.whenReady().then(async () => {
         preload: path.join(__dirname, 'preload.js'),
         contextIsolation: true,
         nodeIntegration: false,
+        sandbox: true,        // mismo blindaje que la ventana principal
       },
     });
     popup.setMenuBarVisibility(false);
