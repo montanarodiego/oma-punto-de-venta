@@ -15,7 +15,8 @@ const FiscalContext = createContext<FiscalCtx>({
 
 // Estado del "modo fiscal" persistido en la config local (clave `modo_fiscal`,
 // '1'/'0'). Se togglea desde Configuración (admin) o con Ctrl+Shift+F en cualquier
-// pantalla. Cuando está activo, la Caja emite factura C automáticamente al cobrar.
+// pantalla. Cuando está activo, la Caja emite el comprobante electrónico al cobrar
+// (Factura C si el emisor es monotributo; A/B si es responsable inscripto).
 export function FiscalProvider({ children }: { children: React.ReactNode }) {
   const { showToast } = useToast();
   const [modoFiscal, setEstado] = useState(false);

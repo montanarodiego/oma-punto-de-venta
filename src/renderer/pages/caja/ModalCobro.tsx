@@ -1,7 +1,8 @@
 import { useState, useRef, useMemo, useCallback, useEffect, forwardRef, useImperativeHandle } from 'react';
 import { AnimatePresence, motion } from 'framer-motion';
 import { useFocusTrap } from '../../hooks/useFocusTrap';
-import type { Cliente, CreateTransaccionData } from '../../types/api';
+import { useFiscal } from '../../context/FiscalContext';
+import type { Cliente, CreateTransaccionData, EmitirFiscalPayload } from '../../types/api';
 import type { Ticket } from './types';
 import { fmt } from './types';
 import { redondear } from './money';
@@ -9,6 +10,19 @@ import type { Totales } from './calculosFiscales';
 
 export interface ModalCobroHandle {
   cobrar: (conTicket: boolean) => void;
+}
+
+// Datos en vuelo del paso fiscal: lo necesario para finalizar la venta una vez que
+// AFIP responde (o el cajero decide seguir sin factura).
+interface FiscalEmision {
+  transId: number;
+  conTicket: boolean;
+  montoRec: number;
+  vuelto: number;
+  prop: number;
+  payload: EmitirFiscalPayload;
+  status: 'emitiendo' | 'error';
+  error?: string;
 }
 
 interface ModalCobroProps {
@@ -31,6 +45,7 @@ export const ModalCobro = forwardRef<ModalCobroHandle, ModalCobroProps>(function
     limpiarTicket, showToast, navigate, onVentaRegistrada },
   ref,
 ) {
+  const { modoFiscal } = useFiscal();
   const [formaPago,      setFormaPago]      = useState('efectivo');
   const [monto,          setMonto]          = useState('');
   const [cliente,        setCliente]        = useState<Cliente | null>(null);
@@ -41,6 +56,10 @@ export const ModalCobro = forwardRef<ModalCobroHandle, ModalCobroProps>(function
   const [mixtoMetodo1,   setMixtoMetodo1]   = useState('efectivo');
   const [mixtoMetodo2,   setMixtoMetodo2]   = useState('tarjeta_debito');
   const [mixtoMonto1,    setMixtoMonto1]    = useState('');
+  // Estado del paso fiscal (modo factura): mientras emite o si AFIP falla, mostramos
+  // un overlay para que el cajero decida (reintentar / registrar sin factura). La venta
+  // ya quedó guardada en SQLite antes de llegar acá, así que nada de esto la revierte.
+  const [fiscalEmision,  setFiscalEmision]  = useState<FiscalEmision | null>(null);
 
   const modalRef     = useRef<HTMLDivElement>(null);
   const timerCliente = useRef<NodeJS.Timeout | null>(null);
@@ -49,7 +68,8 @@ export const ModalCobro = forwardRef<ModalCobroHandle, ModalCobroProps>(function
   // en true y sale. cobrandoOp (estado) queda solo para el disabled visual.
   const cobrandoRef  = useRef(false);
 
-  useFocusTrap(modalRef, open, onClose);
+  // Durante el paso fiscal, Esc no cierra: el cajero debe resolver el overlay.
+  useFocusTrap(modalRef, open, fiscalEmision ? () => {} : onClose);
 
   const hayMonto   = monto !== '' && monto !== '0';
   const diferencia = useMemo(
@@ -63,8 +83,52 @@ export const ModalCobro = forwardRef<ModalCobroHandle, ModalCobroProps>(function
     [formaPago, totales.total, mixtoMonto1],
   );
 
+  // Cierra la venta: imprime, limpia el ticket, resetea el modal y avisa. Se llama
+  // tras registrar la venta (modo no fiscal) o tras resolver el paso fiscal.
+  const finalizarVenta = useCallback((
+    transId: number, conTicket: boolean, montoRec: number, vueltoCalc: number, propAmt: number,
+    sinFactura = false,
+  ) => {
+    if (conTicket) {
+      window.api.caja.abrirComprobante({ transaccionId: transId, montoRecibido: montoRec, vuelto: vueltoCalc, propina: propAmt });
+    }
+    window.api.printer.imprimir(transId, { montoRecibido: montoRec, vuelto: vueltoCalc, propina: propAmt }).catch(() => {});
+
+    limpiarTicket(activeIdx);
+    onClose();
+    setMonto('');
+    setCliente(null);
+    setBusqCliente('');
+    setMixtoMonto1('');
+    setFiscalEmision(null);
+    window.api.setModalCobro(false);
+    showToast(
+      `Venta #${transId} registrada.${conTicket ? '' : ' Sin comprobante.'}${sinFactura ? ' ⚠ Factura AFIP pendiente.' : ''}`,
+      sinFactura ? 'warning' : 'ok',
+    );
+  }, [activeIdx, limpiarTicket, onClose, showToast]);
+
+  // Intenta emitir la factura electrónica. En éxito, finaliza la venta. En error,
+  // deja el overlay en estado 'error' para que el cajero reintente o siga sin factura.
+  const emitirFiscal = useCallback(async (em: FiscalEmision) => {
+    setFiscalEmision({ ...em, status: 'emitiendo', error: undefined });
+    try {
+      const r = await window.api.facturacion.emitir(em.payload);
+      if (r.ok) {
+        const t = r.data.cbte_tipo;
+        const tipoLabel = t === 11 ? 'C' : t === 6 ? 'B' : t === 1 ? 'A' : '';
+        showToast(`Factura ${tipoLabel} #${r.data.cbte_nro} emitida (CAE ${r.data.cae}).`, 'ok');
+        finalizarVenta(em.transId, em.conTicket, em.montoRec, em.vuelto, em.prop);
+      } else {
+        setFiscalEmision({ ...em, status: 'error', error: r.error });
+      }
+    } catch (err: any) {
+      setFiscalEmision({ ...em, status: 'error', error: err?.message ?? String(err) });
+    }
+  }, [showToast, finalizarVenta]);
+
   const cobrar = useCallback(async (conTicket: boolean) => {
-    if (cobrandoRef.current) return;
+    if (cobrandoRef.current || fiscalEmision) return;
     if (!turnoActivo) { showToast('No hay turno abierto.', 'error'); navigate('/turno'); return; }
     if (ticket.carrito.length === 0) { setError('El carrito está vacío.'); return; }
 
@@ -114,32 +178,38 @@ export const ModalCobro = forwardRef<ModalCobroHandle, ModalCobroProps>(function
       const res = await window.api.transacciones.create(data);
       onVentaRegistrada(res.id);
 
-      if (conTicket) {
-        window.api.caja.abrirComprobante({ transaccionId: res.id, montoRecibido: montoRec, vuelto: vueltoCalc, propina: propAmt });
+      // Modo fiscal: emitir el comprobante electrónico. La venta YA está registrada en
+      // SQLite; el paso fiscal nunca la revierte. Si AFIP falla, el overlay deja decidir
+      // al cajero (reintentar / seguir sin factura). Los ítems van con su tasa de IVA para
+      // que el backend arme Factura C (monotributo) o A/B (resp. inscripto) según la config.
+      if (modoFiscal) {
+        const payload: EmitirFiscalPayload = {
+          transaccionId: res.id,
+          total,
+          items: ticket.carrito.map(it => ({
+            importe: redondear(it.precio * it.cantidad * (1 - it.descPct / 100)),
+            tasaIva: it.tasaIva ?? 0,
+          })),
+        };
+        // Arranca el flujo fiscal; finalizarVenta corre cuando AFIP aprueba o el cajero decide.
+        emitirFiscal({ transId: res.id, conTicket, montoRec, vuelto: vueltoCalc, prop: propAmt, payload, status: 'emitiendo' });
+        return; // el modal queda abierto mostrando el overlay fiscal
       }
-      window.api.printer.imprimir(res.id, { montoRecibido: montoRec, vuelto: vueltoCalc, propina: propAmt }).catch(() => {});
 
-      limpiarTicket(activeIdx);
-      onClose();
-      setMonto('');
-      setCliente(null);
-      setBusqCliente('');
-      setMixtoMonto1('');
-      window.api.setModalCobro(false);
-      showToast(`Venta #${res.id} registrada.${conTicket ? '' : ' Sin comprobante.'}`, 'ok');
+      finalizarVenta(res.id, conTicket, montoRec, vueltoCalc, propAmt);
     } catch (err: any) {
       setError(err.message ?? 'Error al registrar la venta.');
     } finally {
       cobrandoRef.current = false;
       setCobrandoOp(false);
     }
-  }, [turnoActivo, ticket, totales, formaPago, monto, cliente, mixtoMonto1, mixtoMetodo1, mixtoMetodo2, propina, activeIdx, limpiarTicket, onClose, showToast, navigate, onVentaRegistrada]);
+  }, [turnoActivo, ticket, totales, formaPago, monto, cliente, mixtoMonto1, mixtoMetodo1, mixtoMetodo2, propina, fiscalEmision, limpiarTicket, showToast, navigate, onVentaRegistrada, modoFiscal, emitirFiscal, finalizarVenta]);
 
   useImperativeHandle(ref, () => ({ cobrar }), [cobrar]);
 
   // Teclas 1-6 seleccionan forma de pago; Enter cobra; manejadas aquí para no contaminar Caja.tsx
   useEffect(() => {
-    if (!open) return;
+    if (!open || fiscalEmision) return; // durante el paso fiscal, el overlay maneja las teclas
     const FORMAS = ['efectivo', 'tarjeta_debito', 'tarjeta_credito', 'transferencia', 'cuenta_corriente', 'mixto'];
     const handler = (e: KeyboardEvent) => {
       const tag = (document.activeElement as HTMLElement)?.tagName.toLowerCase();
@@ -152,7 +222,7 @@ export const ModalCobro = forwardRef<ModalCobroHandle, ModalCobroProps>(function
     };
     document.addEventListener('keydown', handler, true);
     return () => document.removeEventListener('keydown', handler, true);
-  }, [open, cobrar]);
+  }, [open, cobrar, fiscalEmision]);
 
   return (
     <AnimatePresence>
@@ -164,9 +234,38 @@ export const ModalCobro = forwardRef<ModalCobroHandle, ModalCobroProps>(function
           <motion.div
             ref={modalRef}
             data-modal
-            className="bg-surface border border-border rounded-[var(--r-card)] shadow-[var(--shadow-lg)] w-[700px] max-w-[98vw] max-h-[96vh] flex overflow-hidden"
+            className="relative bg-surface border border-border rounded-[var(--r-card)] shadow-[var(--shadow-lg)] w-[700px] max-w-[98vw] max-h-[96vh] flex overflow-hidden"
             initial={{ scale: 0.95, y: 10 }} animate={{ scale: 1, y: 0 }} exit={{ scale: 0.95, y: 10 }}
           >
+            {/* Overlay del paso fiscal (modo factura): emitiendo o decisión ante fallo de AFIP */}
+            {fiscalEmision && (
+              <div className="absolute inset-0 z-10 bg-surface/95 backdrop-blur-sm flex flex-col items-center justify-center p-8 text-center gap-5">
+                {fiscalEmision.status === 'emitiendo' ? (
+                  <>
+                    <div className="w-12 h-12 rounded-full border-4 border-border border-t-accent animate-spin" />
+                    <div className="text-[15px] font-semibold text-text">Emitiendo factura electrónica…</div>
+                    <div className="text-[12px] text-text-muted">Solicitando CAE a ARCA/AFIP. No cierres la ventana.</div>
+                  </>
+                ) : (
+                  <>
+                    <svg width="44" height="44" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" className="text-danger"><path d="M10.29 3.86 1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>
+                    <div className="text-[15px] font-bold text-text">La factura AFIP no se pudo emitir</div>
+                    <div className="text-[12px] text-text-muted max-w-[460px] max-h-[120px] overflow-y-auto bg-bg border border-border rounded-[var(--r-in)] px-3 py-2">{fiscalEmision.error}</div>
+                    <div className="text-[12px] text-text-subtle">La venta <strong className="text-text">#{fiscalEmision.transId} ya quedó registrada</strong>. Podés reintentar o seguir sin factura (queda pendiente para reintentar después).</div>
+                    <div className="flex gap-3 mt-1">
+                      <button
+                        onClick={() => emitirFiscal(fiscalEmision)}
+                        className="px-5 py-2.5 rounded-[var(--r)] bg-accent hover:bg-accent-hover text-white font-semibold text-[13px] transition-colors"
+                      >Reintentar</button>
+                      <button
+                        onClick={() => finalizarVenta(fiscalEmision.transId, fiscalEmision.conTicket, fiscalEmision.montoRec, fiscalEmision.vuelto, fiscalEmision.prop, true)}
+                        className="px-5 py-2.5 rounded-[var(--r)] bg-surface-2 hover:bg-surface-3 border border-border text-text font-semibold text-[13px] transition-colors"
+                      >Registrar sin factura</button>
+                    </div>
+                  </>
+                )}
+              </div>
+            )}
             {/* Columna izquierda */}
             <div className="flex-1 flex flex-col overflow-y-auto p-5 gap-4 border-r border-border">
               {/* Total */}
