@@ -3,7 +3,7 @@ import { Navigate, useNavigate, useLocation } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useSession } from '../context/SessionContext';
 
-type View = 'local' | 'firebase' | 'reset-email' | 'reset-code' | 'reset-pass';
+type View = 'local' | 'firebase' | 'reset-email' | 'reset-code' | 'reset-pass' | 'recuperar-admin';
 
 export default function Login() {
   const { session, setSession } = useSession();
@@ -27,6 +27,13 @@ export default function Login() {
   const [resetCodigo, setResetCodigo] = useState('');
   const [resetPass, setResetPass] = useState('');
   const [resetPass2, setResetPass2] = useState('');
+
+  // recuperación de admin (doble factor: licenseKey + clave de recuperación)
+  const [recLicense, setRecLicense] = useState('');
+  const [recCodigo, setRecCodigo]   = useState('');
+  const [recUsuario, setRecUsuario] = useState('');
+  const [recPass, setRecPass]       = useState('');
+  const [recPass2, setRecPass2]     = useState('');
 
   const inputRef = useRef<HTMLInputElement>(null);
   useEffect(() => { setTimeout(() => inputRef.current?.focus(), 100); }, [view]);
@@ -97,6 +104,25 @@ export default function Login() {
     } finally { setLoading(false); }
   }
 
+  async function handleRecuperarAdmin(e: React.FormEvent) {
+    e.preventDefault();
+    if (recPass !== recPass2) { setError('Las contraseñas no coinciden.'); return; }
+    if (recPass.length < 4) { setError('La nueva contraseña debe tener al menos 4 caracteres.'); return; }
+    setError(''); setLoading(true);
+    try {
+      const res = await window.api.auth.recuperarAdmin({
+        licenseKey: recLicense.trim(), codigo: recCodigo.trim(), usuario: recUsuario.trim(), nuevaPassword: recPass,
+      });
+      if (res.ok) {
+        setRecLicense(''); setRecCodigo(''); setRecPass(''); setRecPass2('');
+        setSuccess('Acceso de administrador restablecido. Ingresá con tu nueva contraseña.');
+        setView('local');
+      } else setError(res.error ?? 'No se pudo recuperar el acceso.');
+    } catch (err: any) {
+      setError(err.message ?? 'Error al recuperar el acceso.');
+    } finally { setLoading(false); }
+  }
+
   return (
     <div className="fixed inset-0 bg-bg flex items-center justify-center p-6">
       {/* Background gradient */}
@@ -125,6 +151,7 @@ export default function Login() {
                 {view === 'reset-email'&& 'Recuperar contraseña'}
                 {view === 'reset-code' && 'Ingresar código de verificación'}
                 {view === 'reset-pass' && 'Nueva contraseña'}
+                {view === 'recuperar-admin' && 'Recuperar acceso de administrador'}
               </p>
             </div>
           </div>
@@ -197,8 +224,48 @@ export default function Login() {
                 <button type="submit" disabled={loading} className="btn btn-primary w-full py-2.5 text-sm font-semibold mt-1">
                   {loading ? 'Enviando…' : 'Enviar código'}
                 </button>
+                <div className="flex justify-between text-[11px]">
+                  <button type="button" className="text-text-subtle hover:text-accent transition-colors" onClick={() => { setView('local'); setError(''); setSuccess(''); }}>
+                    ← Cancelar
+                  </button>
+                  <button type="button" className="text-text-subtle hover:text-accent transition-colors" onClick={() => { setView('recuperar-admin'); setError(''); setSuccess(''); }}>
+                    Sin acceso al email →
+                  </button>
+                </div>
+              </form>
+            )}
+
+            {/* ── Recuperar acceso de administrador (sin email) ── */}
+            {view === 'recuperar-admin' && (
+              <form onSubmit={handleRecuperarAdmin} className="flex flex-col gap-4">
+                <div className="px-3 py-2.5 rounded-[var(--r-in)] bg-[rgba(245,158,11,.08)] border border-[rgba(245,158,11,.2)] text-[#fcd34d] text-[11px] leading-relaxed">
+                  Para recuperar el acceso necesitás <strong>la clave de licencia</strong> (te la da OmaTech) <strong>y tu clave de recuperación de dueño</strong> (la que guardaste al configurar). Las dos son necesarias.
+                </div>
+                <div className="field">
+                  <label className="field-label">Clave de licencia</label>
+                  <input ref={inputRef} className="inp font-mono text-[12px]" value={recLicense} onChange={e => setRecLicense(e.target.value)} placeholder="OMA-XXXX-XXXX-…" autoComplete="off" required />
+                </div>
+                <div className="field">
+                  <label className="field-label">Clave de recuperación de dueño</label>
+                  <input className="inp font-mono text-[12px]" value={recCodigo} onChange={e => setRecCodigo(e.target.value)} placeholder="OMA-REC-XXXX-XXXX" autoComplete="off" required />
+                </div>
+                <div className="field">
+                  <label className="field-label">Usuario admin a restablecer</label>
+                  <input className="inp" value={recUsuario} onChange={e => setRecUsuario(e.target.value)} placeholder="admin" autoComplete="off" required />
+                </div>
+                <div className="field">
+                  <label className="field-label">Nueva contraseña</label>
+                  <input className="inp" type="password" value={recPass} onChange={e => setRecPass(e.target.value)} placeholder="••••••••" autoComplete="new-password" required />
+                </div>
+                <div className="field">
+                  <label className="field-label">Repetir contraseña</label>
+                  <input className="inp" type="password" value={recPass2} onChange={e => setRecPass2(e.target.value)} placeholder="••••••••" autoComplete="new-password" required />
+                </div>
+                <button type="submit" disabled={loading} className="btn btn-primary w-full py-2.5 text-sm font-semibold mt-1">
+                  {loading ? 'Verificando…' : 'Restablecer acceso'}
+                </button>
                 <button type="button" className="text-[11px] text-text-subtle hover:text-accent transition-colors" onClick={() => { setView('local'); setError(''); setSuccess(''); }}>
-                  ← Cancelar
+                  ← Volver al login
                 </button>
               </form>
             )}

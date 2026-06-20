@@ -849,11 +849,16 @@ declare global {
         solicitarReset:   (email: string) => Promise<{ ok: boolean; error?: string }>;
         verificarCodigo:  (email: string, codigo: string) => Promise<{ ok: boolean; error?: string }>;
         resetearPassword: (email: string, codigo: string, password: string) => Promise<{ ok: boolean; error?: string }>;
+        recuperarAdmin:   (datos: { licenseKey: string; codigo: string; usuario: string; nuevaPassword: string }) => Promise<{ ok: boolean; error?: string }>;
         estadoSync:       () => Promise<{ activa: boolean; firebaseConectado: boolean; ultimaSync: number | null }>;
       };
       licencia: {
         estado:  () => Promise<{ activado: boolean }>;
         activar: (key: string) => Promise<{ ok: boolean; error?: string }>;
+      };
+      recovery: {
+        estado:  () => Promise<{ ok: true; data: { tiene: boolean } } | { ok: false; error: string }>;
+        generar: () => Promise<{ ok: true; data: { codigo: string } } | { ok: false; error: string }>;
       };
       facturacion: {
         estado:  () => Promise<{ ok: true; data: AfipServerStatus } | { ok: false; error: string }>;

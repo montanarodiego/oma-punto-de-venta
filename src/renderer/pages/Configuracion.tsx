@@ -116,6 +116,11 @@ export default function Configuracion() {
   const [uError, setUError]           = useState('');
   const [uSaving, setUSaving]         = useState(false);
 
+  // Clave de recuperación de dueño (segundo factor para recuperar el admin)
+  const [recoveryTiene, setRecoveryTiene]   = useState<boolean | null>(null);
+  const [recoveryCodigo, setRecoveryCodigo] = useState<string | null>(null);
+  const [recoveryGen, setRecoveryGen]       = useState(false);
+
   // Log de actividad (solo admin)
   const [actividad, setActividad]     = useState<ActividadLog[]>([]);
   const [actFiltro, setActFiltro]     = useState('');
@@ -150,7 +155,26 @@ export default function Configuracion() {
     cargarBackups();
     cargarImpresoras();
     cargarReporte();
-    if (esAdmin) { cargarUsuarios(); cargarActividad(); }
+    if (esAdmin) { cargarUsuarios(); cargarActividad(); cargarRecovery(); }
+  }
+
+  async function cargarRecovery() {
+    try {
+      const r = await window.api.recovery.estado();
+      if (r.ok) setRecoveryTiene(r.data.tiene);
+    } catch { /* silencioso */ }
+  }
+
+  async function generarRecovery() {
+    if (recoveryTiene && !window.confirm('Esto invalida la clave de recuperación anterior. ¿Generar una nueva?')) return;
+    setRecoveryGen(true);
+    try {
+      const r = await window.api.recovery.generar();
+      if (r.ok) { setRecoveryCodigo(r.data.codigo); setRecoveryTiene(true); }
+      else showToast(r.error ?? 'No se pudo generar la clave.', 'error');
+    } catch (err: any) {
+      showToast(err.message ?? 'No se pudo generar la clave.', 'error');
+    } finally { setRecoveryGen(false); }
   }
 
   async function cargarActividad() {
@@ -688,6 +712,45 @@ export default function Configuracion() {
                     )}
                   </div>
                 ))}
+              </CardBody>
+            </Card>
+            </motion.div>
+          )}
+
+          {/* ── Clave de recuperación de dueño (solo admin) ── */}
+          {esAdmin && (
+            <motion.div initial={{ opacity:0, y:8 }} animate={{ opacity:1, y:0 }} transition={{ delay:0.26 }}>
+            <Card>
+              <CardHeader actions={
+                <Button variant={recoveryTiene ? 'ghost' : 'primary'} size="sm" disabled={recoveryGen} onClick={generarRecovery}>
+                  {recoveryGen ? 'Generando…' : recoveryTiene ? 'Regenerar' : 'Generar clave'}
+                </Button>
+              }>Clave de recuperación de dueño</CardHeader>
+              <CardBody>
+                <p className="text-[12px] text-text-muted leading-relaxed">
+                  Segundo factor para recuperar el acceso de administrador si olvidás tu contraseña y no tenés email.
+                  Se exige junto con la clave de licencia. Guardala en un lugar seguro y <strong className="text-text">no la compartas con empleados</strong>.
+                </p>
+                <div className="mt-3 flex items-center gap-2">
+                  {recoveryTiene === null ? (
+                    <Badge variant="gray">Cargando…</Badge>
+                  ) : recoveryTiene ? (
+                    <Badge variant="green">Configurada</Badge>
+                  ) : (
+                    <Badge variant="yellow">Sin configurar — generá una ahora</Badge>
+                  )}
+                </div>
+
+                {recoveryCodigo && (
+                  <div className="mt-4 bg-bg border-2 border-dashed border-warning/50 rounded-[var(--r-in)] py-4 px-3 text-center">
+                    <div className="text-[10px] font-semibold uppercase tracking-widest text-text-muted mb-2">Anotala ahora — no se vuelve a mostrar</div>
+                    <div className="text-[22px] font-black font-mono text-warning tracking-wider select-all break-all">{recoveryCodigo}</div>
+                    <div className="flex justify-center gap-2 mt-3">
+                      <Button size="sm" variant="ghost" onClick={() => navigator.clipboard?.writeText(recoveryCodigo).catch(() => {})}>Copiar</Button>
+                      <Button size="sm" variant="ghost" onClick={() => setRecoveryCodigo(null)}>Ya la guardé</Button>
+                    </div>
+                  </div>
+                )}
               </CardBody>
             </Card>
             </motion.div>

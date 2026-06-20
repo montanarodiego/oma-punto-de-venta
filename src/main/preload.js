@@ -191,6 +191,7 @@ contextBridge.exposeInMainWorld('api', {
     solicitarReset:   (email)                    => ipcRenderer.invoke('auth:solicitarReset', email),
     verificarCodigo:  (email, codigo)            => ipcRenderer.invoke('auth:verificarCodigo', email, codigo),
     resetearPassword: (email, codigo, password)  => ipcRenderer.invoke('auth:resetearPassword', email, codigo, password),
+    recuperarAdmin:   (datos)                    => ipcRenderer.invoke('auth:recuperarAdmin', datos),
     estadoSync:       ()                         => ipcRenderer.invoke('auth:estadoSync'),
   },
 
@@ -198,6 +199,12 @@ contextBridge.exposeInMainWorld('api', {
   licencia: {
     estado:  ()    => ipcRenderer.invoke('licencia:estado'),
     activar: (key) => ipcRenderer.invoke('licencia:activar', key),
+  },
+
+  // Clave de recuperación de dueño (segundo factor para recuperar el admin)
+  recovery: {
+    estado:  () => ipcRenderer.invoke('recovery:estado'),
+    generar: () => ipcRenderer.invoke('recovery:generar'),
   },
 
   // Facturación electrónica (ARCA/AFIP)

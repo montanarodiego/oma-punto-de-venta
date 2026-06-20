@@ -59,4 +59,18 @@ function toggleActivo(id) {
     .run(id);
 }
 
-module.exports = { login, listar, crear, actualizar, toggleActivo };
+// Restablece la contraseña de un administrador activo por nombre de usuario.
+// Lo usa la recuperación de acceso (auth:recuperarAdmin) tras validar los dos
+// factores. Devuelve false si no hay un admin activo con ese usuario.
+function resetPasswordAdmin(usuario, nuevaPassword) {
+  const db = getDb();
+  const u = db.prepare(
+    "SELECT id FROM usuarios WHERE LOWER(usuario) = LOWER(?) AND rol = 'admin' AND activo = 1"
+  ).get((usuario ?? '').trim());
+  if (!u) return false;
+  db.prepare('UPDATE usuarios SET password_hash = ? WHERE id = ?')
+    .run(bcrypt.hashSync(nuevaPassword, 10), u.id);
+  return true;
+}
+
+module.exports = { login, listar, crear, actualizar, toggleActivo, resetPasswordAdmin };

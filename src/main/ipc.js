@@ -3,9 +3,12 @@ const log            = require('electron-log');
 const path           = require('path');
 const fs             = require('fs');
 const os             = require('os');
+const crypto         = require('crypto');
 const { version }    = require('../../package.json');
-const { enviarReporte, enviarCodigoReset, enviarCorte } = require('./mailer');
+const { enviarReporte, enviarCodigoReset, enviarCorte, hayCredenciales } = require('./mailer');
+const { leerLicenseKey } = require('./activacion');
 const PasswordReset  = require('./models/password-reset');
+const Recovery       = require('./models/recovery');
 const Usuarios       = require('./models/usuarios');
 const Articulos      = require('./models/articulos');
 const Transacciones  = require('./models/transacciones');
@@ -327,6 +330,11 @@ function registerHandlers() {
   ipcMain.handle('auth:solicitarReset', async (_e, email) => {
     try {
       if (!email || !email.trim()) return { ok: false, error: 'Ingresá tu email.' };
+      // Degradación limpia si el envío de mail no está configurado en este build:
+      // en vez de un error críptico de SMTP, dirigimos a la recuperación de dueño.
+      if (!hayCredenciales()) {
+        return { ok: false, error: 'El reset por email no está disponible en esta instalación. Pedile a un administrador que restablezca tu contraseña, o usá "Recuperar acceso de administrador" con tu clave de licencia y tu clave de recuperación.' };
+      }
       const usuario = PasswordReset.buscarPorEmail(email);
       // POS local de un solo dueño: avisar honestamente si el email no está
       // registrado evita el callejón sin salida de "Código enviado" que nunca llega.
@@ -339,6 +347,49 @@ function registerHandlers() {
     } catch (err) {
       return { ok: false, error: err.message };
     }
+  });
+
+  // ── Recuperación de acceso de administrador (sin email) ───────────
+  // Doble factor: licenseKey (vendor-tied) + clave de recuperación de dueño.
+  // Sin sesión: el admin está bloqueado, por eso NO lleva onlyAdmin; el control
+  // de acceso son los dos secretos.
+  ipcMain.handle('auth:recuperarAdmin', (_e, datos) => {
+    try {
+      const { licenseKey, codigo, usuario, nuevaPassword } = datos || {};
+      const real = leerLicenseKey();
+      if (!real) return { ok: false, error: 'Esta instalación no tiene una licencia activada; no se puede recuperar por este medio. Contactá a OmaTech.' };
+      if (!Recovery.tiene()) return { ok: false, error: 'Esta instalación no tiene una clave de recuperación configurada. Pedile a un administrador con sesión que la genere desde Configuración, o contactá a OmaTech.' };
+
+      // Verificar SIEMPRE ambos factores (sin cortar antes) para no filtrar por timing cuál falló.
+      const a = Buffer.from(String(licenseKey || '').trim());
+      const b = Buffer.from(String(real));
+      const okLic = a.length === b.length && crypto.timingSafeEqual(a, b);
+      const okCod = Recovery.verificar(codigo);
+      if (!okLic || !okCod) return { ok: false, error: 'Clave de licencia o clave de recuperación incorrecta.' };
+
+      if (!nuevaPassword || String(nuevaPassword).length < 4) {
+        return { ok: false, error: 'La nueva contraseña debe tener al menos 4 caracteres.' };
+      }
+      const ok = Usuarios.resetPasswordAdmin(usuario, nuevaPassword);
+      if (!ok) return { ok: false, error: 'No existe un administrador activo con ese usuario.' };
+
+      log.warn(`[seguridad] recuperación de acceso de administrador para usuario "${String(usuario).trim()}" (doble factor OK).`);
+      return { ok: true };
+    } catch (err) {
+      return { ok: false, error: err.message };
+    }
+  });
+
+  // ── Clave de recuperación de dueño (generar/estado) — solo admin ──
+  ipcMain.handle('recovery:estado', () => {
+    onlyAdmin();
+    try { return { ok: true, data: { tiene: Recovery.tiene() } }; }
+    catch (err) { return { ok: false, error: err.message }; }
+  });
+  ipcMain.handle('recovery:generar', () => {
+    onlyAdmin();
+    try { return { ok: true, data: { codigo: Recovery.generar() } }; }
+    catch (err) { return { ok: false, error: err.message }; }
   });
 
   ipcMain.handle('auth:verificarCodigo', (_e, email, codigo) => {
@@ -712,6 +763,9 @@ function registerHandlers() {
   // ── Soporte / Reportar problema ───────────────────────────────
   ipcMain.handle('soporte:enviarReporte', async (_e, datos) => {
     try {
+      if (!hayCredenciales()) {
+        return { ok: false, error: 'El envío de reportes no está disponible en esta instalación. Escribinos directamente a oma.technologies.venta@gmail.com.' };
+      }
       const db = getDb();
       const row = db.prepare("SELECT valor FROM configuracion WHERE clave = 'nombre_negocio'").get();
       const negocio = row ? row.valor : null;

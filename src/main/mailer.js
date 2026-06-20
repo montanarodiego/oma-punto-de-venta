@@ -1,6 +1,14 @@
 const nodemailer   = require('nodemailer');
 const credentials  = require('./credentials');
 
+// ¿Hay credenciales de envío de mail en este build? Si no (p. ej. builds que no
+// empaquetan GMAIL_* por seguridad), las features de mail degradan con un aviso
+// claro en vez de tirar un error críptico de SMTP. Las rutas críticas (ventas,
+// stock, facturación) NO dependen de esto.
+function hayCredenciales() {
+  return !!(credentials.GMAIL_USER && credentials.GMAIL_APP_PASSWORD);
+}
+
 const transporter = nodemailer.createTransport({
   service: 'gmail',
   auth: {
@@ -108,4 +116,4 @@ async function enviarCorte({ emailDestino, resumen, negocioNombre, operadorNombr
   });
 }
 
-module.exports = { enviarReporte, enviarCodigoReset, enviarCorte };
+module.exports = { enviarReporte, enviarCodigoReset, enviarCorte, hayCredenciales };
