@@ -5,8 +5,8 @@
   "author": "OmaTech",
   "main": "src/main/main.js",
   "scripts": {
-    "start": "concurrently \"vite\" \"wait-on http://localhost:5173 && electron .\"",
-    "dev": "concurrently \"vite\" \"wait-on http://localhost:5173 && electron .\"",
+    "start": "concurrently \"vite\" \"wait-on http://localhost:5180 && electron .\"",
+    "dev": "concurrently \"vite\" \"wait-on http://localhost:5180 && electron .\"",
     "rebuild": "electron-rebuild -f -w better-sqlite3",
     "build:renderer": "vite build",
     "dist": "npm run build:renderer && electron-builder --win",

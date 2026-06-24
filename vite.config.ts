@@ -10,7 +10,7 @@ export default defineConfig({
     alias: { '@': path.resolve(__dirname, 'src/renderer') },
   },
   server: {
-    port: 5173,
+    port: 5180,
     strictPort: true,
   },
   build: {

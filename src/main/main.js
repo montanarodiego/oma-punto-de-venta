@@ -118,7 +118,7 @@ function createMenu() {
 }
 
 const isDev = !app.isPackaged;
-const VITE_URL = 'http://localhost:5173';
+const VITE_URL = 'http://localhost:5180';
 
 // ── Ventana principal ──────────────────────────────────────────
 function createWindow() {
