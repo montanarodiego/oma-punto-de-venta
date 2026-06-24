@@ -51,59 +51,14 @@ Al publicar el release, los clientes con la app abierta recibirán la notificaci
 
 ## Activar un cliente nuevo
 
-### Paso 1: Crear cuenta en Firebase
-
-1. Ir a [Firebase Console](https://console.firebase.google.com) → proyecto OmaTech
-2. Authentication → Users → Add user
-3. Anotar el `UID` del usuario creado — ese es el `negocioId`
-
-### Paso 2: Crear documento de licencia en Firestore
-
-En Firestore, crear el documento `negocios/{UID}` con:
-
-```json
-{
-  "licencia": {
-    "activa": true,
-    "vencimiento": <Timestamp de fecha de vencimiento>
-  }
-}
-```
-
-### Paso 3: Entregar oma-creds.json
-
-El cliente necesita el archivo `oma-creds.json` en la raíz de instalación con las credenciales Firebase:
-
-```json
-{
-  "apiKey": "...",
-  "authDomain": "...",
-  "projectId": "...",
-  "storageBucket": "...",
-  "messagingSenderId": "...",
-  "appId": "..."
-}
-```
-
-> Este archivo se incluye en el instalador vía `extraResources` en `package.json`. Se copia a `resources/oma-creds.json` dentro del ASAR.
-
-### Paso 4: Primera instalación
-
-El cliente instala el `.exe`. Al abrir la app por primera vez:
-1. Ingresar email y contraseña de Firebase → verifica licencia
-2. Si la licencia es válida, se guarda el token offline en `%APPDATA%\oma-punto-de-venta\license.json`
-3. Se crea el usuario local admin con el wizard de primer uso
-4. A partir de ahí, la app funciona con login local (no necesita internet para operar)
-
----
-
-## Renovar o suspender una licencia
-
-### Renovar
-En Firestore, actualizar `negocios/{UID}.licencia.vencimiento` con la nueva fecha.
-
-### Suspender
-En Firestore, actualizar `negocios/{UID}.licencia.activa = false`. La app cerrará con dialog informativo en la próxima verificación (máximo 30 minutos).
+> ⚠️ **Movido.** El alta de cliente y la renovación/suspensión de licencias viven ahora
+> en un único runbook: **[ALTA-CLIENTE.md](ALTA-CLIENTE.md)**.
+>
+> El modelo cambió: la activación es por **`licenseKey` en pantalla** (custom token
+> scopeado al negocio), **no** por email/contraseña de Firebase ni con la config de
+> Firebase horneada en `oma-creds.json`. Ese flujo viejo quedó obsoleto y se removió de
+> acá para no inducir a error. Para alta, renovar, suspender y onboarding fiscal, ver
+> [ALTA-CLIENTE.md](ALTA-CLIENTE.md).
 
 ---
 

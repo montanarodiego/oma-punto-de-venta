@@ -83,6 +83,7 @@ docs/                      # Documentación técnica
   handoff.md               # Estado actual + traspaso (LEER PRIMERO)
   arquitectura.md          # Arquitectura del sistema y módulos
   deploy.md                # Proceso de release y operaciones
+  ALTA-CLIENTE.md          # Runbook de onboarding de cliente nuevo (alta → activación → fiscal)
 ```
 
 ---
