@@ -1,0 +1,8 @@
+{
+  "projects": {
+    "omatechpos": "omatechpos",
+    "default": "omatechpos"
+  },
+  "targets": {},
+  "etags": {}
+}
