@@ -19,3 +19,6 @@ wsaa-ta-*.json
 
 # Ajustes locales de Claude Code (personales, pueden contener secretos)
 .claude/settings.local.json
+
+# Notas operativas privadas (solo local, nunca commitear)
+_privado/
