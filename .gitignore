@@ -16,3 +16,6 @@ private.key
 VARIABLES-ENV.txt
 # Cache de Ticket de Acceso WSAA (contiene token+sign vigentes)
 wsaa-ta-*.json
+
+# Ajustes locales de Claude Code (personales, pueden contener secretos)
+.claude/settings.local.json
