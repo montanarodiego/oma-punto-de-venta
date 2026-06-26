@@ -1,5 +1,15 @@
 require('dotenv').config();
 const { app, BrowserWindow, Menu, ipcMain, dialog, globalShortcut, session } = require('electron');
+
+// Carpeta userData separada entre el .exe instalado y el entorno de dev.
+// Sin esto, ambos usan el `name` de package.json ("oma-punto-de-venta") y comparten
+// %APPDATA%\oma-punto-de-venta\oma-pos.db, pisándose la base mutuamente. En el build
+// empaquetado forzamos un nombre propio → producción lee de %APPDATA%\OmaTech POS\;
+// en dev (no empaquetado) se mantiene "oma-punto-de-venta". DEBE ir antes de cualquier
+// app.getPath('userData') (DB, backups, licencia, salt, fiscal): los módulos de abajo
+// solo lo acceden de forma diferida (en app-ready), así que este es el punto correcto.
+if (app.isPackaged) app.setName('OmaTech POS');
+
 const { autoUpdater } = require('electron-updater');
 const path = require('path');
 const { initDatabase, getDb } = require('./database');

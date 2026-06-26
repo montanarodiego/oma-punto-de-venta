@@ -1,6 +1,6 @@
 {
   "name": "oma-punto-de-venta",
-  "version": "2.3.1",
+  "version": "2.3.4",
   "description": "Sistema POS híbrido offline/online para Oma",
   "author": "OmaTech",
   "main": "src/main/main.js",
@@ -18,6 +18,7 @@
   },
   "dependencies": {
     "@tanstack/react-virtual": "^3.14.2",
+    "axios": "^1.17.0",
     "bcryptjs": "^2.4.3",
     "better-sqlite3": "^9.4.3",
     "chart.js": "^4.5.1",
